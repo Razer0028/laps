@@ -1,0 +1,2901 @@
+/* Hallmark · shape: app screen · posture: restrained · nav: left list · footer: none · theme: by request (owner: charcoal and white glass, spectrum red and blue, 2026-11-17) */
+/* BLACKWALL Console — 赤と黒・チャット型
+ *
+ * 色は2つしか使わない: 黒（面）と赤（注意）。赤は「いま効いているもの」と
+ * 「裏付けが無い／取り返しがつかない」にだけ置く。撒くと意味が消える。
+ * グラデーション無し・グロー無し。奥行きは面の明度差と hairline だけ。
+ * 動くのは開閉と留め具の出現のみ。transform/opacity・180ms。
+ */
+
+:root{
+  /* 黒は純黒にしない。赤に寄せた暖かい暗色＝選んだ黒。 */
+  --bg:#131011; --bg-2:#1A1516; --bg-3:#221B1D; --bg-4:#2A2224;
+  --line:#2C2325; --line-2:#3A3032;
+  --text:#EAE4E3; --text-2:#A69C9B;
+  /* ★赤は役割で2つに割る（2026-08-28・UI 監査）。
+     --red は**形**（線・点・枠・背景）用で 3:1 判定。
+     --red-text は**文字**用で 4.5:1 判定＝失敗の本文がいちばん読みたい文字なのに、
+     --red(#D0342C) は --bg で 3.79:1 / --bg-2 で 3.59:1 と AA をどこでも通らなかった。
+     #E8635C は同色相・彩度だけ下げた版で 5.74 / 5.44:1。第3の色ではない。
+     ★2026-09-02 追記: **この分割は 08-28 に宣言されたが、置き換えたのは 6 か所中 2 か所だけ**
+       （.ctx.is-warn と .wf__meta）。残り 4 か所は --red のまま文字を描いていた。
+       いちばん重いのは `.tool.is-bad .tool__state`＝**失敗した道具の結果行**で、
+       ベンチ4走行（09-01〜09-02）の道具 4,380 回のうち **542 回（12.4%）がこの行**
+       （ok=false 522・summary.status=timeout 20）。「いちばん読みたい文字が
+       いちばん読めない」が、宣言のあとも 5 日間そのまま残っていた。
+       ⚠ 最悪面は差分の削除行（--red-dim #3D1817 の上）で **3.14:1**。--red-text で 4.75。
+       1件見つけたら兄弟を探すこと——**規則を書くことと、規則を全部に当てることは別**。 */
+  --red-text:#E8635C;
+  /* ★--text-3 は**失敗を読み解く面**が全部使っている色（診断・注記・所要秒・
+     引用の出所）。旧 #6E6362 は 4面で 2.68〜3.27:1 ＝ AA(4.5) を**どこでも通らない**。
+     いちばん読みたいときに、いちばん読めない色になっていた（2026-08-18 UI 敵対レビュー）。
+     ★実測して決めた: レビューの提案 #8E8280 でも bg-4 上は 4.18:1 で落ちる。
+     色相（暖かい灰）を保ったまま明度だけ上げ、4面の最悪値が 4.51:1 になる値にした。 */
+  --text-3:#968786;
+  --red:#D0342C; --red-2:#8E241E;
+  /* ★#3D1817 は color-mix(in srgb, #D0342C 22%, #131011) を計算した値。
+     色を変えたのではなく、**書き方**を変えた。
+     理由: 「ログを送る」の撮影に使う html2canvas 1.4.1 が color-mix() を解釈できず、
+     `Attempting to parse an unsupported color function "color"` で撮影ごと落ちた（実機 2026-08-14）。
+     撮影は不具合を見るための道具なので、**撮影を壊す書き方をこの CSS に置かない**。 */
+  --red-dim:#3D1817;
+  --ok:#6E8A7C;                                   /* 状態の色。アクセントとは別。★形（点・玉・帯）用。 */
+  /* ★2026-09-02。赤で 08-28 にやったことを緑にも入れる（同じ理由・同じ形）。
+     実測（この面の実値。差分の行は背景を合成してから測った）:
+       --ok #6E8A7C … --bg 5.04 / --bg-2 4.81 / --bg-3 4.50 / --bg-4 4.13 /
+                      差分の追加行 3.82（束の中では 3.61）＝**最悪 3.61:1 で AA 割れ**
+       --ok-text #849D90 … 最悪 4.65:1（色相・彩度は同じ。明度だけ上げた。第3の色ではない）
+     ⚠ 「--ok は 4.00:1」という手元の申し送りは面の取り違えで、正しくは
+        **面ごとに 3.61〜5.04**。--bg の上では元から AA を通っている。
+     ★差分の追加行が最悪なのは、背景 rgba(110,138,124,.22) が緑側に寄って
+       前景との差を食うため。合成後の色で測らないと気づけない。 */
+  --ok-text:#849D90;
+
+  --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px; --s6:32px; --s7:48px;
+  --r:4px; --r-lg:6px;             /* ★2026-10-08 角を立てた（サイバーパンクの Blackwall の HUD・旧 6/12） */
+  --hud:rgba(208,52,44,.7);        /* HUD の角の目印（線だけ・面は塗らない） */
+  --h-title:40px;                  /* 窓の帯の高さ */
+  --f-plate:"Saira Condensed","Arial Narrow","Segoe UI",sans-serif;
+  --f-body:"IBM Plex Sans JP","IBM Plex Sans","Segoe UI",system-ui,sans-serif;
+  --f-mono:"IBM Plex Mono","Cascadia Mono",Consolas,monospace;
+  --side:260px; --drawer:380px; --col:46rem;
+  /* ★2026-10-06 仕上げ（オーナー「アプリ自体の UI/UX も美麗で本格的に」）。
+     部品の高さを 2 段に揃える（今まで入力欄 44px・ボタン 40px・札 26px がばらばらだった）。 */
+  --h-ctl:34px; --h-sm:30px;
+  /* 浮かせる物（入力欄・一覧の窓）の影。★色は rgba で書く（color-mix は html2canvas が落ちる）。 */
+  --shadow-pop:0 10px 30px rgba(0,0,0,.38), 0 1px 3px rgba(0,0,0,.3);
+  /* 2026-11-15 sloplint: 規則の中に直書きしていた色を変数へ（値は前と同じ・赤の上の白だけ赤へ少し寄せた）。 */
+  --on-red:#FFF5F4;        /* 赤い面の上の字 */
+  --sel:#5A2420;           /* 選んだ字の背景 */
+  --bg-0:#0D0A0B;          /* 地より一段沈めた面（命令の欄） */
+  --plot:#BFB1AF;          /* 計器の線 */
+  --stop-line:#7C6F70;     /* 止めるボタンの枠 */
+  --amber:var(--amber);         /* 声の会話の「見ている」印 */
+}
+
+*,*::before,*::after{ box-sizing:border-box; }
+html{ color-scheme:dark; }
+html,body{ height:100%; }
+body{
+  margin:0; background:var(--bg); color:var(--text);
+  font:400 15px/1.7 var(--f-body); overflow:hidden;
+  display:flex; flex-direction:column;          /* ★.app は「残り全部」。上に帯が 1 本入っても下が切れない */
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3{ margin:0; text-wrap:balance; }
+p{ margin:0; text-wrap:pretty; }
+button,input,textarea{ font:inherit; color:inherit; }
+:focus-visible{ outline:2px solid var(--red); outline-offset:2px; }
+.num{ font-family:var(--f-mono); font-variant-numeric:tabular-nums; }
+/* 選択とスクロールバーも暗い面に馴染ませる（既定の水色と白い溝が、この画面でいちばん浮いていた）。 */
+::selection{ background:var(--sel); color:var(--text); }
+*{ scrollbar-width:thin; scrollbar-color:var(--line-2) transparent; }
+::-webkit-scrollbar{ width:10px; height:10px; }
+::-webkit-scrollbar-thumb{ background:var(--line-2); border-radius:8px; border:2px solid transparent; background-clip:padding-box; }
+::-webkit-scrollbar-thumb:hover{ background:var(--text-3); border:2px solid transparent; background-clip:padding-box; }
+::-webkit-scrollbar-track, ::-webkit-scrollbar-corner{ background:transparent; }
+
+/* ★幅をアニメーションしない（規範）。サイドバーを畳むと本文の列がその場で動くので、
+   読んでいる最中に文章が横へ流れる。**切り替えは一瞬**でよい——動かす価値より、
+   読んでいるものが動かない価値のほうが高い。transform/opacity は動かしてよい。 */
+.app{ display:grid; grid-template-columns:var(--side) minmax(0,1fr) 0; flex:1 1 auto; min-height:0; }
+/* ★高さを 100dvh に固定しない。上にお知らせの帯が入ると、その高さぶん下（入力欄の注意書き）が窓の外へ出ていた。 */
+.app.drawer-open{ grid-template-columns:var(--side) minmax(0,1fr) var(--drawer); }
+/* ★列は**名指し**で置く。自動配置に任せると、どれか 1 つを display:none にした瞬間に
+   残りが 1 列ずつ前へ詰まる。2026-09-20 に実際に起きていた: 幅 1100px 以下で .side を隠すと
+   .main が **幅 0 の 1 列目**に入り、チャットも入力欄も消えて Sources だけが残った
+   （窓の最小幅は 1024px なので、正規の大きさで起きる）。 */
+.side{ grid-column:1; } .main{ grid-column:2; } .drawer{ grid-column:3; }
+/* ★Sources は**会話の出典**。Models / Connection の画面では意味が無く、380px を取って本文を狭くしていた。
+   開閉の状態は保ったまま、その画面のあいだだけ畳む（チャットへ戻れば元どおり）。 */
+.app.no-drawer{ grid-template-columns:var(--side) minmax(0,1fr) 0; }
+.app.no-drawer .drawer{ display:none; }
+body:has(.app.no-drawer) #drawer-toggle{ visibility:hidden; }
+
+/* ── 左 ───────────────────────────────────────────────────────── */
+.side{ background:var(--bg-2); border-right:1px solid var(--line); display:flex; flex-direction:column; min-height:0; }
+/* 銘: 赤い一片。ロゴを描かず、面に打たれた印として置く。 */
+.mark{ width:10px; height:18px; background:var(--red); border-radius:1px; flex:none; }
+
+.new{
+  display:flex; align-items:center; gap:var(--s2);
+  margin:var(--s3); height:var(--h-ctl); padding:0 var(--s3); cursor:pointer; text-align:left;
+  background:var(--bg-3); border:1px solid var(--line-2); border-radius:var(--r); color:var(--text);
+  font-size:13px; font-weight:600;
+}
+.new::before{ content:"+"; width:16px; text-align:center; font-size:17px; font-weight:400; line-height:1; color:var(--text-2); }
+.new:hover{ background:var(--bg-4); }
+
+.convos{ flex:1; overflow:auto; padding:0 var(--s2); display:flex; flex-direction:column; gap:2px; min-height:0; }
+/* ほかの端末の会話（2026-10-30・全端末で 1 つの会話の一覧）。左の一覧の上に最大 6 件。 */
+.peers{ padding:0 var(--s2) var(--s2); display:flex; flex-direction:column; gap:2px; }
+.peer > summary{ list-style:none; display:flex; align-items:center; gap:var(--s2); cursor:pointer;
+  padding:var(--s2) var(--s3); border-radius:var(--r); color:var(--text-2); font-size:13px; }
+.peer > summary::-webkit-details-marker{ display:none; }
+.peer > summary:hover{ background:var(--bg-3); color:var(--text); }
+.peer__mark{ flex:0 0 1.1em; color:var(--text-3); font-variant-numeric:tabular-nums; }
+.peer.is-running .peer__mark, .peer.is-asking .peer__mark{ color:var(--red); }
+.peer.is-failed .peer__mark{ color:var(--red); }
+.peer__title{ flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.peer__dev{ flex:0 1 auto; max-width:40%; color:var(--text-3); font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.peer__body{ margin:0 var(--s3) var(--s2) calc(1.1em + var(--s3) + var(--s2)); color:var(--text-3); font-size:12px;
+  line-height:1.5; display:-webkit-box; -webkit-line-clamp:4; -webkit-box-orient:vertical; overflow:hidden; }
+/* この PC から続ける（2026-10-30）。小さな枠のボタン（主ボタンの赤にしない）。 */
+.peer__go{ margin:0 var(--s3) var(--s2) calc(1.1em + var(--s3) + var(--s2)); padding:2px 10px; background:none; cursor:pointer;
+  border:1px solid var(--line-2); border-radius:var(--r); color:var(--text-2); font:400 12px/1.6 var(--f-body); }
+.peer__go:hover{ color:var(--text); border-color:var(--text-3); }
+.convo{
+  appearance:none; background:transparent; border:0; border-radius:var(--r); cursor:pointer;
+  padding:var(--s2) var(--s3); text-align:left; color:var(--text-2); font-size:13px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.convo:hover{ background:var(--bg-3); color:var(--text); }
+.convo.is-active{ background:var(--bg-3); color:var(--text); box-shadow:inset 2px 0 0 var(--red); }
+
+.side__foot{ border-top:1px solid var(--line); padding:var(--s3); display:flex; flex-direction:column; gap:var(--s3); }
+.chip{
+  display:flex; flex-direction:column; gap:2px; align-items:flex-start; cursor:pointer;
+  background:var(--bg-3); border:1px solid var(--line-2); border-radius:var(--r);
+  padding:var(--s2) var(--s3); text-align:left; width:100%; min-width:0;
+}
+.chip:hover{ background:var(--bg-4); }
+.chip[hidden]{ display:none; }
+.chip__name{ font-size:13px; font-weight:600; }
+.chip__meta{ font-size:12px; color:var(--text-3); }
+/* ★長いモデル名・宛先はカードの幅で切る（はみ出させない）。全文はカードを押した先で見られる。 */
+.chip__name, .chip__meta{ max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.side__nav{ display:flex; gap:var(--s2); }
+.slink{
+  flex:1; appearance:none; cursor:pointer; background:transparent; color:var(--text-2);
+  border:1px solid var(--line-2); border-radius:var(--r); padding:6px; font-size:12px;
+}
+.slink:hover{ color:var(--text); background:var(--bg-3); }
+.slink.is-active{ color:var(--text); border-color:var(--red); }
+
+.lamps{ display:flex; gap:var(--s3); font-size:11px; color:var(--text-3); }
+.lamp{ display:flex; align-items:center; gap:5px; }
+.lamp i{ width:6px; height:6px; border-radius:50%; background:transparent; border:1px solid var(--text-3); }
+.lamp.is-up i{ background:var(--ok); border-color:var(--ok); }
+.lamp.is-down i{ border-color:var(--red); }
+
+/* ── 中央 ─────────────────────────────────────────────────────── */
+.main{ display:flex; flex-direction:column; min-width:0; min-height:0; grid-row:1; position:relative; isolation:isolate;
+  --mx:50%; --my:50%;                        /* マウスの位置（app.js が渡す・既定は中央） */
+  /* ★防壁の気配（2026-10-08）: 赤い格子・上からの赤い滲み。静止画なので描き直しは起きない。
+   * ★2026-11-11 走査線（3px ごとの 1px の白）を外した。Linux 版の「白いもや」の正体。125%・150% の表示倍率では
+   *   線が画素に揃わず、2 行続けて光る所が周期的に出て、縞のうなりが画面全体にかかって見えた（WebKitGTK を
+   *   拡大率 1.25・1.5 で撮って行ごとの明るさで確かめた）。細かい繰り返し模様は倍率と撮影の縮小に弱いので、地には置かない。 */
+  background:
+    linear-gradient(rgba(208,52,44,.055) 1px, transparent 1px) 0 0/100% 56px,
+    linear-gradient(90deg, rgba(208,52,44,.045) 1px, transparent 1px) 0 0/56px 100%,
+    radial-gradient(120% 55% at 50% 0%, rgba(208,52,44,.11), transparent 70%),
+    var(--bg);
+}
+/* ── 窓の帯（2026-10-08）────────────────────────────────────────
+ * Windows 標準の帯をやめ、アプリの帯と一体にした（decorations:false）。左は銘（サイドバーと同じ幅）、
+ * 中は会話の題、右は Sources と窓の操作。下の 1px は防壁の線で、推論中だけ光が流れる（body.is-busy）。 */
+.titlebar{
+  flex:none; position:relative; display:flex; align-items:center; gap:var(--s3); height:var(--h-title);
+  background:var(--bg-2); border-bottom:1px solid var(--line); user-select:none; -webkit-user-select:none;
+}
+.titlebar::after{                           /* 防壁の線（静止）: 端だけ赤く、中ほどは消える */
+  content:""; position:absolute; left:0; right:0; bottom:-1px; height:1px; pointer-events:none;
+  background:linear-gradient(90deg, var(--red-2), transparent 30%, transparent 70%, var(--red-2));
+}
+body.is-busy .titlebar::before{            /* 推論中: 線の上を光が流れる（transform だけ＝描き直さない） */
+  content:""; position:absolute; left:0; bottom:-1px; width:220px; height:1px; pointer-events:none;
+  background:linear-gradient(90deg, transparent, var(--red), transparent);
+  animation:wall-scan 2.6s linear infinite; will-change:transform;
+}
+@keyframes wall-scan{ from{ transform:translateX(-240px); } to{ transform:translateX(100vw); } }
+.tb__brand{
+  width:var(--side); flex:none; height:100%; display:flex; align-items:center; gap:var(--s2);
+  padding:0 var(--s4); border-right:1px solid var(--line);
+}
+.tb__name{ font:700 15px/1 var(--f-plate); letter-spacing:.16em; }
+.tb__sub{ font:400 11px/1 var(--f-mono); letter-spacing:.08em; color:var(--text-3); }
+.tb__title{ flex:1 1 auto; min-width:0; padding-left:var(--s5); font-size:13px; color:var(--text-2);
+            overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.tb__win{ display:flex; height:100%; flex:none; }
+.tb__btn{
+  appearance:none; border:0; background:transparent; color:var(--text-2); cursor:pointer;
+  width:46px; height:100%; display:grid; place-items:center;
+}
+.tb__btn svg{ width:10px; height:10px; fill:none; stroke:currentColor; stroke-width:1.1; }
+.tb__btn:hover{ background:var(--bg-4); color:var(--text); }
+.tb__btn--close:hover{ background:var(--red); color:var(--on-red); }
+.tb__btn .tb__restore{ display:none; }
+.tb__btn.is-max .tb__restore{ display:inline; } .tb__btn.is-max .tb__max{ display:none; }
+.titlebar .ghost{ margin-left:0; }
+.ghost{
+  flex:none; margin-left:auto; appearance:none; cursor:pointer; background:transparent; color:var(--text-2);
+  border:1px solid var(--line-2); border-radius:var(--r); height:28px; padding:0 var(--s3); font-size:12px;
+  display:inline-flex; align-items:center; gap:6px;
+}
+.ghost:hover{ color:var(--text); background:var(--bg-3); }
+/* ★開いている状態は「押されている」で示す。赤い枠は失敗・危険の印と同じ形で、開いているだけの
+   ボタンが警告に見えていた（2026-10-06）。 */
+.ghost[aria-expanded="true"]{ color:var(--text); background:var(--bg-3); border-color:var(--line-2); }
+
+/* ── 会話のシェル（shell.js・2026-11-11）。上の帯の >_ と、会話と入力欄の間の欄。 ── */
+.tb__icon{
+  flex:none; appearance:none; cursor:pointer; background:transparent; color:var(--text-2);
+  border:1px solid transparent; border-radius:var(--r); width:30px; height:28px; margin-right:var(--s2);
+  display:inline-grid; place-items:center;
+}
+.tb__icon svg{ width:16px; height:16px; }
+.tb__icon:hover{ color:var(--text); background:var(--bg-3); }
+.tb__icon[aria-pressed="true"]{ color:var(--text); background:var(--bg-3); border-color:var(--line-2); }
+.tb__icon:focus-visible{ outline:2px solid var(--red); outline-offset:1px; }
+body:has(.app.no-drawer) #shell-toggle{ visibility:hidden; }
+.cshell{ flex:none; display:flex; flex-direction:column; min-height:120px; height:260px;
+         margin:0 var(--s5) var(--s3); border:1px solid var(--line-2); border-radius:var(--r); background:var(--bg);
+         position:relative; overflow:hidden; }
+.cshell[hidden]{ display:none; }
+.cshell__grip{ position:absolute; left:0; right:0; top:-3px; height:7px; cursor:ns-resize; z-index:2; }
+.cshell__grip:hover, .cshell__grip:focus-visible{ background:var(--line-2); outline:none; }
+.cshell__bar{ flex:none; display:flex; align-items:center; gap:var(--s2); height:30px; padding:0 var(--s2) 0 var(--s3);
+              border-bottom:1px solid var(--line); background:var(--bg-2); font-size:12px; }
+.cshell__name{ color:var(--text); font-family:var(--f-mono); }
+.cshell__cwd{ flex:1 1 auto; min-width:0; color:var(--text-3); font-family:var(--f-mono);
+              overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.cshell.is-ended .cshell__name::after{ content:" · 終了"; color:var(--text-3); }
+.cshell__btn{ flex:none; appearance:none; cursor:pointer; background:transparent; color:var(--text-2);
+              border:0; border-radius:var(--r); min-width:28px; height:24px; padding:0 var(--s2); font-size:12px; }
+.cshell__btn:hover{ color:var(--text); background:var(--bg-4); }
+.cshell__btn:focus-visible{ outline:2px solid var(--red); outline-offset:1px; }
+.cshell__note{ margin:0; padding:var(--s3); color:var(--text-2); font-size:12px; }
+.cshell__note[hidden]{ display:none; }
+.cshell__stage{ flex:1 1 auto; min-height:0; position:relative; padding:4px 0 0 8px; }
+.cshell__term{ position:absolute; inset:4px 0 0 8px; }
+.cshell__term[hidden]{ display:none; }
+
+/* ── 分割表示（panes.js・2026-11-11）。1 つのときは今までどおり（枠の帯は出さない）。 ── */
+.panes{ flex:1 1 auto; min-height:0; display:grid; grid-template-columns:minmax(0,1fr); grid-template-rows:minmax(0,1fr); gap:1px; }
+.panes:not([data-n="1"]){ background:var(--line-2); }
+.panes[data-n="2"]{ grid-template-columns:minmax(0,1fr) minmax(0,1fr); }
+.panes[data-n="3"], .panes[data-n="4"]{ grid-template-columns:minmax(0,1fr) minmax(0,1fr); grid-template-rows:minmax(0,1fr) minmax(0,1fr); }
+.panes[data-n="3"] > .cpane:first-child{ grid-row:1 / span 2; }
+.cpane{ display:flex; flex-direction:column; min-width:0; min-height:0; position:relative; }
+.panes:not([data-n="1"]) > .cpane{ background:var(--bg); }
+.cpane__head{ display:none; }
+.panes:not([data-n="1"]) .cpane__head{
+  flex:none; display:flex; align-items:center; gap:var(--s2); height:32px; padding:0 var(--s2) 0 var(--s3);
+  border-bottom:1px solid var(--line); background:var(--bg-2);
+}
+.cpane.is-focus .cpane__head{ box-shadow:inset 0 2px 0 var(--red); }
+.cpane__title{ flex:1 1 auto; min-width:0; appearance:none; border:0; background:transparent; color:var(--text-2); cursor:pointer;
+              text-align:left; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding:0; }
+.cpane.is-focus .cpane__title{ color:var(--text); }
+.cpane__x{ flex:none; appearance:none; border:0; background:transparent; color:var(--text-2); cursor:pointer;
+          width:24px; height:24px; border-radius:var(--r); font-size:13px; }
+.cpane__x:hover{ color:var(--text); background:var(--bg-4); }
+.cpane__title:focus-visible, .cpane__x:focus-visible, .cpane__ghost:focus-visible{ outline:2px solid var(--red); outline-offset:1px; }
+.panes:not([data-n="1"]) .thread{ padding:var(--s4) var(--s4) var(--s3); }
+.cpane__ghost{ flex:none; appearance:none; cursor:text; text-align:left; margin:0 var(--s4) var(--s3); height:40px; padding:0 var(--s3);
+              border:1px solid var(--line-2); border-radius:var(--r-lg); background:var(--bg-2); color:var(--text-3); font-size:13px; }
+.cpane__ghost:hover{ border-color:var(--text-3); color:var(--text-2); }
+.cpane__ghost[hidden]{ display:none; }
+.tb__icon:disabled{ opacity:.4; color:var(--text-3); cursor:not-allowed; }
+.tb__icon:disabled:hover{ background:transparent; color:var(--text-2); }
+body:has(.app.no-drawer) #split-add{ visibility:hidden; }
+/* 小さな枠では最初の画面の波と見出しを縮める（例の一覧がはみ出していた）。 */
+.panes:not([data-n="1"]) .hello__wave{ width:120px; height:auto; }
+.panes:not([data-n="1"]) .hello__h{ font-size:22px; }
+.panes[data-n="3"] > .cpane:not(:first-child) .hello__cards, .panes[data-n="4"] .hello__cards{ display:none; }
+
+.view{ display:none; flex:1; min-height:0; flex-direction:column; }
+.view.is-active{ display:flex; }
+
+.thread{ flex:1; overflow:auto; overscroll-behavior:contain; padding:var(--s6) var(--s5) var(--s4); }
+.msg{ max-width:var(--col); margin:0 auto var(--s6); position:relative; }   /* ★吹き出しの中の absolute を吹き出しの中に留める（上の .plan と同じ事故の型・2026-10-21） */
+/* ★長い会話で重くならないように、画面の外の吹き出しは配置と描画を飛ばす（2026-11-04 オーナー「会話履歴が長いとすごく重くなる」）。
+   本文が 1 片届くたびに会話全体の配置を計算し直していた（150 往復で 1 片 2.2ms）。走行中の吹き出しは対象にしない（予定表の sticky が効かなくなる）。
+   paint の囲いで縁の外が切れるので、輪郭（:focus-visible）と影の分だけ overflow-clip-margin で余白を残す。撮影（Copy log）のときは外す（is-capturing）。 */
+.thread > .msg:not(.is-live){ content-visibility:auto; contain-intrinsic-size:auto 480px; overflow-clip-margin:36px; }
+/* ★2026-11-21 12px → 36px: 吹き出しの下に出す操作（Copy・Edit・Retry・.msg__acts は top:100%・高さ 26px）が切れて見えず、
+   触れると説明だけ出ていた（オーナーの画面）。0.1.710 の計画の「実行」ボタンが切れたのも同じ原因。縁の外に出す物を足すときは、この余白に収める。 */
+.thread.is-capturing > .msg{ content-visibility:visible; }
+.msg--user{ display:flex; justify-content:flex-end; }
+.msg--user .bubble{
+  background:var(--bg-3); border:1px solid var(--line); border-radius:var(--r-lg);
+  padding:var(--s3) var(--s4); max-width:80%; white-space:pre-wrap;
+  /* ★空白の無い長い列（「14,15,89,90,…」の番号の羅列・パス・URL）が枠の外へはみ出していた（2026-10-12 オーナー）。
+     flex の子なので break-word では縮まない（最小幅が語の長さのまま）＝anywhere。 */
+  overflow-wrap:anywhere; min-width:0;
+}
+.msg--bot .who{
+  display:flex; align-items:center; gap:var(--s2); margin-bottom:var(--s2);
+  font:700 12px/1 var(--f-plate); letter-spacing:.1em; color:var(--text-3);
+}
+.msg--bot .who::before{ content:""; width:7px; height:12px; background:var(--red); border-radius:1px; }
+
+/* 文ごと。裏付けのある文には引用チップ、無い文には赤い印。 */
+.line{ position:relative; margin-bottom:var(--s3); }
+.line.is-unsupported{
+  border-left:2px solid var(--red); padding-left:var(--s3); color:var(--text-2);
+}
+.line.is-unsupported::after{
+  content:"裏付けなし"; display:inline-block; margin-left:var(--s2);
+  font:400 12px/1.4 var(--f-body); color:var(--red-text); vertical-align:1px;
+}
+.cite{
+  appearance:none; cursor:pointer; vertical-align:2px; margin-left:4px; padding:0 4px; min-width:20px;
+  background:var(--bg-3); border:1px solid var(--line-2); border-radius:4px;
+  font:400 12px/18px var(--f-mono); color:var(--text-2);
+}
+.cite:hover,.cite.is-active{ background:var(--red); border-color:var(--red); color:var(--on-red); }
+
+/* 入力 */
+.composer{ flex:none; padding:0 var(--s5) var(--s4); }
+/* ── 会話ごとのフォルダの札（2026-10-08・Claude Code の入力欄の上の札にならう）──────────── */
+.ctx{ position:relative; max-width:var(--col); margin:0 auto var(--s2); display:flex; align-items:center; gap:var(--s2); }
+.ctx__chip{
+  display:inline-flex; align-items:center; gap:6px; height:26px; max-width:280px; padding:0 var(--s2);
+  border:1px solid var(--line-2); border-radius:var(--r); background:var(--bg-2); color:var(--text-2);
+  font-size:13px; cursor:pointer; appearance:none;
+}
+.ctx__chip span{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
+.ctx__chip svg{ width:14px; height:14px; flex:none; fill:none; stroke:currentColor; stroke-width:1.3; stroke-linejoin:round; stroke-linecap:round; }
+.ctx__chip:hover{ color:var(--text); background:var(--bg-3); }
+.ctx__chip[aria-expanded="true"]{ color:var(--text); background:var(--bg-3); border-color:var(--line-3); }
+.ctx__chip.is-unset{ color:var(--text); }                      /* 未設定は「次の一手」なので退かせない */
+.ctx__chip[hidden]{ display:none; }           /* ★display を持つので hidden が効かない（.btn[hidden] と同じ型） */
+.ctx__chip--info{ cursor:default; background:transparent; font-family:var(--f-mono); font-size:12px; }
+.ctx__chip--info:hover{ background:transparent; color:var(--text-2); }
+.ctx__caret{ width:12px !important; height:12px !important; color:var(--text-3); }
+/* ★推論中の波はフォルダの札の横（2026-10-08 オーナー「この作業フォルダの表記の横あたり」）。
+ * 札の残りの幅を取り、左から 波（細い線・描き方は同じ・幅は狭く）→ 状態の 1 行。
+ * 行の高さは札（26px）のまま: 波の絵は 34px で描くので、上下を負の余白ではみ出させる（行が伸び縮みしない）。 */
+.ctx .runbar{
+  flex:1 1 auto; min-width:0; flex-direction:row; align-items:center; gap:var(--s3);
+  padding:0 0 0 var(--s2); line-height:1;
+}
+.ctx .runbar__meta{ width:auto; max-width:none; min-width:0; margin:0; flex:1 1 auto; justify-content:flex-start;
+                    gap:var(--s2); font-size:12px; }
+/* ★札の横の 1 行では、列を揃えるための最小幅が空白の塊になった（2026-10-08 オーナー「ここちょっと配置が変」:
+ *   「Starting」の後ろに 7 字・空のトークン欄に 17 字の空白が並び、右端の注記が「推論機: 読…」に切れていた）。
+ *   ここでは 経過（等幅・幅は固定）→ 主ラベル → トークン → 注記 の順に並べ替える。7 秒ごとに替わる主ラベルの
+ *   長さで動くのは、その後ろの物だけ（経過は動かない）。空のトークン欄は畳み、注記は残りの幅を全部使う。 */
+.ctx .runbar__time{ order:1; min-width:7ch; text-align:right; }
+.ctx .runbar__time::before{ content:none; }
+.ctx .runbar__what{ order:2; min-width:0; white-space:nowrap; }
+.ctx .runbar__what::before{ content:"·"; margin-right:var(--s2); color:var(--text-3); }
+.ctx .runbar__tokens{ order:3; min-width:0; white-space:nowrap; }
+.ctx .runbar__tokens:empty{ display:none; }
+.ctx .runbar__hint{ order:4; flex:1 1 auto; margin-left:var(--s2); }
+@container runbar (max-width:530px){ .ctx .runbar__tokens{ display:none; } }
+@container runbar (max-width:340px){ .ctx .runbar__time{ display:none; } .ctx .runbar__what::before{ content:none; } }
+.ctx__menu{
+  position:absolute; left:0; bottom:calc(100% + 6px); z-index:30; min-width:300px; max-width:min(460px, 90vw);
+  padding:4px; background:var(--bg-3); border:1px solid var(--line-2); border-radius:var(--r); box-shadow:var(--shadow-pop);
+}
+.ctx__head{ padding:6px 10px 4px; font:700 11px/1 var(--f-plate); letter-spacing:.12em; color:var(--text-3); text-transform:uppercase; }
+.ctx__item{
+  display:grid; gap:1px; width:100%; padding:6px 10px; border:0; border-radius:3px; background:transparent;
+  color:var(--text); text-align:left; cursor:pointer; position:relative;
+}
+.ctx__item:hover, .ctx__item:focus-visible{ background:var(--bg-4); outline:none; }
+.ctx__item small{ font:400 11px/1.3 var(--f-mono); color:var(--text-3); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ctx__item.is-cur::before{ content:""; position:absolute; left:2px; top:7px; bottom:7px; width:2px; background:var(--red); }
+.ctx__sep{ height:1px; margin:4px 6px; background:var(--line-2); }
+.ctx__empty{ padding:6px 10px; font-size:13px; color:var(--text-3); }
+
+.composer__box{
+  max-width:var(--col); margin:0 auto;
+  background:
+    linear-gradient(var(--hud),var(--hud)) left top/12px 1px no-repeat,
+    linear-gradient(var(--hud),var(--hud)) left top/1px 12px no-repeat,
+    linear-gradient(var(--hud),var(--hud)) right bottom/12px 1px no-repeat,
+    linear-gradient(var(--hud),var(--hud)) right bottom/1px 12px no-repeat,
+    var(--bg-2);
+  border:1px solid var(--line-2); border-radius:var(--r-lg); padding:var(--s3) var(--s3) var(--s2);
+  box-shadow:var(--shadow-pop);
+}
+/* 入力中は枠を一段明るく（赤は使わない＝打っているだけで警告に見えないように）。 */
+.composer__box:focus-within{ border-color:var(--line-focus); box-shadow:var(--shadow-pop), inset 0 0 0 1px var(--line-focus); }
+.composer textarea{
+  width:100%; background:transparent; border:0; resize:none; outline:none;
+  max-height:200px; line-height:1.6;
+}
+/* 道具の表記が長くなったので折り返せるようにする（送信は常に行末）。 */
+.composer__bar{ display:flex; flex-wrap:wrap; align-items:center; gap:var(--s3); margin-top:var(--s2); }
+.opt{ display:flex; align-items:center; gap:6px; font-size:12px; color:var(--text-2); cursor:pointer; }
+.opt input[disabled] + span{ color:var(--text-3); }
+/* 道具は「自動（モデルが判断）」の状態表示。チェックボックスを見せると「切れている」と読める
+   （2026-08-23 検証役の指摘）ので箱は隠し、文字は通常色で出す。id は門（check_tools_auto.sh）が見るので残す。 */
+.opt--auto{ cursor:default; }
+.opt--auto input{ position:absolute; width:1px; height:1px; opacity:0; pointer-events:none; }
+.opt--auto input[disabled] + span{ color:var(--text-2); }
+.opt--auto span::before{ content:"●"; color:var(--ok-text); margin-right:6px; font-size:9px; vertical-align:middle; }
+.opt input{ accent-color:var(--red); }
+.send{
+  margin-left:auto; appearance:none; cursor:pointer; background:var(--red); color:var(--on-red);
+  border:1px solid transparent; border-radius:var(--r); height:var(--h-sm); padding:0 var(--s4); font-size:13px; font-weight:600;
+  display:inline-flex; align-items:center;
+}
+.send:hover{ background:var(--red-2); }
+.send[disabled]{ opacity:.5; cursor:not-allowed; }
+.composer__note{ max-width:var(--col); margin:var(--s2) auto 0; font-size:12px; color:var(--text-3); }
+
+/* 出だし */
+.hello{ max-width:36rem; margin:12vh auto 0; text-align:center; }
+.hello__h{ font:700 32px/1.2 var(--f-plate); letter-spacing:.02em; }
+/* ★Blackwall の波（2026-10-08）。アプリのアイコンと同じ減衰する波を線で。表示したときに一度だけ左から描かれる（1.1 秒）。 */
+.hello__wave{ display:block; width:min(240px, 60vw); height:auto; margin:0 auto var(--s5); overflow:visible; }
+.hello__wave path{
+  fill:none; stroke:var(--red); stroke-width:3; stroke-linecap:round;
+  filter:drop-shadow(0 0 6px rgba(208,52,44,.55));
+  stroke-dasharray:320; stroke-dashoffset:320; animation:wave-draw 1.1s cubic-bezier(.2,.7,.2,1) .1s forwards;
+}
+@keyframes wave-draw{ to{ stroke-dashoffset:0; } }
+/* 例の依頼は「押すと入力欄に入る」物。カードを積むのではなく、1 枚の一覧の行として並べる
+   （3 枚の同じ箱は、何を選べばよいかより箱の数が目に入る）。 */
+.hello__cards{ display:grid; margin-top:var(--s6); text-align:left;
+  background:
+    linear-gradient(var(--hud),var(--hud)) left top/12px 1px no-repeat,
+    linear-gradient(var(--hud),var(--hud)) left top/1px 12px no-repeat,
+    linear-gradient(var(--hud),var(--hud)) right bottom/12px 1px no-repeat,
+    linear-gradient(var(--hud),var(--hud)) right bottom/1px 12px no-repeat,
+    var(--bg-2);
+  border:1px solid var(--line); border-radius:var(--r-lg); overflow:hidden; }
+.hcard{
+  appearance:none; cursor:pointer; text-align:left; color:var(--text-2);
+  background:transparent; border:0; border-top:1px solid var(--line); padding:var(--s3) var(--s4);
+  font-size:14px; display:flex; align-items:center; gap:var(--s3);
+}
+.hcard:first-child{ border-top:0; }
+.hcard::after{ content:"\2197"; margin-left:auto; color:var(--text-3); font-size:13px; opacity:0;
+  transition:opacity .15s ease-out; }
+.hcard{ position:relative; }
+.hcard:hover{ color:var(--text); background:var(--bg-3); }
+/* 指を置いた行に防壁の印（左の赤い縦線）。幅は動かさない（線を重ねるだけ）。 */
+.hcard:hover::before, .hcard:focus-visible::before{
+  content:""; position:absolute; left:0; top:8px; bottom:8px; width:2px; background:var(--red);
+}
+.hcard:hover::after, .hcard:focus-visible::after{ opacity:1; }
+
+/* ── 右ドロワー ───────────────────────────────────────────────── */
+.drawer{ background:var(--bg-2); border-left:1px solid var(--line); display:flex; flex-direction:column;
+         overflow:hidden; min-width:0; position:relative; }
+/* ★幅を変えるつまみ（2026-10-18 オーナー「画面分離にも対応させたい」）。左の縁 6px・見えるのはなぞったときだけ。 */
+.drawer__grip{ position:absolute; left:-3px; top:0; bottom:0; width:6px; cursor:col-resize; z-index:5; }
+.drawer__grip:hover, .drawer__grip:focus-visible, body.is-resizing .drawer__grip{ background:var(--line-2); outline:none; }
+body.is-resizing{ cursor:col-resize; user-select:none; }
+body.is-resizing iframe{ pointer-events:none; }      /* つまんでいる間に PDF などの枠がなぞりを奪わない */
+.drawer__tabs{ display:flex; gap:2px; height:100%; }
+.drawer__tab{ background:none; border:0; border-bottom:2px solid transparent; padding:0 var(--s2); height:100%;
+  font:600 13px/1 var(--f-body); color:var(--text-3); cursor:pointer; display:flex; align-items:center; gap:6px; }
+.drawer__tab:hover{ color:var(--text-2); }
+.drawer__tab.is-active{ color:var(--text); border-bottom-color:var(--red); }
+.drawer__count{ font-size:11px; color:var(--text-3); font-weight:400; }
+.drawer__count:empty{ display:none; }
+.drawer__head .drawer__tabs + .ghost{ margin-left:auto; }
+/* Files の一覧（1 行 1 ファイル） */
+.fl{ display:flex; align-items:center; gap:var(--s2); width:100%; text-align:left; background:var(--bg-3); border:1px solid var(--line);
+  border-radius:4px; padding:8px 10px; cursor:pointer; color:var(--text); }
+.fl:hover{ border-color:var(--line-2); background:var(--bg-4); }
+.fl__tag{ flex:none; font:600 10px/1 var(--f-mono); letter-spacing:.06em; color:var(--text-3); border:1px solid var(--line-2);
+  border-radius:3px; padding:3px 4px; min-width:34px; text-align:center; }
+.fl__main{ flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
+.fl__name{ font-size:13px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.fl__dir{ font:400 11px/1.3 var(--f-mono); color:var(--text-3); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.fl__tools{ flex:none; font-size:11px; color:var(--text-3); }
+/* Files の中身 */
+.fv__head{ display:flex; flex-direction:column; gap:6px; position:sticky; top:calc(-1 * var(--s4)); background:var(--bg-2);
+  padding:var(--s1) 0 var(--s2); margin-top:calc(-1 * var(--s1)); border-bottom:1px solid var(--line); z-index:1; }
+.fv__top{ display:flex; align-items:center; gap:var(--s2); }
+.fv__acts{ margin-left:auto; display:flex; gap:4px; flex-wrap:wrap; justify-content:flex-end; }
+.fv__btn{ background:var(--bg-3); border:1px solid var(--line); border-radius:4px; color:var(--text-2); font:500 12px/1 var(--f-body);
+  padding:6px 8px; cursor:pointer; white-space:nowrap; }
+.fv__btn:hover{ color:var(--text); border-color:var(--line-2); }
+.fv__title{ display:flex; flex-direction:column; gap:2px; min-width:0; }
+.fv__name{ font-size:14px; font-weight:600; color:var(--text); overflow-wrap:anywhere; }
+.fv__path{ font:400 11px/1.4 var(--f-mono); color:var(--text-3); overflow-wrap:anywhere; }
+.fv__note{ font-size:12px; color:var(--text-3); line-height:1.6; }
+.fv__note--bad{ color:var(--red); }
+.fv__body{ display:flex; flex-direction:column; gap:var(--s2); min-height:0; }
+.fv__md{ font-size:14px; line-height:1.75; color:var(--text); }
+.fv__md.msg{ max-width:none; margin:0; }   /* 会話の .msg の中央寄せ（幅 46rem・margin auto）を外す */
+.fv__code{ font:400 12px/1.6 var(--f-mono); color:var(--text-2); background:var(--bg-3); border:1px solid var(--line); border-radius:4px;
+  padding:var(--s3); white-space:pre; overflow:auto; margin:0; }
+.fv__img{ max-width:100%; height:auto; align-self:flex-start; border:1px solid var(--line); border-radius:4px;
+  background:repeating-conic-gradient(#2a2224 0% 25%, #221b1d 0% 50%) 0 0/16px 16px; }
+.fv__frame{ width:100%; min-height:420px; flex:1; border:1px solid var(--line); border-radius:4px; background:#fff; }
+.fv__frame--pdf{ min-height:70vh; background:var(--bg-3); }
+.fv__tablewrap{ overflow:auto; }
+/* 道具の行の「見る」（作ったファイルを右の欄で開く） */
+.tool__open{ flex:none; margin-left:6px; background:none; border:1px solid var(--line-2); border-radius:3px; color:var(--text-2);
+  font:500 11px/1 var(--f-body); padding:3px 6px; cursor:pointer; }
+.tool__open:hover{ color:var(--text); border-color:var(--text-3); }
+.drawer__head{
+  display:flex; align-items:center; height:48px; padding:0 var(--s3) 0 var(--s4); flex:none;
+  border-bottom:1px solid var(--line); font:600 13px/1 var(--f-body); color:var(--text);
+}
+/* ★閉じるは 28px 角（旧 23x18 で、押しにくい大きさだった）。 */
+.drawer__head .ghost{ width:28px; height:28px; padding:0; justify-content:center; border-color:transparent;
+  font-size:16px; color:var(--text-2); }
+.drawer__head .ghost:hover{ background:var(--bg-3); color:var(--text); }
+.drawer__body{ flex:1; overflow:auto; overscroll-behavior:contain; padding:var(--s4); display:flex; flex-direction:column; gap:var(--s3); }
+.drawer__body[hidden]{ display:none; }
+/* Browser（2026-10-18）: 置き場所（.bz__host）の上に子の webview が重なる。欄の余白は外し、置き場所は残りを全部使う。 */
+.drawer__body--bz{ padding:0; gap:0; overflow:hidden; }
+/* ★2026-10-18 置き場所の高さが 0 だった（オーナーの画面の診断「asked 845,144 1075x0」）: 後ろの ③ の `.drawer__body{ display:grid;
+   align-content:start }` が当たり、.bz__host の flex:1 が効かず中身の高さ（ページを出すと 0）に縮んでいた。
+   :not([hidden]) で詳しさを上げて縦の flex に戻す（隠すときは今までどおり [hidden] が勝つ）。 */
+.drawer__body--bz:not([hidden]){ display:flex; flex-direction:column; }
+.bz__bar{ display:flex; align-items:center; gap:4px; padding:var(--s2) var(--s3); border-bottom:1px solid var(--line); flex:none; }
+.bz__btn{ background:var(--bg-3); border:1px solid var(--line); border-radius:4px; color:var(--text-2); font:500 12px/1 var(--f-body);
+  padding:6px 8px; cursor:pointer; white-space:nowrap; flex:none; }
+.bz__btn:hover{ color:var(--text); border-color:var(--line-2); }
+.bz__url{ flex:1; min-width:0; background:var(--bg); border:1px solid var(--line); border-radius:4px; color:var(--text);
+  font:400 12px/1 var(--f-mono); padding:7px 8px; }
+.bz__url:focus{ outline:none; border-color:var(--line-2); }
+.bz__host{ flex:1; min-height:0; position:relative; display:flex; }
+.bz__hint{ margin:auto; text-align:center; padding:var(--s4); }
+.bz__diag{ position:absolute; left:8px; right:8px; bottom:6px; margin:0; font-size:10px; line-height:1.4; color:var(--text-3);
+  overflow-wrap:anywhere; }   /* ★display:flex が hidden を上書きする（Sources と Files の切り替えで両方出ていた） */
+.ev{ background:var(--bg-3); border:1px solid var(--line); border-left:2px solid var(--line-2);
+     border-radius:var(--r); padding:var(--s3); }
+.ev.is-active{ border-left-color:var(--red); }
+.ev__head{ display:flex; align-items:center; gap:var(--s2); margin-bottom:6px; }
+.ev__n{ font:400 12px/1 var(--f-mono); color:var(--text-3); }
+.ev__tier{ font:600 12px/1 var(--f-mono); color:var(--text-3);
+           border:1px solid var(--line-2); border-radius:4px; padding:3px 4px; }
+.ev__title{ font-size:13px; font-weight:600; }
+.ev__body{ font-size:13px; color:var(--text-2); white-space:pre-wrap; word-break:break-word; }
+.ev__src{ margin-top:var(--s2); font:400 12px/1.4 var(--f-mono); color:var(--text-3); word-break:break-all; }
+
+/* ── モデル / 接続 ────────────────────────────────────────────── */
+/* ★2026-10-06: 列の中央寄せを**器の余白**で作る。旧は子ごとに max-width＋左右 auto で揃えていたが、
+   見出し（.h2/.h3）の margin 一括指定が auto を打ち消し、見出しだけが本文の列から 38px 左へずれていた
+   （同じ型の不具合を 09-20 にも直している＝子ごとに揃える方式そのものが壊れやすい）。
+   余白で列を作れば、子は何を書いても同じ左端に並ぶ。 */
+.pane{ flex:1; overflow:auto; padding:var(--s6) max(var(--s5), calc((100% - 52rem) / 2)) var(--s7); }
+.pane > *{ max-width:none; margin-left:0; margin-right:0; }
+.h2{ font:700 20px/1.3 var(--f-plate); letter-spacing:.04em; margin-bottom:var(--s5); }
+.h3{ display:flex; align-items:baseline; gap:var(--s3); font:700 11px/1 var(--f-plate); letter-spacing:.12em;
+     color:var(--text-3); margin-top:var(--s6); margin-bottom:var(--s3); padding-bottom:var(--s2); border-bottom:1px solid var(--line); }
+/* ★margin を一括（`margin: a 0 b`）で書かない。`.pane > *` の左右 auto を消してしまい、
+   見出しだけが本文の列から 168px 左へずれていた（2026-09-20・実ブラウザで測って分かった）。 */
+.h3__aside{ margin-left:auto; letter-spacing:0; font-size:12px; font-weight:400; color:var(--text-3); }
+
+.import{ display:grid; grid-template-columns:1fr 1fr; gap:var(--s4); }
+.drop{ display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; cursor:pointer;
+       min-height:108px; background:var(--bg-2); border:1px dashed var(--line-2); border-radius:var(--r); }
+.drop span{ font-size:12px; color:var(--text-3); }
+.drop.is-over{ border-style:solid; border-color:var(--red); }
+/* 置き場の案内。ボタン・パス・一言・再読込を1つの区画にまとめる。 */
+.folder{ grid-column:1/-1; display:flex; align-items:center; gap:var(--s3); flex-wrap:wrap;
+         background:var(--bg-2); border:1px solid var(--line); border-radius:var(--r); padding:var(--s3); }
+.folder__path{ font:400 12px/1.5 var(--f-mono); color:var(--text-2); background:var(--bg-3);
+               border:1px solid var(--line); border-radius:4px; padding:3px 8px; user-select:all;
+               word-break:break-all; }
+.folder .note{ margin:0; flex:1 1 240px; }
+
+.lbl{ display:block; font-size:13px; font-weight:600; color:var(--text); margin-bottom:var(--s1); }
+/* ★状態の表（.two）の直後に入力フォームが**隙間なし**で続いていた（実ブラウザで、行どうしのラベルが重なって見えた）。 */
+.two + .diag + .hf, .two + .hf{ margin-top:var(--s5); }
+.hf .row + .row{ margin-top:var(--s2); }
+.row{ display:flex; gap:var(--s2); }
+.input{ flex:1; background:var(--bg-2); border:1px solid var(--line-2); border-radius:var(--r);
+        height:var(--h-ctl); padding:0 var(--s3); font-size:14px; line-height:1.4; outline:none; }
+.input::placeholder{ color:var(--text-3); }
+.input:hover{ border-color:var(--line-3); }
+.input:focus{ outline:1px solid var(--red); outline-offset:-1px; border-color:var(--red); }
+.btn{ cursor:pointer; background:var(--bg-3); color:var(--text); border:1px solid var(--line-2);
+      border-radius:var(--r); height:var(--h-ctl); padding:0 var(--s4); font-size:13px; font-weight:600; white-space:nowrap;
+      display:inline-flex; align-items:center; justify-content:center; gap:6px; }
+.btn:hover{ background:var(--bg-4); }
+/* ★display を持つ部品は hidden 属性が効かない（.think[hidden] と同じ型）。0.1.304 の準備ボタンが常に出ていた。 */
+.btn[hidden]{ display:none; }
+.btn--primary{ background:var(--red); border-color:var(--red); color:var(--on-red); }
+.btn--primary:hover{ background:var(--red-2); }
+/* ★一覧の中で行ごとに赤いボタンを並べない（モデルが 5 本あれば赤が 5 つ＝どれも効いていない）。
+   赤は**いま使っている 1 本**の印にだけ置く。 */
+.item.is-current{ box-shadow:inset 2px 0 0 var(--red); }
+.row__now{ font:600 12px/1.6 var(--f-body); color:var(--text-2);
+           border:1px solid var(--line-2); border-radius:4px; padding:0 var(--s2); }
+.note{ margin-top:var(--s2); font-size:12px; color:var(--text-3); }
+
+.list{ display:flex; flex-direction:column; gap:var(--s2); }
+/* 整合性の確認（2026-10-08）。まとまりごとの見出し＋1 行 1 項目。✗ は失敗の色（赤は失敗の印なのでここでは正しい）。 */
+.integ{ display:flex; flex-direction:column; gap:2px; margin-bottom:var(--s5); }
+.integ[hidden]{ display:none; }
+.integ__group{ margin:var(--s3) 0 var(--s1); font:700 11px/1 var(--f-plate); letter-spacing:.12em; color:var(--text-3); text-transform:uppercase; }
+.integ__row{ display:grid; grid-template-columns:20px minmax(0,1fr) auto; gap:var(--s1) var(--s3); align-items:start;
+             padding:var(--s2) var(--s3); border-left:2px solid transparent; background:var(--bg-2); border-radius:var(--r); }
+.integ__row.is-fail{ border-left-color:var(--red); }
+.integ__mark{ font:700 13px/1.5 var(--f-mono); color:var(--text-3); text-align:center; }
+.integ__row.is-ok .integ__mark{ color:var(--ok-text); }
+.integ__row.is-warn .integ__mark{ color:var(--text-2); }
+.integ__row.is-fail .integ__mark{ color:var(--red-text); }
+.integ__title{ font-weight:600; font-size:13px; }
+.integ__detail{ font:400 12px/1.5 var(--f-mono); color:var(--text-3); word-break:break-all; }
+.integ__fix{ align-self:center; }
+.item{ display:grid; grid-template-columns:1fr auto; gap:var(--s2) var(--s4); align-items:center;
+       background:var(--bg-2); border:1px solid var(--line); border-radius:var(--r); padding:var(--s3) var(--s4); }
+.item__name{ font-weight:600; font-size:14px; word-break:break-all; }
+.item__meta{ font:400 12px/1.5 var(--f-mono); color:var(--text-3); }
+.item__fit{ grid-column:1/-1; display:flex; align-items:center; gap:var(--s3); }
+.bar{ flex:1; height:6px; background:var(--bg-4); border-radius:3px; overflow:hidden; }
+.bar__fill{ height:100%; background:var(--text-3); }
+.bar__fill.is-over{ background:var(--red); }
+.verdict{ font-size:12px; font-weight:600; white-space:nowrap; }
+.verdict--fits{ color:var(--ok-text); } .verdict--offload{ color:var(--text-2); } .verdict--no{ color:var(--red-text); }
+.item__why{ grid-column:1/-1; font-size:12px; color:var(--text-3); }
+
+.two{ display:grid; grid-template-columns:1fr 1fr; gap:var(--s6); }
+.kv{ margin:0; display:grid; grid-template-columns:auto 1fr auto; gap:var(--s2) var(--s3); align-items:baseline; }
+.kv dt{ font-size:12px; color:var(--text-3); }
+.kv dd{ margin:0; font:400 13px/1.5 var(--f-mono); word-break:break-all; }
+.kv .st{ justify-self:end; font-size:12px; }
+.st--up{ color:var(--ok-text); } .st--down{ color:var(--red-text); } .st--unknown{ color:var(--text-3); }
+
+.diag{ margin-top:var(--s5); background:var(--bg-2); border:1px solid var(--red-2);
+       border-left:3px solid var(--red); border-radius:var(--r); padding:var(--s4) var(--s5); }
+.diag__t{ font-weight:600; margin-bottom:6px; }
+.diag__cmd{ margin-top:var(--s3); background:var(--bg-0); border:1px solid var(--line); border-radius:var(--r);
+            padding:var(--s3); font:400 12px/1.6 var(--f-mono); user-select:all; word-break:break-all; }
+
+.empty{ color:var(--text-3); font-size:13px; padding:var(--s4) 0; }
+
+@media (max-width:1100px){
+  /* ★サイドを**消さない**。会話の一覧・モデル・作業場・接続の入口が全部ここにあり、
+     戻す手段も無かった（消えたら最後、窓を広げるしかない）。細くして残す。
+     ★Sources も**重ねずに並べる**（細くするだけ）。この画面の要は「文の引用チップを押すと、
+     右でその出典が光る」＝**両方が同時に見えること**。重ねると、読んでいる文と送信ボタンが隠れる
+     （一度そう作って、撮って確かめてやめた）。1024px でも本文に 488px 残る。 */
+  :root{ --side:216px; --drawer:320px; }
+  .import,.two{ grid-template-columns:1fr; }
+}
+@media (prefers-reduced-motion:reduce){
+  *{ animation-duration:.01ms !important; transition-duration:.01ms !important; }
+}
+
+/* 失敗は操作の隣に出す。赤はここに使う（注意＝アクセントの正しい用途）。 */
+.err{ margin:var(--s3) 0 0; padding:var(--s3); border:1px solid var(--red); border-left-width:2px;
+      border-radius:var(--r); background:var(--bg-2); color:var(--text); font-size:13px; }
+
+/* ★`direction:rtl` は「長いパスを**左から**省略する」ための細工。中身には LRM（U+200E）を前置する（app.js）。
+   そうしないと、末尾の記号（`…` `\` `)`）が**行頭へ回り込む**（実ブラウザで「…Choose a folder」と出た）。 */
+
+/* ── 道具の履歴 ──────────────────────────────────────────────────
+ * ツールが動いたことを会話の中に残す。黙って走らせない。
+ * ★見た目は思考パネル（.think）と同じ作法にそろえる＝縦線1本・等幅・退いた色・既定は畳む。
+ *   新しい飾りを足さない。動くのは開閉の ▸ だけ（180ms）。
+ * ★赤を置くのは「失敗した／結果が返らなかった」ときだけ。実行したこと自体は赤くしない
+ *   （毎回赤いと赤が意味を失い、本当に見るべき失敗が埋もれる）。 */
+.tool{ margin:var(--s2) 0 var(--s3); border-left:2px solid var(--line-2); }
+.tool.is-bad{ border-left-color:var(--red); }
+.tool__head{
+  display:flex; flex-wrap:wrap; gap:var(--s2); align-items:baseline; cursor:pointer;
+  padding:2px 0 2px var(--s3); list-style:none;
+  font:400 12px/1.6 var(--f-mono); color:var(--text-3);
+}
+.tool__head::-webkit-details-marker{ display:none; }
+.tool__head::before{ content:"▸"; font-size:10px; transition:transform 180ms ease-out; flex:none; }
+.tool[open] .tool__head::before{ transform:rotate(90deg); }
+.tool__head:hover{ color:var(--text-2); }
+/* 分類の札。読む＝退いた色、変える・実行＝本文寄りの色。色は増やさない。 */
+.tool__kind{ flex:none; border:1px solid var(--line-2); border-radius:4px; padding:0 var(--s1);
+             font:400 12px/1.5 var(--f-mono); color:var(--text-3); }
+.tool__kind--write,.tool__kind--exec,.tool__kind--unknown{ color:var(--text-2); border-color:var(--text-3); }
+.tool__name{ flex:none; color:var(--text-2); }
+/* ★実行したコマンドは折り返して**全文**出す。畳んだままでも何を実行したかが見える。 */
+.tool__what{ flex:1 1 12rem; min-width:0; color:var(--text-2);
+             overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.tool__what--full{ white-space:pre-wrap; word-break:break-all; overflow:visible; }
+/* ★縮められるようにする（2026-10-05 オーナー報告: 長い失敗の文がカードの外へはみ出した）。
+   flex:none は中身の幅から縮まないので、1 行に収まらない文は折り返さずに右へ突き抜けた。 */
+.tool__state{ flex:0 1 auto; min-width:0; max-width:100%; margin-left:auto; color:var(--text-3);
+              overflow-wrap:anywhere; }
+.tool.is-bad .tool__state{ color:var(--red-text); }
+/* ★ブラウザと画面の操作（2026-10-30）: 道具の名前は出さず、1 歩の文を本文の字で。撮った写真は見出しの右端に小さく、押すと広げる。 */
+.tool--step .tool__name{ display:none; }
+.tool--step .tool__what{ font-family:var(--f-body); color:var(--text-2); }
+.tool__shot{ flex:none; align-self:center; height:40px; max-width:96px; object-fit:cover;
+             border:1px solid var(--line-2); border-radius:4px; cursor:zoom-in; }
+.tool__shot.is-big{ flex-basis:100%; height:auto; max-width:100%; max-height:70vh; object-fit:contain; cursor:zoom-out; }
+
+/* 本文の画像（`![説明](パス)`・2026-11-20 道具 Image）。ふだんは高さを抑え、押すと幅いっぱい。 */
+.md-img{ display:inline-flex; flex-direction:column; gap:4px; max-width:100%; margin:6px 0; vertical-align:top; }
+.md-img img{ display:block; max-width:100%; max-height:320px; object-fit:contain; border-radius:8px;
+  border:1px solid var(--line-2); cursor:zoom-in; }
+.md-img.is-big{ display:flex; width:100%; }
+.md-img.is-big img{ max-height:80vh; cursor:zoom-out; }
+.md-img__cap{ font-size:12px; color:var(--text-2); }
+.md-img__alt{ font-size:13px; color:var(--text-2); }
+
+.tool__body{ padding:var(--s1) var(--s3) var(--s2); }
+.tool__seg + .tool__seg{ margin-top:var(--s3); }
+.tool__seg-h{ font:600 12px/1.6 var(--f-body); color:var(--text-3); }
+.tool__kv{ display:flex; gap:var(--s2); font:400 12px/1.6 var(--f-mono); }
+.tool__key{ color:var(--text-3); flex:none; }
+.tool__val{ color:var(--text-2); word-break:break-all; }
+.tool__pre{
+  margin:var(--s1) 0 0; padding:var(--s2) var(--s3);
+  background:var(--bg-2); border:1px solid var(--line); border-radius:var(--r);
+  max-height:16rem; overflow:auto; white-space:pre-wrap; word-break:break-word;
+  font:400 13px/1.6 var(--f-mono); color:var(--text-2);
+}
+
+
+/* ── 生成中の表示（思考・消費） ─────────────────────────────────────
+ * 思考は答えではないので、答えと同じ見た目にしない。等幅・小さく・退いた色で、
+ * 既定は畳んだ状態。赤は使わない（赤は「裏付けが無い」と「危険」に取ってある）。 */
+.pulse{
+  display:inline-block; width:5px; height:5px; margin-left:var(--s2);
+  border-radius:50%; background:var(--red); vertical-align:middle;
+  animation:pulse 1.4s steps(28) infinite;   /* 2026-11-21 GPU: 60fps → 20fps の段（見た目はほぼ同じ） */
+}
+@keyframes pulse{ 0%,100%{ opacity:.25 } 50%{ opacity:1 } }
+@media (prefers-reduced-motion:reduce){ .pulse{ animation:none; opacity:.7 } }
+
+
+/* 生成中の本文。確定後は .line に描き直される。 */
+.live{ white-space:pre-wrap; word-break:break-word; }
+.live:empty{ display:none; }
+
+.meter{
+  margin-top:var(--s2); padding-top:var(--s2); border-top:1px solid var(--line);
+  font-size:12px; color:var(--text-3);
+}
+.meter:empty{ display:none; border:0; margin:0; padding:0; }
+
+/* ── Markdown ────────────────────────────────────────────────────
+ * コードは「読むもの」ではなく「持っていくもの」。面を落として等幅で、
+ * 横は自分の中でだけスクロールさせる（本文が横に流れない）。 */
+.md-h{ margin:var(--s4) 0 var(--s2); font-family:var(--f-plate); letter-spacing:.01em; line-height:1.35; }
+.md-h--1{ font-size:20px; } .md-h--2{ font-size:17px; }
+.md-h--3,.md-h--4{ font-size:15px; color:var(--text-2); }
+.msg--bot > .md-h:first-of-type{ margin-top:var(--s2); }
+
+.md-list{ margin:var(--s2) 0; padding-left:1.3em; }
+.md-list li{ margin:5px 0; }   /* ★2026-11-07: 長い項目が続くと境目が見えなかった */
+.md-list li::marker{ color:var(--text-3); }
+/* ★入れ子（2026-09-02）。親の項目の中に入るので、上下の余白は段落ぶんではなく
+   項目ぶんに詰める。既定の var(--s2) のままだと子の並びが親から浮いて見える。 */
+.md-list .md-list{ margin:2px 0; }
+
+.md-quote{
+  margin:var(--s3) 0; padding:2px 0 2px var(--s3);
+  border-left:2px solid var(--line-2); color:var(--text-2);
+}
+
+/* ★2026-11-07 オーナー「字がずらっと並んで見にくい」: 報告は名前ごとに枠付きの札が並び、行が札の列になっていた。
+   枠を外して面を薄くし、本文の流れを切らないようにする（コピーするものだと分かる程度の差は残す）。 */
+.md-inline{
+  padding:0 3px; border-radius:3px;
+  background:rgba(255,255,255,.06); border:0;
+  font:400 .86em/1.4 var(--f-mono); word-break:break-word;
+}
+
+/* 表（2026-08-22 追加）。それまで表は**未対応**で、`|` の行が段落に落ち、
+   空白で連結されて1つの長い塊になっていた。実機の動作確認プロンプトが
+   14行の表を返したとき、内容は正しいのに画面では読めなかった。 */
+.md-table__wrap{overflow-x:auto;margin:.6rem 0}
+.md-table{border-collapse:collapse;font-size:13px;line-height:1.5}
+.md-table th,.md-table td{border:1px solid var(--line);padding:.32rem .6rem;
+  text-align:left;vertical-align:top}
+.md-table th{font-weight:600;background:var(--bg-2)}
+.md-table tr:nth-child(even) td{background:rgba(255,255,255,.02)}
+
+.md-code{
+  margin:var(--s3) 0; border:1px solid var(--line); border-radius:var(--r);
+  background:var(--bg-2); overflow:hidden;
+}
+.md-code__head{
+  display:flex; align-items:center; justify-content:space-between; gap:var(--s3);
+  padding:var(--s1) var(--s2) var(--s1) var(--s3);
+  background:var(--bg-3); border-bottom:1px solid var(--line);
+  font:400 12px/1.6 var(--f-mono);
+  color:var(--text-3);
+}
+.md-code__copy{
+  padding:2px var(--s2); border:1px solid var(--line-2); border-radius:4px;
+  background:transparent; color:var(--text-2); cursor:pointer;
+  font:400 12px/1.6 var(--f-body);
+  transition:color 180ms ease-out, border-color 180ms ease-out;
+}
+.md-code__copy:hover{ color:var(--text); border-color:var(--text-3); }
+.md-code pre{
+  margin:0; padding:var(--s3); overflow-x:auto;      /* 横は自分の中で */
+  font:400 13px/1.65 var(--f-mono); color:var(--text);
+  tab-size:2;
+}
+.md-code code{ white-space:pre; }
+
+/* ハーネスからの注記。答えではないので、答えと同じ見た目にしない。
+   ★2026-09-04（W1）3 段に割った。旧: **全部の注記が赤い枠と赤い面**だった——
+     「道具を7つ渡しました」も「差し戻し」も同じ見た目なので、
+     赤が何も意味しなくなり、いちばん読ませたい行が埋もれていた
+     （この現場は「失敗の左線が存在しない」を実機で踏んでいる・2026-09-03）。
+     赤は**門と失敗にだけ**取っておく。 */
+.notice{
+  margin:var(--s2) 0; padding:var(--s2) var(--s3);
+  border-left:2px solid var(--line-2); border-radius:0 var(--r) var(--r) 0;
+  background:var(--bg-2); color:var(--text-2); font-size:13px;
+}
+/* 門・差し戻し・作業場ガード・工程不合格。**赤の左線＋印**で立てる。
+   文字は --red-text（--red-dim の上で 4.75:1・--red は 3.14:1 で AA 割れ）。 */
+.notice.is-gate{
+  border-left-color:var(--red); background:var(--red-dim); color:var(--red-text);
+}
+.notice.is-gate::before{ content:"✗ "; font-weight:600; }
+/* 知らない事象（未知の type / notice kind / outcome）。失敗ではないので赤は使わない。
+   ★出すこと自体が目的——旧実装はここを黙って捨てていた。 */
+.notice.is-unknown{
+  border-left-style:dashed; background:var(--bg-3); color:var(--text-2);
+}
+.notice.is-unknown::before{ content:"? "; font-weight:600; color:var(--text-3); }
+
+/* 走行中の 1 行（#runbar-hint）。走っている間はここしか見えないので、
+   門と未知はここでも色を変える。 */
+.runbar__hint.is-gate{ color:var(--red-text); }
+.runbar__hint.is-unknown{ color:var(--text-2); }
+
+/* 版。常に見えるが、目立たせない。 */
+.side__ver{ margin-top:var(--s1); padding:0 var(--s3); font-size:12px; color:var(--text-3); letter-spacing:.02em; }
+
+/* 送信ボタンが「止める」になっている状態。赤は取り返しのつかない操作に
+   取ってあるので使わない。面を落として、押せることだけを示す。 */
+/* ★走行中に押す唯一のボタンなのに、枠が面と 1.22:1 で**画面上ほぼ消えていた**
+   （2026-08-18 の実測）。押すものが見えないのは機能が無いのと同じ。
+   枠を面と 3.2:1 まで上げる（非文字要素の AA は 3:1）。装飾は増やさない。 */
+.send.is-stop{ background:var(--bg-4); border-color:var(--stop-line); color:var(--text-2); }
+/* 強制割り込み（走行中に文字があるときだけ・赤の枠だけ＝送るより一段控えめ） */
+.send--now{ background:transparent; border-color:var(--red); color:var(--red-text); margin-right:var(--s2); }
+.send--now:hover{ background:var(--red-dim); color:var(--text); }
+.send--now[hidden]{ display:none; }
+.send.is-stop:hover{ color:var(--text); border-color:var(--text-3); }
+
+/* いま動いている中身。縮小版で動いているときだけ注意を引く（赤は使わない＝
+   危険ではなく、能力が下がっているだけ）。 */
+.side__engine{ display:none; margin-top:var(--s2); padding:0 var(--s3); font:400 12px/1.5 var(--f-body); color:var(--text-3); }
+.side__engine.is-reduced{ display:block; }
+/* 版はランプの行の右端（2026-10-30・1 行にまとめた） */
+.lamps .side__ver{ margin:0 0 0 auto; padding:0; font-size:11px; }
+.side__engine.is-reduced{ color:var(--text-2); }
+.side__engine.is-reduced::before{ content:"▲ "; }
+
+
+/* 心電図。生成中だけ動く。止まれば線も止まる＝生きている印。 */
+.status__wave{ display:block; width:140px; height:22px; align-self:center; opacity:.9; }
+
+/* 会話の行。消すボタンは、押すまで気配だけ。 */
+.convo__row{ display:flex; align-items:stretch; gap:2px; }
+.convo__row .convo{ flex:1 1 auto; min-width:0; }
+.convo__del{
+  flex:0 0 auto; padding:0 var(--s2); border:0; border-radius:var(--r);
+  background:transparent; color:var(--text-3); cursor:pointer;
+  font:400 12px/1 var(--f-plate); letter-spacing:.06em;
+  opacity:0; transition:opacity 180ms ease-out, color 180ms ease-out;
+}
+.convo__row:hover .convo__del, .convo__del:focus-visible{ opacity:1; }
+.convo__del:hover{ color:var(--text); }
+/* 「消す」まで進んだ状態だけ赤（取り返しがつかないので）。
+   ★文字なので --red-text（--red は側の面で 3.62:1＝AA 割れ。
+     いちばん読ませたいのが「本当に消すのか」の一語なのに読めなかった）。 */
+.convo__del[data-armed="1"]{ opacity:1; color:var(--red-text); }
+
+/* 推論中の1本。★入力欄のすぐ上（ClaudeCode と同じ位置）。
+   会話の中に置かないので、さかのぼっても古い行が残らない。 */
+.runbar{
+  /* ★波は**入力欄と同じ幅**（オーナー 2026-09-21「左から右まで伸ばして」）。
+     外側の余白は .composer と同じ var(--s5)、中身の上限は同じ var(--col) に揃える
+     ——こうすると波の両端が入力欄の角にぴたりと合う。
+     ★max-width をこの要素に置くと、padding のぶんだけ内側が狭くなって
+       入力欄より短くなる（box-sizing:border-box のため）。中身側に置く。 */
+  display:flex; flex-direction:column; align-items:stretch; gap:2px;
+  margin:0; padding:var(--s3) var(--s5) var(--s2);
+  font:400 12px/1.6 var(--f-plate); letter-spacing:.06em; color:var(--text-3);
+  /* ★2026-09-21: 落とす順番を**窓の幅ではなく自分の幅**で決める（下の @container）。
+     `@media` は窓を見るので、袖（会話一覧と Sources）を両方開いて**中央だけ狭い**形を
+     拾えなかった——実測 820px の窓で中央の欄は 250px しか無く、数値がはみ出していた。
+     ★containment は .runbar にだけ掛ける。#view-chat に掛けると、中の
+       position:absolute の基準が変わって別の物が動く（触る範囲を最小にする）。 */
+  container-type:inline-size; container-name:runbar;
+}
+.runbar[hidden]{ display:none; }
+/* ★推論中の印（2026-09-06）。ClaudeCode の脈動（`·→✢→✳→✶→✻→✽→✻→…` を 120ms で往復）を
+   **字の差し替え**で出す（app.js runMarkAt）。字形ごとに幅が違うので**箱の幅を固定**して、
+   脈打っても右の字が動かないようにする。色は --text-3（アクセントを増やさない。赤は波が担う）。
+   道具が走っている間は静止した ▸（実際に起きていることが主役・脈動は純推論の印）。 */
+.runbar__mark{ display:inline-block; flex:0 0 auto; width:1.25em; text-align:center;
+               font-family:var(--f-mono); color:var(--text-3); }
+/* 主ラベル。Gerund（Nebulizing… 等）が 7 秒ごとに替わっても右の列が動かないよう最小幅を取る。
+   ★min-width は app.js の RUN_VERBS の最長（＋…）以上の ch。run_runbar.js が突き合わせる。 */
+.runbar__what{ color:var(--text-2); flex:0 0 auto; min-width:15ch; }
+/* 経過 `3m 53s`・トークン `↓ ~10.7k tokens`。等幅＋tabular-nums＋最小幅で、桁が増えても列が動かない。
+   ★min-width は「最長の文字列＋区切りの · とその余白」を ch で取る（時間 7+2・トークン 15+2）。 */
+.runbar__time{ font-family:var(--f-mono); font-variant-numeric:tabular-nums; flex:0 0 auto; min-width:9ch; }
+.runbar__tokens{ font-family:var(--f-mono); font-variant-numeric:tabular-nums; flex:0 0 auto; min-width:17ch;
+                 color:var(--text-3); }
+.runbar__time::before, .runbar__tokens::before{ content:"·"; margin-right:var(--s2); color:var(--text-3); }
+/* まだ数える物が無いあいだは区切りだけ消す（箱は残す＝出た瞬間に右の注記が動かない）。 */
+.runbar__tokens:empty::before{ content:none; }
+/* ★opacity を掛けない。色で 4.5:1 を確保しても、その上から 0.85 を掛けると
+   実効値は AA を割る（合成後の色で測らないと気づけない）。
+   長い注記は 1 行に切り詰める（伸びて折り返すと帯の高さが動く）。 */
+/* ★2026-09-21: `flex:1 1 auto` をやめた。波を入力欄の幅まで広げたので、
+   注記が**右の余白を全部食って**、中央寄せにしたはずの行が左に貼り付いて見えた
+   （＝伸ばした結果、別の所が崩れた）。縮むのは今までどおり許す。 */
+.runbar__hint{ color:var(--text-3); flex:0 1 auto; min-width:0; white-space:nowrap;
+               overflow:hidden; text-overflow:ellipsis; }
+/* 狭いときは tokens → 経過 の順に落とす（印と主ラベルは残す）。設計 §B-2 の rank。
+   ★閾値は各項の min-width の実測から: 印 1.25em＋主 15ch＋経過 9ch＋トークン 17ch＋隙間 3
+   ＝12px で約 305px。注記のぶんを見て 420 / 320 に置いた（窓の 760 / 620 ではない）。 */
+@container runbar (max-width:420px){ .runbar__tokens{ display:none; } }
+@container runbar (max-width:320px){ .runbar__time{ display:none; } .runbar__what{ min-width:0; } }
+
+/* 本体からの問いかけ。答えるまで待たせているので、目に入る位置に置く。 */
+.askbox{
+  max-width:var(--col); margin:0 auto; padding:var(--s3) var(--s4) 0;
+}
+.askbox__q{ font-size:13px; color:var(--text); margin-bottom:var(--s2); }
+.askbox__row{ display:flex; flex-wrap:wrap; gap:var(--s2); align-items:center; }
+.askbox__opt{
+  padding:var(--s1) var(--s3); border:1px solid var(--line-2); border-radius:var(--r);
+  background:var(--bg-3); color:var(--text); cursor:pointer; font-size:13px;
+  transition:border-color 180ms ease-out;
+}
+.askbox__opt:hover{ border-color:var(--text-3); }
+/* 選択肢の説明（`descriptions`）。label と同じ行に詰めず、下に薄く 1 行。
+   ★説明が無い選択肢もあるので、有るときだけ要素を作る（空の行を作らない）。 */
+.askbox__opt{ display:flex; flex-direction:column; align-items:flex-start; gap:2px; text-align:left; }
+.askbox__optlabel{ color:inherit; }
+.askbox__optdesc{ font-size:12px; color:var(--text-2); max-width:34ch; }
+/* 返事が本体へ届かなかったとき。★問いは消さずに残す（もう一度押せる）。
+   文字なので --red-text（形の赤ではない）。 */
+.askbox__err{ margin-top:var(--s2); font-size:12px; color:var(--red-text); }
+.askbox__free{
+  flex:1 1 12rem; min-width:8rem; padding:var(--s1) var(--s3);
+  background:var(--bg-2); border:1px solid var(--line); border-radius:var(--r);
+  color:var(--text); font-size:13px;
+}
+
+/* ログを送る。★押すまで何も送らないので、押す気を起こさせすぎない見た目にする。
+   赤は使わない（危険でも裏付け無しでもない）。失敗したときだけ赤。 */
+.logbtn{
+  padding:var(--s1) var(--s3); margin-left:auto;
+  border:1px solid var(--line-2); border-radius:var(--r);
+  background:transparent; color:var(--text-3); cursor:pointer;
+  font:400 12px/1.6 var(--f-plate); letter-spacing:.06em; white-space:nowrap;
+  transition:color 180ms ease-out, border-color 180ms ease-out;
+}
+.logbtn:hover:not(:disabled){ color:var(--text-2); border-color:var(--text-3); }
+.logbtn:disabled{ opacity:.6; color:var(--text-3); cursor:not-allowed; }
+.logbtn.is-bad{ color:var(--red-text); border-color:var(--red-2); }
+
+/* 走行中に差し込んだ一言。利用者の発言なので user 側の色味に寄せるが、
+   途中で入ったことが分かるよう控えめに置く。 */
+.injected{
+  max-width:var(--col); margin:var(--s2) auto; padding:var(--s1) var(--s3);
+  border-left:2px solid var(--line-2); color:var(--text-2);
+  font-size:13px;
+}
+
+/* 失敗は答えと区別する。★装飾を足さない——左の細い線と控えめな前置きだけ。
+   グラデもグローも使わない（規範: アクセントは1色・情報を持たない装飾を作らない）。 */
+.msg.is-error, .bot.is-error { border-left: 2px solid var(--red); padding-left: 10px; }  /* 形＝--red */
+.msg.is-error::before, .bot.is-error::before {
+  content: "実行できませんでした"; display: block;
+  font-size: 12px; letter-spacing: .02em; color: var(--text-3); margin-bottom: 4px;
+}
+
+/* 文脈量。普段は静かな数字、切り落としが起きたときだけアクセントで知らせる。
+   ★幅を動かさない（規範）。数値は tabular-nums。 */
+
+/* 道具の束（ワークフロー表示・2026-08-23）。
+   オーナーが Claude Code の進行表示を指して「これがワークフローね」と示した形。
+   1枠に見出し・要約・点の列。開くと中の道具行。失敗があれば自動で開く。 */
+/* ★点は最大 48 個（app.js の WF_DOTS_MAX）。窓が狭いときは点が縮み、それでも足りなければ列の中で切れる（カードの外へ出さない） */
+@keyframes wfblink{from{opacity:.25}to{opacity:.9}}
+
+/* 予定表（TodoWrite・2026-10-21）。オーナーが Claude Code の予定表を示して「この画像のように」。
+   段ごとに丸の印: 未着手＝点線の丸／作業中＝実線の丸（アクセント）／完了＝塗りの丸にチェック・文字は薄く打ち消し線／取り消し＝打ち消し線。
+   走行中は会話の上端に貼り付く（いまどの段かを、読み進めても見失わない）。終わったら普通に流れる。 */
+/* ★position:relative（2026-10-21 オーナー「依頼を送ったら結果が帰ってくるまで画面が変になった」）: 段の読み上げ用の .sr-only は
+   position:absolute。予定表が位置の基準でないと、会話の欄（スクロールする枠）を越えて .main を基準に会話の中の位置（数千 px 下）へ
+   置かれ、窓の中身の高さが伸びていた（945 → 8,877px を再現）。走行の始めの scrollIntoView が、その分だけ窓ごと押し上げていた。 */
+.plan{position:relative;margin:0 0 var(--s2)}
+.msg.is-live>.plan{position:sticky;top:var(--s2);z-index:3}
+/* 帯: 進みの刻み・いまの段・段の数。押すと全部の段が開く（走行中は下の行に重ねて開く＝行を押し下げない）。 */
+.plan__bar{display:flex;align-items:center;gap:var(--s3);width:100%;height:32px;box-sizing:border-box;padding:0 10px;background:var(--bg-2);border:1px solid var(--line-2);border-radius:var(--r);box-shadow:0 6px 16px rgba(0,0,0,.35);color:var(--text);font:400 13px/1 var(--f-body);text-align:left;cursor:pointer}
+.plan__bar:hover{border-color:var(--line-3)}
+.msg:not(.is-live)>.plan .plan__bar{box-shadow:none}
+.plan__seg{flex:0 1 auto;display:flex;gap:3px;min-width:0;max-width:40%}
+.plan__s{flex:0 1 18px;min-width:3px;width:18px;height:4px;background:var(--line-2)}
+.plan__s.is-done{background:var(--ok)}
+.plan__s.is-now{background:var(--red)}
+.plan__now{flex:1;min-width:0;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.plan__now.is-dim{font-weight:400;color:var(--text-2)}
+.plan__count{flex:none;font:400 12px/1 var(--f-mono);font-variant-numeric:tabular-nums;color:var(--text-2)}
+.plan__car{flex:none;font-size:9px;line-height:1;color:var(--text-3)}
+.plan__list{list-style:none;margin:var(--s1) 0 0;padding:6px 10px 8px;background:var(--bg-2);border:1px solid var(--line-2);border-radius:var(--r)}
+.plan__list[hidden]{display:none}
+.msg.is-live>.plan .plan__list{position:absolute;left:0;right:0;top:32px;box-shadow:var(--shadow-pop)}
+.plan__go{display:grid;grid-template-columns:14px minmax(0,1fr) auto auto;column-gap:10px;align-items:center;width:100%;min-height:28px;padding:2px 0;background:none;border:0;border-radius:3px;color:var(--text-2);font:400 13px/1.5 var(--f-body);text-align:left;cursor:pointer}
+.plan__go:hover{background:rgba(234,228,227,.04);color:var(--text)}
+.plan__mark{position:relative;justify-self:center;width:9px;height:9px;box-sizing:border-box;border-radius:50%;border:1px solid var(--text-3)}
+.plan__text{min-width:0;overflow-wrap:anywhere}
+.plan__bad{font:500 12px/1 var(--f-mono);color:var(--red-text)}
+.plan__stat{grid-column:4;font:400 12px/1 var(--f-mono);font-variant-numeric:tabular-nums;color:var(--text-3)}
+.plan__item.is-in-progress .plan__go{color:var(--text);font-weight:500}
+.plan__item.is-in-progress .plan__mark{border-color:var(--red);background:var(--red)}
+.plan__item.is-completed .plan__mark{border-color:var(--ok);background:var(--ok)}
+.plan__item.is-cancelled .plan__text{text-decoration:line-through;text-decoration-color:var(--line-2)}
+.plan__item.is-cancelled .plan__mark{opacity:.5}
+
+/* ── 走行の線（Rail）・2026-11-02 ── app.js の「走行の線」と対。
+   1 手番＝1 行。左にモデルの文、右に道具と対象・結果・秒。列をそろえて文を読み下せるようにする。
+   色の階段: 文＝--text／道具と対象＝--text-2／結果と秒＝--text-3。赤は「動いている丸」と「失敗の四角・結果の語」だけ。 */
+.who__sum{margin-left:auto;font:400 12px/1 var(--f-mono);letter-spacing:0;color:var(--text-3);font-variant-numeric:tabular-nums}
+.who__fold{height:24px;padding:0 4px;background:none;border:0;border-radius:3px;font:400 12px/24px var(--f-mono);letter-spacing:0;color:var(--text-2);cursor:pointer}
+.who__fold[hidden]{display:none}
+.who__fold:hover{color:var(--text)}
+.msg--bot.is-steps-hidden>.rail,.msg--bot.is-steps-hidden>.plan{display:none}
+.rail{position:relative;container-type:inline-size;container-name:rail}
+.rail:empty{display:none}
+.turn{position:relative;padding-left:22px;scroll-margin-top:48px}
+.turn[hidden]{display:none}
+.msg.is-live .turn{animation:railin 140ms ease-out}
+.turn::before{content:"";position:absolute;left:3px;top:0;bottom:0;width:1px;background:var(--line-2)}
+.rail>.turn:last-child::before{bottom:auto;height:14px}
+/* 区間の間に本文が無ければ線をつなぐ（差し込みの前後など） */
+.rail:has(+ .live:empty + .rail)>.turn:last-child::before{bottom:0;height:auto}
+/* 線のあとの本文は少し離す */
+.rail+.live:not(:empty){margin-top:var(--s3)}
+.turn__n{position:absolute;left:0;top:10px;z-index:1;width:7px;height:7px;box-sizing:border-box;border-radius:50%;background:var(--bg);border:1px solid var(--text-3)}
+.turn__n--ok{background:var(--ok);border-color:var(--ok)}
+.turn__n--bad{background:var(--red);border-color:var(--red);border-radius:1px}
+.turn__n--live{background:var(--red);border-color:var(--red)}
+.turn__n--live::after{content:"";position:absolute;inset:-4px;border-radius:50%;background:rgba(208,52,44,.34);animation:wfblink .9s steps(18) infinite alternate}
+.turn__n--wait{background:var(--text);border-color:var(--text)}
+.turn__n--wait::after{content:"";position:absolute;inset:-4px;border-radius:50%;border:1px solid var(--text);opacity:.55}
+.turn__n--stop{border-radius:1px}
+.turn__n--you{border-color:var(--text)}
+.turn__n--fold{top:11px;height:5px;border:0;border-radius:0;background:transparent;border-top:1px solid var(--text-3);border-bottom:1px solid var(--text-3)}
+.turn--shot>.turn__n{top:18px}
+.tr{position:relative;display:grid;grid-template-columns:minmax(0,1fr) 208px minmax(84px,auto) 52px;column-gap:10px;align-items:baseline;box-sizing:border-box;width:calc(100% + 6px);min-height:28px;margin:0 0 0 -6px;padding:4px 0 4px 6px;background:none;border:0;border-radius:3px;color:inherit;font:inherit;text-align:left;cursor:pointer}
+.tr:hover{background:rgba(234,228,227,.04)}
+.tr:disabled{cursor:default;color:inherit}
+.tr:disabled:hover{background:none}
+.tr--plain{grid-template-columns:minmax(0,1fr) minmax(84px,auto) 52px}
+.tr--plain .tr__s{display:none}
+.tr--shot{align-items:center}
+.tr__s{min-width:0;font:400 13.5px/20px var(--f-body);color:var(--text);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow-wrap:anywhere}
+.tr__s.is-live{font-weight:500}
+.tr__s.is-dim{color:var(--text-2)}
+.tr__u{min-width:0;display:flex;align-items:baseline;gap:var(--s2);font:400 12px/20px var(--f-mono);color:var(--text-2)}
+.tr__v{flex:none;min-width:5ch}
+.tr__v:empty{display:none}
+.tr__w{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tr__r,.tr__t{font:400 12px/20px var(--f-mono);color:var(--text-3);text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.tr__r{justify-self:end}
+.tr__r.is-bad{font-weight:500;color:var(--red-text)}
+.tr__r.is-on{color:var(--text)}
+.tr__r .is-add{color:var(--ok-text)}
+.tr__r .is-del{color:var(--red-text)}
+.tr__shot{display:block;width:64px;height:36px;object-fit:cover;object-position:top left;border:1px solid var(--line-2);border-radius:2px}
+.tr__c{position:absolute;left:-7px;top:4px;width:10px;font-size:9px;line-height:20px;color:var(--text-3);text-align:center;visibility:hidden}
+.tr:hover .tr__c,.tr[aria-expanded="true"] .tr__c,.tr:focus-visible .tr__c{visibility:visible}
+.tr--shot .tr__c{top:12px}
+/* 走っている行だけの 2 行目。★実行系は全文を見せる（長いときは 3 行で切る・開くと全部）。 */
+.turn__cmd{display:flex;gap:var(--s2);padding:0 0 5px;font:400 12px/18px var(--f-mono);color:var(--text)}
+.turn__cmd[hidden]{display:none}
+.turn__cv{flex:none;min-width:5ch;color:var(--text-2)}
+.turn__cw{min-width:0;overflow-wrap:anywhere;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical}
+.turn__err{padding:0 0 5px;font:400 12px/18px var(--f-mono);color:var(--red-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.turn__err[hidden]{display:none}
+/* 押して開いた中身: その手番の思考と道具（引数・結果・差分は今までの .tool のまま）。 */
+.turn__pan{margin:2px 0 8px;padding:10px 12px;background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r)}
+.turn__pan[hidden]{display:none}
+.turn__th{margin-bottom:var(--s2)}
+.turn__th[hidden]{display:none}
+.turn__thl{font:400 12px/20px var(--f-mono);color:var(--text-3)}
+.turn__tht{max-height:320px;overflow:auto;font:400 13px/1.7 var(--f-body);color:var(--text-2);white-space:pre-wrap;overflow-wrap:anywhere}
+.turn__says{margin-bottom:var(--s2);font:400 13px/1.7 var(--f-body);color:var(--text);white-space:pre-wrap}
+.turn__says[hidden]{display:none}
+.turn__tools .tool{margin:0 0 var(--s1);border-left:0}
+.turn__tools .tool__head{padding-left:0}
+.turn__tools .tool__kind{display:none}
+.turn__tools .tool__body{padding:var(--s1) 0 var(--s2)}
+@keyframes railin{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+/* 狭い欄（スマホのウェブ版・左右の欄を開いた小さい窓）: 文の下に道具を置く。 */
+@container rail (max-width:560px){
+  .tr,.tr--plain{grid-template-columns:minmax(0,1fr) auto auto;column-gap:var(--s2)}
+  .tr__s{grid-column:1;grid-row:1}
+  .tr__r{grid-column:2;grid-row:1}
+  .tr__t{grid-column:3;grid-row:1}
+  .tr__u{grid-column:1 / -1;grid-row:2}
+  .tr--plain .tr__u{grid-column:1;grid-row:1}
+}
+@media (pointer:coarse){ .tr{min-height:44px} .plan__go{min-height:44px} .plan__bar{height:44px} .msg.is-live>.plan .plan__list{top:44px} .turn__n{top:12px} }
+@media (prefers-reduced-motion:reduce){ .msg.is-live .turn{animation:none} .turn__n--live::after{animation:none;opacity:.7} }
+
+/* ── Edit の差分（問題9・2026-08-23）。色は背景だけ・アクセント1色の規則の外側（意味色）。
+   横に長い行はブロック内で横スクロール（本文を横に伸ばさない）。 */
+.diff{ font-family:var(--f-mono); font-size:12px; line-height:1.45;
+  border:1px solid var(--line); border-radius:4px; overflow-x:auto; margin:var(--s1) 0; font-variant-numeric:tabular-nums; }
+.diff__row{ display:grid; grid-template-columns:3.5em 1.2em 1fr; white-space:pre; min-width:max-content; padding:0 var(--s1); }
+.diff__no{ color:var(--text-3); text-align:right; padding-right:.6em; user-select:none; }
+.diff__mark{ user-select:none; color:var(--text-3); }
+.diff__row--ctx{ color:var(--text-3); }
+.diff__row--add{ background:rgba(110,138,124,.22); }
+.diff__row--add .diff__mark{ color:var(--ok-text); }
+.diff__row--del{ background:var(--red-dim); }
+.diff__row--del .diff__mark{ color:var(--red-text); }
+.diff__gap{ color:var(--text-3); padding:0 var(--s1); user-select:none; }
+.diff__file{ font-family:var(--f-mono); font-size:12px; color:var(--text-2); margin-top:var(--s2); }
+
+/* ── 骨組み（読込中）─────────────────────────────────────────────
+   ★2026-09-21 追加。`refreshModels` / `refreshRig` は await の**前に何も出さず**、
+   返ってきてから一覧を描いていた＝その間**古い内容のまま固まって見える**。
+   ★スピナーではなく骨組みにする理由: **レイアウトが先に確定する**ので、
+   中身が来たときに行が飛ばない（CLS が出ない）。
+   ★動かすのは opacity だけ（skill の規律。width/height を動かすと必ずカクつく）。 */
+.skel{ display:grid; gap:var(--s2); }
+.skel__row{
+  height:44px; border:1px solid var(--line); border-radius:var(--r);
+  background:var(--bg-2); opacity:.55; animation:skelPulse 1.4s ease-in-out infinite;
+}
+.skel__row:nth-child(2){ animation-delay:.15s }
+.skel__row:nth-child(3){ animation-delay:.30s }
+@keyframes skelPulse{ 0%,100%{ opacity:.35 } 50%{ opacity:.7 } }
+@media (prefers-reduced-motion:reduce){ .skel__row{ animation:none; opacity:.5 } }
+
+/* 空状態の補足行（何が無いか → なぜ → いつ出るか）。
+   ★本体より一段弱く。主張を強めると、空なのに賑やかという矛盾が出る。 */
+.empty__hint{ display:inline-block; margin-top:var(--s1); color:var(--text-2); font-size:.92em; line-height:1.8; }
+.cite-ex{ font-variant-numeric:tabular-nums; border:1px solid var(--line-2); border-radius:4px;
+          padding:0 4px; font-size:.9em; }
+
+/* 会話の検索と日付のまとまり（2026-09-21） */
+.sr-only{ position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden;
+          clip:rect(0 0 0 0); white-space:nowrap; border:0; }
+.convo-q{
+  /* ★左右は New chat と同じ位置に揃える（以前は width:100% で縁から縁まで伸び、右の境界線に接していた）。 */
+  width:auto; margin:0 var(--s3) var(--s2); height:var(--h-ctl); padding:0 var(--s3);
+  background:var(--bg-2); color:var(--text); border:1px solid var(--line); border-radius:var(--r);
+  font:inherit; font-size:13px;
+}
+.convo-q::placeholder{ color:var(--text-3); }
+.convo-q:focus-visible{ outline:2px solid var(--line-2); outline-offset:1px; }
+/* ★まとまりの見出しは「線」ではなく「余白と弱い色」で作る（skill §3: 線と箱を増やすほど安く見える） */
+.convo-group{
+  margin:var(--s4) 0 var(--s1); padding:0 var(--s2);
+  font-size:.78em; letter-spacing:.06em; color:var(--text-3); text-transform:none;
+}
+.convos > .convo-group:first-child{ margin-top:0 }
+
+/* ショートカット一覧（? で開閉） */
+.keyhelp{
+  position:fixed; right:var(--s5); bottom:var(--s5); z-index:60;
+  background:var(--bg-3); border:1px solid var(--line-2); border-radius:var(--r-lg);
+  padding:var(--s4) var(--s5); box-shadow:0 8px 28px rgba(0,0,0,.45); max-width:340px;
+}
+.keyhelp h3{ margin:0 0 var(--s3); font-size:14px; }
+.keyhelp dl{ display:grid; grid-template-columns:auto 1fr; gap:var(--s2) var(--s4); margin:0; }
+.keyhelp dt{ margin:0 } .keyhelp dd{ margin:0; color:var(--text-2); }
+.keyhelp kbd{
+  font-family:var(--f-mono); font-size:12px; background:var(--bg-4);
+  border:1px solid var(--line-2); border-radius:4px; padding:1px 6px; white-space:nowrap;
+}
+
+/* ══ 意匠の作り直し（2026-09-21・オーナー: 商用に出せる水準）═══════════════
+   方針:
+     ・散文を並べない。説明は title へ逃がす（skill: 空状態以外に長文を置かない）
+     ・技術用語は英語（Tools / Think）。日本語は**利用者への言葉**だけ
+     ・アイコンは inline SVG・currentColor（依存を増やさない・色が勝手にずれない）
+     ・アクセントは1色のまま（--red）。切替の ON は**枠と文字**で示し、塗らない
+     ・動かすのは opacity/transform だけ・150ms 以内
+   ────────────────────────────────────────────────────────── */
+
+.composer__bar{ display:flex; align-items:center; gap:var(--s3); flex-wrap:wrap; }
+.toggles{ display:flex; align-items:center; gap:var(--s1); }
+.composer__actions{ margin-left:auto; display:flex; align-items:center; gap:var(--s2); }
+
+/* 切替の札。★チェックボックスは隠すが**フォーカスは殺さない**（:focus-visible を札に移す） */
+.tg{
+  display:inline-flex; align-items:center; gap:6px;
+  height:var(--h-sm); padding:0 var(--s3); border:1px solid var(--line); border-radius:999px;
+  color:var(--text-3); font-size:13px; line-height:1; cursor:pointer;
+  user-select:none; transition:color .15s ease-out, border-color .15s ease-out;
+}
+.tg input{ position:absolute; opacity:0; width:1px; height:1px; }
+.tg__i{ width:13px; height:13px; flex:none; opacity:.9; }
+.tg:hover{ color:var(--text-2); border-color:var(--line-2); }
+.tg:has(input:checked){ color:var(--text); border-color:var(--line-2); }
+.tg:has(input:focus-visible){ outline:2px solid var(--red); outline-offset:2px; }
+/* Think の深さの札（button・Off / Low / High） */
+.tg--think{ background:transparent; font:inherit; font-size:13px; }
+.tg--think[data-level="low"], .tg--think[data-level="high"]{ color:var(--text); border-color:var(--line-2); }
+.tg--think:focus-visible{ outline:2px solid var(--red); outline-offset:2px; }
+.tg__lv{ color:var(--text-3); font-size:12px; font-variant-numeric:tabular-nums; min-width:2.2em; }
+.tg--think[data-level="high"] .tg__lv{ color:var(--text); font-weight:600; }
+.tg--fixed{ cursor:default; }
+.tg--fixed:hover{ color:var(--text-3); border-color:var(--line); }
+
+/* アイコンだけのボタン。★44px の当たり判定を確保（skill §8） */
+.iconbtn{
+  display:inline-flex; align-items:center; justify-content:center;
+  width:var(--h-sm); height:var(--h-sm); padding:0; background:none; cursor:pointer;
+  border:1px solid var(--line); border-radius:var(--r); color:var(--text-3);
+  transition:color .15s ease-out, border-color .15s ease-out;
+}
+.iconbtn svg{ width:15px; height:15px; }
+.iconbtn:hover{ color:var(--text); border-color:var(--line-2); }
+.iconbtn:focus-visible{ outline:2px solid var(--red); outline-offset:2px; }
+
+/* 空になった注記は場所も取らない（★空の <p> が余白を作るのを防ぐ） */
+.composer__note:empty{ display:none; }
+
+/* ══ 全体の作り直し（2026-09-21・続き）════════════════════════════════
+   部分を直すのをやめ、**型**から揃える。 */
+
+/* ── 移動（アイコン＋文字）────────────────────────────────────── */
+.side__nav{ display:grid; gap:2px; margin:var(--s3) 0 var(--s2); }
+.slink{
+  display:flex; align-items:center; gap:var(--s3);
+  width:100%; padding:7px var(--s3); border:0; border-radius:var(--r);
+  background:none; color:var(--text-2); font:inherit; font-size:.9em;
+  text-align:left; cursor:pointer;
+  transition:color .15s ease-out, background-color .15s ease-out;
+}
+.slink svg{ width:15px; height:15px; flex:none; opacity:.85; }
+.slink:hover{ color:var(--text); background:var(--bg-2); }
+.slink.is-active{ color:var(--text); background:var(--bg-3); }
+.slink:focus-visible{ outline:2px solid var(--red); outline-offset:-2px; }
+
+/* ── 状態: ★色だけで伝えない（形も変える）──────────────────────── */
+.lamps{ display:flex; gap:var(--s3); padding:var(--s2) var(--s3) 0; }
+/* ★旧 `.72em` は親 .lamps の 11px に掛かって**実効 7.9px**（読めない大きさ）だった（2026-10-06 監査で発見）。px で決める。 */
+.lamp{ display:inline-flex; align-items:center; gap:var(--s1); font-size:12px; color:var(--text-3); }
+.lamp i{
+  width:7px; height:7px; border-radius:50%; flex:none;
+  background:transparent; border:1px solid var(--text-3);
+}
+.lamp.is-up i{ background:var(--ok); border-color:var(--ok); }
+/* ★不通は「塗らない」だけでなく**斜線**を入れる＝色が見えなくても分かる */
+.lamp.is-down{ color:var(--red-text); }
+.lamp.is-down i{
+  border-color:var(--red); background:
+    linear-gradient(to bottom right, transparent 44%, var(--red) 44%, var(--red) 56%, transparent 56%);
+}
+
+/* ── 会話の一覧（まとまりの見出しを控えめに）────────────────────── */
+.convo-group{ font-size:12px; font-weight:600; letter-spacing:0; color:var(--text-3); text-transform:none; }
+/* ★1 つしか群が無いなら見出しを出さない（雑音になる） */
+/* ★群が 1 つだけなら見出しを出さない。JS が `has-groups` を付けたときだけ見せる
+   （CSS だけで『群の総数』は数えられない——:last-of-type は『同じ型の最後』で別物）。 */
+.convos:not(.has-groups) .convo-group{ display:none; }
+
+/* ── サイドバーの足元（★.side / .convos は上の 94・107 行が正本。重複させない）── */
+.side__foot{ margin-top:auto; padding-top:var(--s3); border-top:1px solid var(--line); }
+
+/* ── 文字の階段（3 段に絞る。段が多いほど階層が読めなくなる）────── */
+.h2{ font-size:1.15rem; font-weight:700; letter-spacing:.12em; text-transform:uppercase; text-wrap:balance; }
+/* ★節の見出しは文の大きさ・普通の大小文字（大文字＋字間の飾りは、どの画面にも出る「既定値」の型）。 */
+.h3{ font:600 14px/1.4 var(--f-body); color:var(--text);
+     text-transform:none; letter-spacing:0; }
+.msg p{ text-wrap:pretty; }
+
+/* ── 詰め直し（撮って見て直した分・2026-09-21）────────────────────
+   ★撮影で分かったこと: 移動の 3 項目が間延びし、サイドバーの重心が下がりすぎていた。
+   行の高さを詰め、足元の塊（model / workspace / nav / lamps）を**1 つの群**として扱う。 */
+.side__nav{ gap:0; margin:var(--s2) 0; }
+.slink{ padding:var(--s2) var(--s3); font-size:13px; }
+/* ★列の幅を指定しない grid は、中身の最小幅（折り返さない Workspace のパス）まで列を広げ、
+     カードがサイドバーの外へはみ出していた（2026-10-05 実機）。列はサイドバーの幅に収める。 */
+.side__foot{ display:grid; grid-template-columns:minmax(0,1fr); gap:var(--s2); padding:var(--s3) var(--s3) var(--s2); }
+.side__foot > *{ min-width:0; }
+.side__foot > .chip,
+.side__foot > .ws{ margin:0; }
+.lamps{ padding:2px var(--s3) 0; }
+
+/* ── 会話の見出し（上部バー）──────────────────────────────────
+   ★題は 1 行で切る。切った題に `title` が無いと全文を確かめる手段が無くなるので、
+     JS 側で title を入れてある。 */
+#top-title{ font-size:14px; font-weight:600; color:var(--text-2);
+            white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+/* ── 引用番号（本文中の [1][2][3]）────────────────────────────
+   ★数字は tabular-nums（桁が揺れると行が踊る）。 */
+.cite{ font-variant-numeric:tabular-nums; }
+
+/* ══ Claude の画面を見て整えた分（2026-09-21・オーナー提示の参考画面より）═══
+   参考にした点（真似ではなく、効いている理由を採る）:
+     ・装飾が少ない。境界線をほとんど引かず、**背景の差**だけで区切る
+     ・本文の周りに**たっぷり余白**があり、行長が抑えられている
+     ・状態は小さな点で、主張しない
+   BLACKWALL らしさ（暗い下地・赤のアクセント・等幅の札）は保つ。 */
+
+/* ── ① 推論中の波: 入力欄の真上・中央 ────────────────────────
+   ★オーナー指示を 2 度直した。一度「真ん中上」を**画面上部**と読み違えて見出しの下へ
+   上げ、再指摘で**入力欄の真上**に戻した。中央寄せはそのまま（左下だと視線から遠い）。
+   下の余白は 0 のまま＝波と入力欄をひと塊に見せる。 */
+/* ★ここには .runbar の上書きを置いていた。基底（上の .runbar）へ畳んだ。
+   同じ物を 2 か所で決めると、あとから読む人（＝自分）がどちらが効くか分からなくなる。 */
+/* 波は**入力欄の真ん中の上**に来る。数値の行はその下に畳む。
+   ★1 行に並べると、波が左端・数値が右端になって「中央」に見えない（一度そうしていた）。
+   各項の min-width は下の行の中で効いたままなので、桁が増えても中央がぶれない。 */
+/* ★各項は min-width を持つので、中央の欄がとても狭い（両袖を開いた 820px 等）と
+   合計が入らない。はみ出して外の枠を押さないよう、ここで切る。
+   ⚠ これは**応急**: media query は窓の幅で効くので、袖を開いて中央だけ狭い形は
+     拾えていない（幅の判定を欄そのものに移すのが本筋。未実施）。 */
+.runbar__meta{ display:flex; align-items:center; justify-content:center; gap:var(--s3);
+               width:100%; max-width:var(--col); margin:0 auto; overflow:hidden; }
+
+/* ── ② 本文の読みやすさ ─────────────────────────────────────
+   ★行長 45〜75 文字・行間は日本語向けに広め（skill §4・§5）。
+   旧: 幅は --col(46rem) で抑えていたが、行間が本文と道具の記録で同じだった。 */
+.msg{ line-height:1.85; }
+.msg p{ margin:0 0 .85em; max-width:68ch; }
+.msg p:last-child{ margin-bottom:0; }
+.msg li{ line-height:1.8; }
+/* 答えの側も、空白の無い長い列が枠の外へ出ないように（利用者の吹き出しと同じ 2026-10-12）。 */
+.msg p, .msg li{ overflow-wrap:break-word; }
+/* 等幅の塊は逆に詰める（コードは行間が広いと読みにくい） */
+.msg pre, .msg code{ line-height:1.55; }
+
+/* ── ③ Sources の右パネル: 密度を上げる ──────────────────────
+   ★旧はカード 1 枚が大きく、3 枚で画面が埋まっていた。
+   本文・境界・余白をそれぞれ 1 段落として、同じ高さに 5〜6 枚入るようにする。 */
+/* ★クラス名は実物に合わせる（`.ev__title` / `.ev__body`）。
+   最初 `.ev__t` / `.ev__b` と書いて**当たらず、カードが逆に間延びした**
+   （撮って気づいた。名前は想像せず app.js の innerHTML を読む）。
+   ★既存の .ev（237行〜）が正本。ここは**密度だけ**を足す。 */
+.drawer__body{ display:grid; gap:var(--s2); align-content:start; }
+.ev{ padding:var(--s3); }
+/* 抜粋は 3 行で畳む。★全文は本文の [n] を押せば当たる（ここは一覧） */
+.ev__body{
+  display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical;
+  overflow:hidden; line-height:1.6;
+}
+.ev__src{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; word-break:normal; }
+
+/* ── ④ Models / Connection の画面 ──────────────────────────
+   ★Chat と同じ型にする（今まで別々に育って、余白も見出しも揃っていなかった）。 */
+/* ★.pane 本体は 249 行が正本。ここで max-width を重ねると**二重に狭まる**
+   （249: .pane / 250: .pane > * が 56rem 中央寄せ）。撮って気づいた。 */
+/* ★題は上の帯（#top-title）に出ている。本文にも同じ題を大きく出すと、1 画面に同じ語が 2 つ並んでいた。
+   見出しの構造（読み上げ）のために要素は残し、見た目だけ隠す。 */
+.pane > .h2{ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; margin:0; }
+.pane .h3{ margin:var(--s7) 0 var(--s3); }
+/* 画面の先頭に来る節（Connection の WAN）だけ上の余白を取らない。 */
+.pane > .two:first-of-type .h3{ margin-top:0; }
+.two{ display:grid; grid-template-columns:repeat(auto-fit, minmax(min(240px,100%),1fr));
+      gap:var(--s5); }
+.kv{ display:grid; grid-template-columns:auto 1fr auto; gap:var(--s2) var(--s3);
+     margin:0; font-size:13px; align-items:baseline; }
+.kv dt{ color:var(--text-3); white-space:nowrap; }
+.kv dd{ margin:0; color:var(--text); overflow-wrap:anywhere; }
+
+/* ── 説明文を消した後の始末（2026-09-21）─────────────────────────
+   ★空になった <p>/<span> が**余白だけ残す**のを防ぐ。
+   （文言を消して満足すると、見た目には隙間が残る——撮って気づいた） */
+.pane p:empty, .pane span:empty, .hint:empty, .note:empty{ display:none; }
+
+/* ── Models: 投下領域を列いっぱいに ────────────────────────────
+   ★撮影で分かったこと: 投下領域が左に寄って小さく、**押せる面積**が狭かった。
+   ここは画面の主行動なので、列幅いっぱいに取る（skill §3: 主行動は 1 つ・太く）。 */
+.import{ display:grid; gap:var(--s4); }
+.drop{
+  width:100%; min-height:132px; display:grid; place-content:center; gap:4px;
+  text-align:center; border:1px dashed var(--line-2); border-radius:var(--r-lg);
+  background:var(--bg-2); color:var(--text-2); cursor:pointer;
+  transition:border-color .15s ease-out, color .15s ease-out;
+}
+.drop b{ font-size:14px; font-weight:600; color:var(--text); }
+.drop span{ font-size:12px; color:var(--text-3); }
+.drop:hover, .drop:focus-visible{ border-color:var(--red); color:var(--text); }
+.drop:focus-visible{ outline:2px solid var(--red); outline-offset:2px; }
+
+/* ── 節の見出しと本体の間（Connection の各節）──────────────────── */
+.pane .h3 + *{ margin-top:var(--s2); }
+.hf{ display:grid; gap:var(--s2); }
+/* 推論の場所（Models 画面の先頭・2026-10-07）。下の取り込みと区切る。 */
+.where-bar{ display:grid; gap:var(--s2); margin-bottom:var(--s5); padding-bottom:var(--s4); border-bottom:1px solid var(--line); }
+.hf .row{ gap:var(--s2); }
+/* API キー（2026-10-08）。一覧と入力欄の間・入力欄と次の節の間をあける。 */
+.apikey-form{ margin-bottom:var(--s5); }
+#apikey-list[hidden]{ display:none; }   /* ★.list は display を持つので hidden が効かない。.list 全体には掛けない（#local-list は hidden のまま表示されている） */
+#apikey-list + .apikey-form{ margin-top:var(--s3); }
+/* MCP（2026-10-08）。.input は高さが固定なので、書く欄は高さを戻して等幅に。 */
+.mcp-add{ margin:var(--s3) 0 var(--s2); }
+.mcp-add .input{ max-width:360px; }
+.mcp-json{ display:block; width:100%; height:auto; min-height:180px; padding:var(--s2) var(--s3);
+           font:400 12px/1.5 var(--f-mono); resize:vertical; white-space:pre; overflow:auto; }
+#mcp-json + .folder{ margin-top:var(--s2); }
+
+/* ── 幅を揃える（撮って分かった 2 件・2026-09-21）─────────────────
+   ① Models: 投下領域が列いっぱいにならない
+   ② Connection: 節が中央に寄って細くなる
+   ★どちらも既存の定義（.drop に固定幅・.two のグリッド）が私の追記に勝っていた。
+   ⇒ **後から幅を上書きせず、器（.pane）の中で 1 列に流す**形へ。 */
+/* ★250 行の `.pane > *{max-width:56rem}` が子を揃えている。**それに任せる**。
+   ここで width/max-width を重ねると、勝ち負けが読めない指定が増えるだけ
+   （実際 3 回上書きして 3 回とも効かなかった）。
+   投下領域だけは「主行動なので広く」——親の幅いっぱいに伸ばす。 */
+.import > .drop{ width:100%; }
+.pane .row{ display:flex; gap:var(--s2); align-items:center; }
+.pane .row .input{ flex:1 1 auto; min-width:0; }
+
+
+/* ── モード（Agent / Chat）───────────────────────────────────────
+   ★2026-09-21 オーナー指示「ウェブ検索だけを使う通常会話モードも追加」。
+   ★2 択の押し分け。選ばれていないほうも**読める濃さ**で残す（消すと切替に見えない）。
+   ★幅を固定しない代わりに、選択で太さを変えても**動かない**よう weight は据え置き、
+     背景と文字色だけで示す（今日 3 回踏んだ「幅が動く」を作らない）。 */
+/* ⛔ ★2026-09-21: ここで `--r-md` `--bg-1` `--accent` `--line-1` と書いていた。
+   ★**どれもこの意匠に存在しない。** 未定義の CSS 変数はエラーにならず継承に落ちるので、
+   画面は「なんとなく違う」だけになって気づけない（knowledge/CSSは黙って失敗する.md の型）。
+   ★preflight の未定義変数の検査が捕まえた。実在する札は
+   `--bg/--bg-2/--bg-3/--bg-4` `--line/--line-2` `--r/--r-lg` `--red/--red-text`。 */
+.seg{
+  display:inline-flex; align-items:center; gap:2px; flex:0 0 auto;
+  background:var(--bg-3); border:1px solid var(--line);
+  border-radius:var(--r); padding:2px;
+}
+.seg__b{
+  appearance:none; border:0; cursor:pointer;
+  background:transparent; color:var(--text-3);
+  font:inherit; font-size:13px; line-height:1; letter-spacing:0;
+  height:calc(var(--h-sm) - 6px); padding:0 var(--s3); border-radius:calc(var(--r) - 2px);
+}
+.seg__b:hover{ color:var(--text-2); }
+.seg__b.is-on{ background:var(--bg); color:var(--text); }
+.seg__b:focus-visible{ outline:2px solid var(--red); outline-offset:1px; }
+/* ★会話モードでは、意味を失う札を**消さずに無効化**する。
+   消すと「さっきまで在った物がどこへ行った」になる。在るが押せない、が正しい。 */
+.composer[data-mode="chat"] .tg--off{ opacity:.4; pointer-events:none; }
+
+/* 走行中の会話（別の会話を開いていても、どれが動いているか分かるように）。 */
+.convo.is-running::before{
+  content:""; display:inline-block; width:6px; height:6px; margin-right:var(--s2);
+  border-radius:50%; background:var(--red); vertical-align:middle;
+  animation:convo-running 1.2s ease-in-out infinite;
+}
+@keyframes convo-running{ 50%{ opacity:.35; } }
+@media (prefers-reduced-motion: reduce){ .convo.is-running::before{ animation:none; } }
+/* 裏の会話が聞いてきた（2026-10-30・走行の器）: 点滅をやめ、輪で「答えを待っている」を出す。開くと問いが出る。 */
+.convo.is-asking::before{ background:transparent; box-shadow:inset 0 0 0 2px var(--red); animation:none; }
+
+/* ── Memory（会話の記録を見る・消す・2026-10-06）──────────────────────
+   ★危険な操作は赤い「枠と文字」に留める（塗りの赤は送信と同じ主ボタンの色＝取り違えを招く）。
+   ★状態ごとの札（has / left / none）は app.js renderMemory が描く。 */
+.btn--danger{ background:transparent; border-color:var(--red-2); color:var(--red-text); }
+.btn--danger:hover{ background:var(--red-dim); border-color:var(--red); }
+.btn:disabled{ opacity:.45; cursor:not-allowed; }
+.btn:disabled:hover{ background:var(--bg-3); }
+.btn--danger:disabled:hover{ background:transparent; }
+.mem-lead{ font-size:14px; color:var(--text-2); max-width:44rem; }
+.mem-lead strong{ color:var(--text); font-weight:600; }
+.mem-kv{ margin-top:var(--s4); grid-template-columns:auto 1fr; }
+.mem-state{ margin-top:var(--s5); }
+.mem-card{ border:1px solid var(--line-2); border-radius:var(--r-lg); background:var(--bg-2);
+  padding:var(--s4) var(--s5); display:flex; flex-direction:column; gap:var(--s2); }
+.mem-card__title{ font-weight:600; color:var(--text); }
+.mem-card--empty{ border-style:dashed; background:transparent; }
+/* ★2026-11-23: 一覧を確かめられないときの知らせ（消さない理由）と、ゴミ箱。カードが重なるので間を空ける。 */
+.mem-card + .mem-card{ margin-top:var(--s3); }
+.mem-card--warn{ border-color:var(--red-2); }
+.mem-card--trash{ background:transparent; }
+.mem-card__body{ font-size:13px; color:var(--text-2); }
+.mem-actions{ display:flex; flex-wrap:wrap; gap:var(--s2); margin-top:var(--s2); }
+.mem-confirm{ margin-top:var(--s3); border:1px solid var(--red-2); border-radius:var(--r-lg);
+  background:var(--bg-2); padding:var(--s4) var(--s5); }
+.mem-confirm__title{ font-weight:600; color:var(--text); }
+.mem-confirm__list{ margin:var(--s2) 0 0; padding-left:1.2em; font-size:13px; color:var(--text); }
+.mem-confirm__list li{ margin:2px 0; }
+.mem-confirm__keep{ color:var(--text-3); }
+.mem-confirm__warn{ margin-top:var(--s2); font-size:12px; color:var(--red-text); }
+.mem-result{ margin-top:var(--s3); color:var(--text-2); }
+.mem-keep{ margin:0; padding-left:1.2em; font-size:13px; color:var(--text-2); }
+/* 覚えていること（2026-10-30）: 1 行ずつ・右端に ×。足す欄は 1 行。 */
+.rem-list{ list-style:none; margin:var(--s2) 0 0; padding:0; max-width:44rem; }
+.rem-list__item{ display:flex; align-items:baseline; gap:var(--s2); padding:6px 0; border-bottom:1px solid var(--line); font-size:14px; }
+.rem-list__text{ flex:1; min-width:0; color:var(--text); overflow-wrap:anywhere; }
+.rem-list__del{ flex:none; background:none; border:0; color:var(--text-3); cursor:pointer; font-size:14px; padding:0 4px; }
+.rem-list__del:hover{ color:var(--red-text); }
+.rem-list__empty{ font-size:13px; color:var(--text-3); padding:6px 0; }
+.rem-add{ display:flex; gap:var(--s2); margin-top:var(--s3); max-width:44rem; }
+.rem-add__in{ flex:1; min-width:0; background:var(--bg-2); border:1px solid var(--line-2); border-radius:var(--r); color:var(--text);
+              font:400 14px/1.5 var(--f-body); padding:6px 10px; }
+.rem-add__in:focus{ outline:none; border-color:var(--text-3); }
+.mem-keep li{ margin:2px 0; }
+.pane code{ font:400 12px/1.5 var(--f-mono); background:var(--bg-3); border:1px solid var(--line);
+  border-radius:4px; padding:0 4px; color:var(--text); }
+.mem-link{ display:block; margin-top:var(--s2); background:none; border:0; padding:0; cursor:pointer;
+  font-size:12px; color:var(--text-2); text-align:left; text-decoration:underline; text-underline-offset:3px; }
+.mem-link:hover{ color:var(--text); }
+
+/* ── Server（左の欄のリソースのグラフ・2026-10-06）──────────────────────────
+   ESXi の性能グラフを手本に: 目盛りの格子・下に時刻・なめらかな線と薄い塗り。暗い面に合わせて格子は控えめに。
+   線の色は dataviz の暗い面の 1 番（#3987e5・validate_palette で PASS）。★文字は線の色にしない（text の札）。
+   ★塗りは rgba で書く（color-mix は html2canvas が解釈できず「ログを送る」の撮影が落ちる）。 */
+.srv{ border:1px solid var(--line); border-radius:var(--r); background:var(--bg); padding:6px 8px 6px; }
+.srv__toggle{ display:flex; align-items:baseline; gap:6px; width:100%; background:none; border:0; padding:0; cursor:pointer;
+  color:var(--text-2); font:600 11px/1.6 var(--f-plate); letter-spacing:.12em; text-transform:uppercase; text-align:left; }
+.srv__toggle:hover{ color:var(--text); }
+.srv__host{ margin-left:auto; font-size:11px; letter-spacing:0; text-transform:none; color:var(--text-3); font-weight:400; }
+.srv__host.is-time{ color:var(--text); }
+.srv__caret::before{ content:"▾"; font-size:10px; }
+.srv[data-collapsed="1"] .srv__caret::before{ content:"▸"; }
+.srv[data-collapsed="1"] .srv__body{ display:none; }
+.srv__row{ margin-top:5px; }
+.srv__head{ display:flex; align-items:baseline; gap:6px; font-size:11px; line-height:1.5; color:var(--text-2); }
+.srv__name{ font-weight:600; }
+.srv__val{ margin-left:auto; color:var(--text); font-variant-numeric:tabular-nums; white-space:nowrap; }
+.srv__plot{ display:block; width:100%; height:38px; background:var(--bg-2); border:1px solid var(--line); border-radius:3px;
+  touch-action:none; cursor:crosshair; }
+.srv__plot .grid{ stroke:var(--line-2); stroke-width:1; vector-effect:non-scaling-stroke; opacity:.6; }
+.srv__plot .area{ fill:rgba(234,228,227,.08); stroke:none; }
+.srv__plot .line{ fill:none; stroke:var(--plot); stroke-width:1.6; stroke-linejoin:round; stroke-linecap:round;
+  vector-effect:non-scaling-stroke; }
+.srv__plot .hair{ stroke:var(--text-2); stroke-width:1; vector-effect:non-scaling-stroke; }
+.srv__sub{ font-size:11px; line-height:1.5; color:var(--text-3); font-variant-numeric:tabular-nums; }
+.srv__axis{ display:flex; justify-content:space-between; margin-top:2px; font-size:11px; color:var(--text-3); }
+.srv__msg{ margin-top:4px; font-size:11px; line-height:1.5; color:var(--text-3); }
+.srv.is-stale .srv__plot, .srv.is-down .srv__plot{ opacity:.45; }
+
+/* ★動きを減らす設定（Windows の「アニメーション効果」オフ）では、流れる光と銘の乱れを出さない（2026-10-08）。 */
+@media (prefers-reduced-motion: reduce){
+  body.is-busy .titlebar::before{ animation:none; display:none; }
+  .hello__wave path{ animation:none; stroke-dashoffset:0; }
+}
+
+/* ── マウスに反応する背景（2026-10-08 オーナー「マウスに反応してチャット背景に変化を加えるとかいいかも」）──
+ * 防壁を照らす: マウスの周り（半径 260px）だけ、赤い格子が濃く浮かび上がる。.main の背面に 1 枚（z-index:-1・isolation で本文の下）。
+ * 位置は app.js が 1 フレームに 1 回だけ変数（--mx/--my）で渡す。本文から外れたら消える。動きを減らす設定では出さない。 */
+.main::before{
+  content:""; position:absolute; inset:0; z-index:-1; pointer-events:none; opacity:0; transition:opacity .3s ease;
+  background:
+    linear-gradient(rgba(208,52,44,.26) 1px, transparent 1px) 0 0/100% 56px,
+    linear-gradient(90deg, rgba(208,52,44,.22) 1px, transparent 1px) 0 0/56px 100%,
+    radial-gradient(circle 260px at var(--mx) var(--my), rgba(208,52,44,.10), transparent 72%);
+  -webkit-mask-image:radial-gradient(circle 260px at var(--mx) var(--my), #000, transparent 72%);
+          mask-image:radial-gradient(circle 260px at var(--mx) var(--my), #000, transparent 72%);
+}
+.main.is-lit::before{ opacity:1; }
+@media (prefers-reduced-motion: reduce){ .main::before{ display:none; } }
+
+/* ── チャット背景のシナプス（2026-10-09 オーナー「入力欄の上の波をなくして、チャット画面の背景にオーディオスペクトラムの
+ * ようなものを。モデルの思考に合わせて動かす。赤・黒を基調のアメーバ型シナプス」・描くのは synapse.js）──
+ * .main の背面に 1 枚（z-index:-1・isolation で本文の下）。会話の列（中央）は mask で薄くして本文を読みやすく保つ。
+ * ★動きを減らす設定でも出す（オーナー「Windows のアニメーションを切っていても動くように」）。 */
+.synapse{
+  position:absolute; inset:0; z-index:-1; pointer-events:none; display:block;
+  /* ★2026-10-30 オーナー「見やすく無駄を省く」: 会話の列の後ろはさらに薄く（字を読むところに線を重ねない）。周りは残す。 */
+  -webkit-mask-image:radial-gradient(ellipse 46% 62% at 50% 44%, rgba(0,0,0,.22), rgba(0,0,0,.55) 60%, #000 100%);
+          mask-image:radial-gradient(ellipse 46% 62% at 50% 44%, rgba(0,0,0,.22), rgba(0,0,0,.55) 60%, #000 100%);
+}
+
+/* ── 添付（2026-10-09 オーナー「チャット欄に直接ファイルを送れるような仕組みが欲しい」）──
+ * 入力欄の上に札で並ぶ（名前・大きさ・外す ×）。窓へドラッグしている間は入力欄の枠が赤くなる。 */
+.att{ display:flex; flex-wrap:wrap; gap:6px; padding:8px 10px 0; }
+.att[hidden]{ display:none; }
+.att__chip{ display:inline-flex; align-items:center; gap:6px; max-width:280px; padding:3px 4px 3px 8px;
+            border:1px solid var(--line-2); border-radius:var(--r); background:var(--bg-3); font-size:12px; color:var(--text-2); }
+.att__name{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
+.att__size{ flex:none; color:var(--text-3); font-family:var(--f-mono); font-size:11px; }
+.att__x{ flex:none; border:0; background:none; color:var(--text-3); cursor:pointer; padding:0 4px; font-size:14px; line-height:1; }
+.att__x:hover{ color:var(--text); }
+.att__err{ width:100%; font-size:12px; color:var(--red-text); }
+.composer.is-drop .composer__box{ border-color:var(--red); box-shadow:inset 0 0 0 1px var(--red); }
+
+/* ── 音声入力（2026-10-09 オーナー「音声入力の仕組みも欲しい」）──
+ * 録音中はボタンが赤く脈打ち、左に経過秒。文字にしている間は薄く点滅。 */
+.mic.is-rec{ color:var(--text); border-color:var(--red); background:var(--red-dim); animation:mic-pulse 1.2s ease-in-out infinite; }
+.mic.is-busy{ color:var(--text-3); animation:mic-busy .9s ease-in-out infinite alternate; }
+.mic__time{ align-self:center; font-size:11px; color:var(--red-text); font-family:var(--f-mono); margin-right:2px; }
+.mic__time[hidden]{ display:none; }
+@keyframes mic-pulse{ 0%,100%{ box-shadow:0 0 0 0 rgba(208,52,44,.45); } 50%{ box-shadow:0 0 0 4px rgba(208,52,44,0); } }
+@keyframes mic-busy{ from{ opacity:1; } to{ opacity:.45; } }
+
+/* ── 別の窓の Files（viewer.html・2026-10-18 オーナー「画面分離にも対応させたい」）───────── */
+body.viewer{ background:var(--bg); color:var(--text); margin:0; min-height:100vh; display:flex; flex-direction:column; }
+.vw__head{ position:sticky; top:0; z-index:2; display:flex; align-items:flex-start; gap:var(--s3); padding:var(--s3) var(--s4);
+  background:var(--bg-2); border-bottom:1px solid var(--line); }
+.vw__head .fv__title{ flex:1; }
+.vw__msg{ margin:0; padding:0 var(--s4); }
+.vw__msg:empty{ display:none; }
+.vw__body{ flex:1; padding:var(--s4) var(--s5, 24px); display:flex; flex-direction:column; gap:var(--s3); max-width:72rem; width:100%;
+  box-sizing:border-box; margin:0 auto; }
+.vw__body .fv__frame--pdf{ min-height:calc(100vh - 120px); }
+
+/* ── 左の欄の足元を 1 列に（2026-10-30 オーナー「無駄を省きつつ全面レビュー」）──────────────
+ * 移動 5 つを縦に積むと欄の高さの 1/4 を使い、会話の一覧とほかの端末が押し出されていた。アイコンだけの 1 列にし、
+ * 名前は title とスクリーンリーダー（span を見えなくするだけ）に残す。状態の灯は同じ列の右へ。 */
+.side__nav{ display:flex; gap:2px; margin:var(--s2) 0 0; padding:0 var(--s2); }
+.slink{ width:auto; flex:1 1 0; justify-content:center; padding:8px 0; }
+.slink > span{ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+.slink svg{ width:17px; height:17px; }
+.lamps{ padding:var(--s2) var(--s3) 0; }
+
+/* ── 会話ごとのモデル（2026-10-30）: 入力欄の右の札と、上に開く選び（Claude のアプリと同じ置き場）。 */
+/* 文脈の残量の輪（2026-11-10）。灰の輪＝自動の要約が始まる所まで、塗り＝いま使っている分。7 割で文字色、9 割で赤。 */
+.ctxring{ display:inline-flex; align-items:center; justify-content:center; width:24px; height:30px; flex:0 0 auto; cursor:default; }
+.ctxring[hidden]{ display:none; }          /* ★display を指定したので hidden 属性だけでは消えない */
+.ctxring svg{ width:16px; height:16px; }
+.ctxring__bg{ fill:none; stroke:var(--line-2); stroke-width:2; }
+.ctxring__fg{ fill:none; stroke:var(--text-3); stroke-width:2; stroke-linecap:round; }
+.ctxring[data-level="mid"] .ctxring__fg{ stroke:var(--text); }
+.ctxring[data-level="high"] .ctxring__fg{ stroke:var(--red); }
+.mpick{ position:relative; display:flex; align-items:center; }
+.mpick__btn{ display:flex; align-items:center; gap:4px; max-width:180px; height:30px; padding:0 8px; border:0; border-radius:var(--r);
+  background:none; color:var(--text-2); font:inherit; font-size:13px; cursor:pointer; }
+.mpick__btn:hover, .mpick__btn[aria-expanded="true"]{ background:var(--bg-3); color:var(--text); }
+.mpick__name{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.mpick__caret{ font-size:10px; color:var(--text-3); }
+.mpick__menu{ position:absolute; right:0; bottom:calc(100% + 6px); z-index:30; min-width:230px; padding:4px;
+  background:var(--bg-2); border:1px solid var(--line-2); border-radius:var(--r); display:flex; flex-direction:column; }
+.mpick__item{ display:flex; flex-direction:column; align-items:flex-start; gap:1px; padding:7px 10px; border:0; border-radius:var(--r);
+  background:none; color:var(--text); font:inherit; text-align:left; cursor:pointer; }
+.mpick__item:hover{ background:var(--bg-3); }
+.mpick__item.is-on{ box-shadow:inset 2px 0 0 var(--red); }
+/* 利用者への一文（2026-10-30）: 道具の束の前に、モデルが道具の欄に書いた「〇〇なので〇〇します」を 1 行で出す。 */
+.mpick__iname{ font-size:13px; }
+.mpick__isub{ font-size:12px; color:var(--text-3); }
+/* ★display を書いた器は hidden の属性が効かなくなる（UA の [hidden]{display:none} に勝つ）。明示して戻す。 */
+.mpick__menu[hidden], .peers[hidden]{ display:none; }
+
+/* サーバーのモデル（2026-10-30 作り直し）: 載っている物は「サーバー」の行に名前で出し、ほかは「入れ替える」を開いたときだけ並べる。
+   メニューは画面の高さに収め、はみ出す分は中で巻く（13 行が縦いっぱいにはみ出していた）。 */
+.mpick__menu{ max-height:min(70vh, 560px); overflow-y:auto; width:280px; }
+.mpick__toggle .mpick__iname::after{ content:" ▸"; color:var(--text-3); }
+.mpick__toggle[aria-expanded="true"] .mpick__iname::after{ content:" ▾"; }
+.mpick__units{ display:flex; flex-direction:column; margin:0 0 2px 10px; padding-left:6px; border-left:1px solid var(--line-2); }
+.mpick__units[hidden]{ display:none; }
+.mpick__item--unit{ padding:5px 8px; }
+.mpick__item--unit:disabled{ opacity:.5; color:var(--text-3); cursor:not-allowed; }
+.mpick__isub{ max-width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+/* ── アカウント（2026-10-31）───────────────────────────────── */
+.auth{ position:fixed; inset:0; z-index:1000; display:flex; align-items:center; justify-content:center;
+  background:var(--bg); padding:var(--s4); }
+.auth[hidden]{ display:none; }
+.auth__card{ width:100%; max-width:22rem; display:flex; flex-direction:column; gap:var(--s3); }
+.auth__brand{ font:700 26px/1.2 var(--f-plate); letter-spacing:.12em; color:var(--text); margin:0 0 var(--s3); }
+.auth__field{ display:flex; flex-direction:column; gap:var(--s1); font-size:12px; color:var(--text-2); }
+.auth__field[hidden]{ display:none; }
+.auth__field .input{ flex:none; width:100%; font-size:14px; }
+.auth__err{ margin:0; font-size:13px; line-height:1.5; color:var(--red-text); overflow-wrap:anywhere; }
+.auth__err[hidden]{ display:none; }
+.auth__go{ width:100%; padding:var(--s2) var(--s3); font-size:14px; }
+.auth__link{ align-self:center; background:none; border:0; padding:var(--s1) var(--s2); cursor:pointer;
+  font:400 13px/1.4 var(--f-body); color:var(--text-2); }
+.auth__link:hover{ color:var(--text); }
+.auth__link[hidden]{ display:none; }
+.acct-actions{ margin:var(--s4) 0 0; }
+.acct-list{ list-style:none; margin:var(--s2) 0 0; padding:0; max-width:44rem; }
+.acct-row{ display:flex; align-items:center; gap:var(--s3); padding:var(--s2) 0; border-bottom:1px solid var(--line); }
+.acct-row__main{ flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
+.acct-row__name{ font-size:14px; color:var(--text); overflow-wrap:anywhere; }
+.acct-row__sub{ font-size:12px; color:var(--text-3); overflow-wrap:anywhere; }
+.acct-row .btn{ flex:none; }
+#acct-pass .rem-add__in{ flex:1 1 0; }
+.acct-check{ display:flex; align-items:center; gap:var(--s2); margin-top:var(--s2); font-size:13px; color:var(--text-2); }
+.peers-all{ background:none; border:0; padding:0 0 0 var(--s2); cursor:pointer; font:400 11px/1 var(--f-body);
+  color:var(--text-3); letter-spacing:0; text-transform:none; }
+.peers-all:hover{ color:var(--text); }
+#peers.is-all{ max-height:44vh; overflow:auto; }
+
+/* Remote Control（/rc の窓・ほかの端末の一覧・2026-10-31） */
+.lamp--btn{ cursor:pointer; }
+.lamp--btn:hover{ color:var(--text-2); }
+.peer__del{ margin-left:var(--s2); background:none; border:0; padding:0; font-size:12px; color:var(--text-3); cursor:pointer; }
+.peer__del:hover,.peer__del[data-armed="1"]{ color:var(--red); }
+.rc{ position:fixed; inset:0; z-index:60; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,.35); }
+.rc[hidden]{ display:none; }
+.rc__card{ width:min(320px,calc(100vw - 32px)); background:var(--bg-2,var(--bg)); color:var(--text); border:1px solid var(--line,rgba(127,127,127,.3)); border-radius:8px; padding:var(--s3); }
+.rc__head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:var(--s2); }
+.rc__x{ background:none; border:0; color:var(--text-3); font-size:16px; cursor:pointer; padding:0 var(--s1); }
+.rc__state{ display:flex; align-items:center; gap:var(--s2); margin:0 0 var(--s2); font-size:13px; }
+.rc__state i{ width:7px; height:7px; border-radius:50%; border:1px solid var(--red); }
+.rc__state.is-up i{ background:var(--ok); border-color:var(--ok); }
+.rc__dim{ margin:var(--s1) 0 var(--s2); font-size:12px; color:var(--text-3); }
+.rc__qr{ width:200px; margin:var(--s2) auto var(--s1); }
+.rc__qr svg{ display:block; width:100%; height:auto; border-radius:4px; }
+.rc__copy{ width:100%; padding:var(--s2); font-size:12px; background:none; color:var(--text-2); border:1px solid var(--line,rgba(127,127,127,.3)); border-radius:6px; cursor:pointer; word-break:break-all; }
+.lamps{ flex-wrap:wrap; row-gap:2px; column-gap:var(--s2); }
+
+/* ══ UI の厳しめのレビュー（2026-10-31 オーナー「UI/UX関連でかなり厳しく細かくレビューと改善」）══════════════
+ * 本物の index.html を偽の本体で動かして全画面を撮り、コントラスト・押せる大きさ・Tab の歩きを測って直した分。
+ * 色は既存の札だけ。増やしたのは境界の 2 段と主ボタンの hover の 3 つ。 */
+:root{
+  --line-3:#4D4143;       /* hover と開いている札の枠 */
+  --line-focus:#736566;   /* 入力欄の枠（面と 3.1:1。旧 #4D4143 は 1.9:1 で、入力中か見分けられなかった） */
+  --red-hover:#D93D35;    /* 主ボタンの hover。旧は --red-2 へ暗くなり、押せなくなったように見えた */
+}
+.send:not(.is-stop):not(.send--now):hover, .btn--primary:hover{ background:var(--red-hover); }
+
+/* ── フォーカス。入力欄は outline:none で枠の色が少し変わるだけだった。ボタンと同じ印に揃える。入力欄（会話）だけは
+ *    打っているだけで警告に見えないよう、赤を使わない（上の --line-focus）。 */
+.input:focus-visible, .rem-add__in:focus-visible, .convo-q:focus-visible, .askbox__free:focus-visible{
+  outline:2px solid var(--red); outline-offset:-1px;
+}
+.ctx__item:focus-visible{ outline:2px solid var(--red); outline-offset:-2px; }
+.drawer__grip:focus-visible{ background:var(--red); }
+
+/* ── 押せる大きさ（24px 未満を測って直した）。見た目を変えない物は負の余白で当たりだけ広げる。 */
+.peers-all{ padding:7px 4px 7px var(--s2); margin:-7px 0; }
+.srv__toggle{ min-height:24px; align-items:center; }
+.lamp[hidden]{ display:none; }   /* ★display を持つので hidden が効かず、Remote が使えない機械でも灯が出ていた */
+.lamp--btn{ background:none; border:0; padding:4px 0; margin:-4px 0; font:inherit; font-size:12px; color:var(--text-3); }
+.cite{ position:relative; }
+.cite::after{ content:""; position:absolute; inset:-4px -2px; }
+
+/* ── 状態の点。後ろの .kv dd{color} に負けて up も down も白いままだった（色の指定が 1 度も効いていなかった）。 */
+.kv dd.st--up{ color:var(--ok-text); } .kv dd.st--down{ color:var(--red-text); } .kv dd.st--unknown{ color:var(--text-3); }
+
+/* ── 左の欄。× が見えないまま幅を取り、題が 24px 早く切れ、選んだ行の面も右で切れていた。 */
+.convo__row{ position:relative; }
+.convo__row .convo{ width:100%; }
+.convo__del{ position:absolute; right:2px; top:50%; transform:translateY(-50%); min-width:24px; height:24px; padding:0 6px; background:var(--bg-3); }
+/* ほかの端末: 題と機械の名前を同じ行で取り合い、どちらも読めなかった。機械は 2 行目へ。走っている印は会話の一覧の点に揃える。 */
+.peer > summary{ flex-wrap:wrap; row-gap:0; }
+.peer__dev{ flex:1 0 100%; max-width:none; padding-left:calc(1.1em + var(--s2)); }
+.peer.is-running .peer__mark{ font-size:9px; }
+
+/* ── 入力欄の行。折り返す作りだったので、モデルの名前の長さと走行の状態で欄の高さが 96↔138px に飛んでいた。
+ *    幅は欄の幅だけで決め、1 行に収める（狭いときは語を畳み、それでも入らなければ 2 行に固定）。 */
+.composer__box{ container:composer / inline-size; }
+.composer__bar{ flex-wrap:nowrap; gap:var(--s2); }
+.seg, .toggles{ flex:none; }
+.tg{ padding:0 10px; }
+.composer__actions{ flex:1 1 auto; min-width:0; justify-content:flex-end; gap:var(--s1); }
+.composer__actions .send{ margin-left:var(--s1); }
+.send--now{ margin-right:0; }
+.mpick{ flex:0 1 auto; min-width:0; }
+.mpick__btn{ min-width:0; max-width:100%; }
+.mpick__name{ min-width:0; }
+.tg > span:not(.tg__lv){ white-space:nowrap; }
+@container composer (max-width:640px){
+  .tg > span:not(.tg__lv){ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); }
+  .tg{ padding:0 var(--s2); }
+}
+@container composer (max-width:470px){
+  /* デスクトップの行（Agent/Ask あり）だけ 2 段にする。ウェブ版の行は札が少なく、説明の字が縮むので 1 段に収まる。 */
+  .composer__bar:has(> .seg){ flex-wrap:wrap; }
+  .composer__bar:has(> .seg) .composer__actions{ flex:1 1 100%; }
+}
+
+/* ── 状態の帯。経過の字の左に 7 字ぶんの空きがあり、▸ だけが浮いて見えた。経過 → 印 → いまの動き の順にする。 */
+.ctx .runbar__time{ min-width:5ch; }
+.ctx .runbar__mark{ order:2; }
+.ctx .runbar__what{ order:3; }
+.ctx .runbar__what::before{ content:none; }
+.ctx .runbar__tokens{ order:4; }
+.ctx .runbar__hint{ order:5; }
+
+/* ── 問いの箱。答えを待っているのに面が無く、背景の線の上に小さなボタンが浮いて、入力欄の左端とも揃っていなかった。 */
+.askbox{
+  width:calc(100% - 2 * var(--s5)); max-width:var(--col); margin:0 auto var(--s3); padding:var(--s3) var(--s4);
+  background:var(--bg-2); border:1px solid var(--line-2); border-left:2px solid var(--red); border-radius:var(--r-lg);
+  box-shadow:var(--shadow-pop);
+}
+.askbox__q{ margin:0 0 var(--s2); font-size:14px; font-weight:600; line-height:1.6; white-space:pre-wrap; overflow-wrap:anywhere; }
+.askbox__row{ display:grid; grid-template-columns:minmax(0,1fr); gap:var(--s1); max-height:44vh; overflow:auto; }
+.askbox__opt{ width:100%; min-height:var(--h-ctl); padding:var(--s2) var(--s3); justify-content:center; font-size:13px; }
+.askbox__opt:hover{ background:var(--bg-4); }
+.askbox__optdesc{ max-width:none; }
+.askbox__free{ flex:none; width:100%; min-width:0; height:var(--h-ctl); margin-top:var(--s1); font-size:13px; }
+.askbox__free::placeholder{ color:var(--text-3); }
+
+/* ── 会話の下端。入力欄の上で字が行の途中から切れていたので、少しだけ溶かす。 */
+.thread{
+  -webkit-mask-image:linear-gradient(#000 calc(100% - 20px), transparent);
+          mask-image:linear-gradient(#000 calc(100% - 20px), transparent);
+}
+/* 開いた道具の引数の名前。1 行の値と別の行の値で字の大きさが違っていた（別の行の側は本文の 15px）。 */
+.tool__key{ font:400 12px/1.6 var(--f-mono); }
+
+/* ── 設定の画面 ─────────────────────────────────────────────────── */
+/* ★Models の投下領域と Hugging Face が左半分で止まっていた（.import の 2 列が生きていて、列いっぱいにした指定が効いていなかった）。 */
+.import{ grid-template-columns:minmax(0,1fr); }
+.drop{ min-height:88px; }
+/* ボタンだけの行を箱で囲まない（5 か所で枠が画面の罫線と二重になっていた）。 */
+.folder{ background:none; border:0; padding:0; }
+/* 行の右端を節の罫線に揃える（44rem で止まり、右に 128px の段差があった）。 */
+.rem-list, .rem-add, .acct-list{ max-width:none; }
+/* Tools は 17 本で画面 2 枚ぶんあり、その下の節へ届かなかった。1 行ずつの表にする。 */
+#tool-list{ gap:0; }
+#tool-list .item{ padding:var(--s1) 0; gap:var(--s3); background:none; border:0; border-bottom:1px solid var(--line); border-radius:0; }
+#tool-list .item > div:first-child{ display:flex; align-items:baseline; gap:var(--s3); min-width:0; }
+#tool-list .item__name{ flex:0 0 11rem; font-size:13px; word-break:normal; }
+#tool-list .item > div:first-child .item__meta{ font-family:var(--f-body); }
+/* 背景の動きは会話のもの。設定を読むときは下げる。 */
+.main:has(#view-chat[hidden]) .synapse{ opacity:.35; }
+#view-models[data-where="lan"] .import, #view-models[data-where="lan"] #hf-results, #view-models[data-where="lan"] .pane > .h3,
+#view-models[data-where="lan"] #local-list, #view-models[data-where="lan"] #models-empty,
+#view-models[data-where="claude"] .import, #view-models[data-where="claude"] #hf-results, #view-models[data-where="claude"] .pane > .h3,
+#view-models[data-where="claude"] #local-list, #view-models[data-where="claude"] #models-empty{ display:none; }
+#view-models[data-where="lan"] .where-bar, #view-models[data-where="claude"] .where-bar{ border-bottom:0; padding-bottom:0; }
+/* 撮り直して見つけた分: 狭い窓で銘が 2 行に割れる／モデルの札が短い名前でも切れる／問いの選択肢が説明の分だけ縦に伸びる。 */
+.tb__sub{ white-space:nowrap; }
+.mpick__btn{ gap:2px; padding:0 6px; font-size:12px; }
+.askbox__opt{ flex-direction:row; flex-wrap:wrap; align-items:baseline; justify-content:flex-start; column-gap:var(--s3); }
+.rem-list__del{ min-width:24px; min-height:24px; }
+
+
+/* ── 磨き（2026-11-11 オーナー「UI/UX/アニメーションも商用アプリのように洗練された感じで」）──────────────
+ * 動きは状態を伝えるときだけ（押した・発言が増えた・枠が開いた）。transform と opacity だけ・入りは 220ms の減速。
+ * 動きを減らす設定では上の prefers-reduced-motion の一括の指定（長さ .01ms）で止まる。 */
+:root{ --ease-out:cubic-bezier(.16,1,.3,1); }
+/* 押した手応え。詳しさ 0 の :where にして、各部品が持つ transition の指定を上書きしない。 */
+:where(.ghost, .btn, .send, .iconbtn, .tg, .seg__b, .tb__icon, .cshell__btn, .mpick__btn, .cpane__x){
+  transition:background-color .14s ease-out, color .14s ease-out, border-color .14s ease-out, transform .1s ease-out;
+}
+:where(.ghost, .btn, .send, .iconbtn, .tg, .seg__b, .tb__icon, .cshell__btn, .mpick__btn, .cpane__x):active:not(:disabled){ transform:scale(.96); }
+.hcard:active{ transform:translateY(1px); }
+/* 新しい発言（送った・答えが始まった）と、開いた枠。会話を開き直して描き直すときは付けない（app.js・panes.js）。 */
+@keyframes msg-in{ from{ opacity:0; transform:translateY(6px); } to{ opacity:1; transform:none; } }
+@keyframes pane-in{ from{ opacity:0; transform:translateX(12px); } to{ opacity:1; transform:none; } }
+.msg.is-new{ animation:msg-in .22s var(--ease-out) both; }
+.cpane.is-entering{ animation:pane-in .22s var(--ease-out) both; }
+/* 手番の線と答えの間（撮ると 26px で、道具の最後の行と答えの 1 行目が続いて読めた）。 */
+.msg--bot .rail{ margin-bottom:var(--s3); }
+
+/* ── Linux 版（WebKitGTK）で動かない欄を出さない（app.js が <html> に is-linux を付ける）──
+ * Browser は WebView2 の DevTools を使う（browser.rs が Linux では「runs only on Windows」を返す）。
+ * 「この PC の GPU」は DXGI で測り、同梱の llama.cpp も Windows の物（gpu.rs は Linux で unknown を返す）。 */
+html.is-linux #tab-browser, html.is-linux #browser,
+html.is-linux .where-seg [data-where="local"], html.is-linux #local-prep, html.is-linux #gpu-line{ display:none !important; }
+
+/* ── 依頼で変えたファイルの行の「戻す」（/undo を送る・2026-11-11 Codex から）── */
+.notice__act{ font:inherit; font-size:12px; padding:1px 8px; margin-left:6px; border-radius:6px; vertical-align:baseline; }
+
+/* ══ 2026-11-14 UI/UX（調べてからの直し・1 回目）════════════════════════════════
+ * 手本: 終わった手番は 1 行・道具は名前と対象を続けて読める（各社の部品の資料）／いまいる画面を名前で示す（Linear の作り直し:
+ * 選んでいない項目は弱く・いまの項目だけ強く）／何も無い画面に次の一手（キー）を置く。 */
+
+/* 手番の 1 行: 道具と対象を、言葉のすぐ後ろに続ける。前は 208px の列が右に離れ、対象（パス・命令）が 208px で切れていた。
+   結果と時間の列は右端で揃えたまま。 */
+.tr{ grid-template-columns:fit-content(22rem) minmax(0,1fr) minmax(84px,auto) 52px; column-gap:var(--s3); }
+.tr--plain{ grid-template-columns:minmax(0,1fr) minmax(84px,auto) 52px; }
+
+/* 左下の切り替え: いまいる画面だけ名前を出す（前は 6 つとも絵だけ）。 */
+.slink.is-active{ flex:0 0 auto; gap:var(--s2); padding:var(--s2) var(--s3); }
+.slink.is-active > span{ position:static; width:auto; height:auto; overflow:visible; clip:auto; font-size:12px; line-height:17px; }
+
+/* 最初の画面のキーの案内。 */
+.hello__keys{ display:flex; flex-wrap:wrap; justify-content:center; gap:var(--s2) var(--s4); margin:var(--s5) 0 0; font-size:12px; color:var(--text-3); }
+.hello__keys kbd{ margin-right:var(--s1); padding:1px 6px; border:1px solid var(--line-2); border-radius:3px; background:var(--bg-2); font:400 11px/16px var(--f-mono); color:var(--text-2); }
+
+/* 入力欄の札を静かに（2026-11-14・手本: Claude Code の入力欄＝欄は 1 つ・設定は下に小さな字で並ぶ）。
+   前は 8 つの札がどれも枠つきで、送るボタンと同じ強さで並んでいた。枠を外して字と絵だけにし、触れたときと効いているときだけ面を出す。
+   並びと押せる大きさは変えない。 */
+.tg, .tg:has(input:checked), .tg--think[data-level="low"], .tg--think[data-level="high"]{ border-color:transparent; background:none; }
+.tg{ padding:0 var(--s2); color:var(--text-3); }
+.tg:has(input:checked), .tg--think[data-level="low"], .tg--think[data-level="high"]{ color:var(--text-2); }
+.tg:hover, .tg--think:hover{ background:var(--bg-3); color:var(--text); border-color:transparent; }
+.tg--fixed:hover{ background:none; color:var(--text-2); border-color:transparent; }
+.composer__actions .iconbtn{ border-color:transparent; background:none; }
+.composer__actions .iconbtn:hover{ background:var(--bg-3); border-color:transparent; }
+.composer__actions .iconbtn[aria-pressed="true"]{ background:var(--bg-3); color:var(--text); }
+
+/* ── 入力欄（3 回目・2026-11-15・手本: オーナーが見せた Claude Code の入力欄）──────────────────────
+ * 欄の中は「＋（添付）・Agent/Ask・打つ・声・送る」だけ。この会話の設定（モデル・Think・Tools）は欄の下に小さな字で並べる。
+ * 札は字と小さな絵だけ（枠も面も無し）で、触れたときだけ面を出す。効いている札は字を一段明るく、切れている札は暗いまま。
+ * 狭い枠（分割）では語を畳んで絵だけにし、1 行に収める。 */
+.composer__add{ flex:none; border-color:transparent; }
+.composer__add:hover{ background:var(--bg-3); border-color:transparent; }
+.composer__meta{
+  container:cmeta / inline-size;
+  display:flex; align-items:center; gap:0 var(--s1); min-height:26px; max-width:var(--col); margin:var(--s1) auto 0; padding:0 var(--s1);
+}
+.composer__meta .toggles{ display:flex; align-items:center; gap:0; min-width:0; }
+.composer__meta .mpick{ flex:0 1 auto; min-width:0; }
+.composer__meta .mpick__btn{ height:24px; max-width:340px; padding:0 var(--s2); font-size:12px; color:var(--text-2); }
+.composer__meta .mpick__caret{ margin-left:2px; }
+.composer__meta .mpick__menu{ left:0; right:auto; }
+.composer__meta .tg{ height:24px; padding:0 var(--s2); gap:5px; font-size:12px; color:var(--text-3); border-color:transparent; }
+.composer__meta .tg__i{ width:12px; height:12px; }
+.composer__meta .tg__lv{ min-width:0; font-size:12px; }
+.composer__meta .tg:has(input:checked), .composer__meta .tg--think[data-level="low"], .composer__meta .tg--think[data-level="high"]{ color:var(--text-2); }
+.composer__meta .tg--think[data-level="off"] .tg__lv{ color:var(--text-3); }
+.composer__meta .tg:hover, .composer__meta .tg--think:hover{ background:var(--bg-3); color:var(--text); }
+.composer__meta .tg--fixed, .composer__meta .tg--fixed:hover{ background:none; color:var(--text-3); cursor:default; }
+@container cmeta (max-width:420px){
+  .composer__meta .tg > span:not(.tg__lv){ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); }
+  .composer__meta .mpick__btn{ max-width:150px; }
+}
+
+/* ── 上の帯（4 回目・2026-11-15）: Sources だけ枠つきで、隣の >_ と ⊟ と強さが違っていた。帯のボタンは同じ形（枠なし・触れると面）に揃える。
+ *    開いている間は面と細い枠で「押されている」を示す（.ghost[aria-expanded] のまま）。 */
+.titlebar .ghost{ border-color:transparent; }
+.titlebar .ghost[aria-expanded="true"]{ border-color:var(--line-2); }
+
+/* ── 背景の球（4 回目・2026-11-15）: 会話が始まったら、字の後ろをもう一段薄く（オーナー 10-30「見やすく無駄を省く: 会話の列の後ろはさらに薄く」の続き）。
+ *    最初の画面（#hello）は今のまま・周りの輪と目盛りは残す。実機（0.1.681）で、表と箇条書きの後ろに球の線がはっきり重なっていた。 */
+.main:not(:has(#hello)) .synapse{
+  -webkit-mask-image:radial-gradient(ellipse 48% 64% at 50% 44%, rgba(0,0,0,.1), rgba(0,0,0,.38) 62%, #000 100%);
+          mask-image:radial-gradient(ellipse 48% 64% at 50% 44%, rgba(0,0,0,.1), rgba(0,0,0,.38) 62%, #000 100%);
+}
+
+
+/* ── 最初の画面の「このフォルダの最近の会話」（6 回目・2026-11-15・計画 A1）。例のカードと同じ箱（HUD の角・行の区切り）で、
+ *    題の右に「いつ」を小さく。題の上に 1 行だけ「〇〇 の最近の会話」（例のカードと見分けるため）。 */
+.hello__recent{ display:grid; margin-top:var(--s6); text-align:left;
+  background:
+    linear-gradient(var(--hud),var(--hud)) left top/12px 1px no-repeat,
+    linear-gradient(var(--hud),var(--hud)) left top/1px 12px no-repeat,
+    linear-gradient(var(--hud),var(--hud)) right bottom/12px 1px no-repeat,
+    linear-gradient(var(--hud),var(--hud)) right bottom/1px 12px no-repeat,
+    var(--bg-2);
+  border:1px solid var(--line); border-radius:var(--r-lg); overflow:hidden; }
+.hello__recent[hidden], .hello__cards[hidden]{ display:none; }
+.hello__recent-h{ margin:0; padding:var(--s2) var(--s4); font-size:12px; color:var(--text-3); }
+.hcard--recent{ border-top:1px solid var(--line); }
+.hcard__t{ flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.hcard__when{ flex:none; font-size:12px; color:var(--text-3); }
+.hcard--recent::after{ content:none; }
+.panes[data-n="3"] > .cpane:not(:first-child) .hello__recent, .panes[data-n="4"] .hello__recent{ display:none; }
+
+/* ── 回答の頭（7 回目・2026-11-15・計画 A2/A3）: 銘の代わりにモデルの名前（札の書体のまま・長い名前は切る）。
+ *    右の「道具 3 回 · 失敗 1」と「Hide steps」は札＝本文の書体で一段小さく（等幅は数字とコードだけにする・sloplint の REFLEX 64）。 */
+.who__name{ min-width:0; max-width:24em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.who__sum{ font:400 12px/1 var(--f-body); font-variant-numeric:tabular-nums; }
+.who__fold{ font:400 12px/24px var(--f-body); }
+
+/* ── 発言と回答の操作（8 回目・2026-11-15・計画 A4）: 触れたとき（キーで入ったとき）だけ、吹き出しの下の余白に出す。
+ *    場所を取らない（.msg の下の余白に重ねる）＝出ても消えても行が動かない。 */
+.msg__acts{ position:absolute; top:100%; display:flex; gap:var(--s1); padding-top:2px; opacity:0; pointer-events:none;
+            transition:opacity .15s ease-out; }
+.msg--user .msg__acts{ right:0; }
+.msg--bot .msg__acts{ left:0; }
+.msg:hover > .msg__acts, .msg:focus-within > .msg__acts{ opacity:1; pointer-events:auto; }
+.msg__act{ height:24px; padding:0 var(--s2); border:0; border-radius:var(--r); background:none; cursor:pointer;
+           font:400 12px/24px var(--f-body); color:var(--text-3); }
+.msg__act:hover{ background:var(--bg-3); color:var(--text); }
+.msg__act:focus-visible{ outline:2px solid var(--red); outline-offset:1px; opacity:1; }
+@media (prefers-reduced-motion: reduce){ .msg__acts{ transition:none; } }
+/* Rewind は取り返しのつきにくい操作＝1 回目を押した後（Rewind?）だけ赤い字（DESIGN.md: 赤は「取り返しがつかない」に置く）。 */
+.msg__act.is-armed{ color:var(--red-text); }
+
+/* 回答の下の消費の 1 行も本文の書体で（数字は桁を揃える）。前は行ごと等幅で、言葉の札まで機械の字に見えた（計画 A3 の続き）。 */
+.msg--bot > .meter{ font-family:var(--f-body); font-variant-numeric:tabular-nums; }
+
+/* ── 9 回目（2026-11-15・オーナー「入れておいて」: ChatGPT と Claude の画面から 5 つ）────────────────────────
+ * ① 終わった手順は 1 行にたたむ（app.js finish の is-steps-hidden）。頭の「道具 N 回」と Show steps は残る。
+ * ② Retry は欄の最後の回答にだけ。 */
+.msg__act--retry{ display:none; }
+.msg--bot.is-last > .msg__acts .msg__act--retry{ display:inline-block; }
+/* ③ 上を読んでいる間だけ出る「↓ Latest」。入力欄の真上・真ん中。走行中は赤い点。 */
+.composer{ position:relative; }
+.tolatest{ position:absolute; left:50%; bottom:calc(100% + var(--s2)); transform:translateX(-50%); z-index:5;
+  display:inline-flex; align-items:center; gap:6px; height:28px; padding:0 var(--s3);
+  border:1px solid var(--line-2); border-radius:999px; background:var(--bg-2); color:var(--text-2);
+  font:400 12px/1 var(--f-body); cursor:pointer; box-shadow:var(--shadow-pop); }
+.tolatest[hidden]{ display:none; }
+.tolatest:hover{ color:var(--text); border-color:var(--line-3); }
+.tolatest:focus-visible{ outline:2px solid var(--red); outline-offset:2px; }
+.tolatest.is-live::after{ content:""; width:6px; height:6px; border-radius:50%; background:var(--red); }
+/* ④ 作った物: この回答で書いた・変えたファイルの札（押すと横の窓で開く）。名前はコードなので等幅。 */
+.made{ display:flex; flex-wrap:wrap; align-items:center; gap:var(--s1); margin-top:var(--s3); }
+.bubble__att{ display:flex; flex-wrap:wrap; gap:4px; margin-top:6px; }   /* 発言の添付（2026-11-21・旧: 案内の文が吹き出しに出ていた） */
+.bubble__file{ font-size:12px; padding:1px 8px; border-radius:var(--r); background:var(--bg-2); color:var(--text-2); max-width:16rem;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.made__h{ margin-right:var(--s1); font-size:12px; color:var(--text-3); }
+.made__sum{ font-size:12px; color:var(--text-3); font-variant-numeric:tabular-nums; }   /* 変えた量（2026-11-20・旧「変えたファイル…」のカード） */
+.made__undo{ height:24px; }
+.made__f{ height:24px; max-width:16rem; padding:0 var(--s2); border:1px solid var(--line); border-radius:var(--r); background:var(--bg-2);
+  font:400 12px/22px var(--f-mono); color:var(--text-2); cursor:pointer; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.made__f:hover{ color:var(--text); border-color:var(--line-3); }
+.made__f:focus-visible{ outline:2px solid var(--red); outline-offset:1px; }
+/* ⑤ 最初の画面（枠が 1 つで、まだ何も話していない時）は、入力欄を真ん中に寄せる（両社の形）。話し始めたら下へ戻る。 */
+.panes[data-n="1"] > .cpane:has(#hello){ justify-content:center; }
+.panes[data-n="1"] > .cpane:has(#hello) > .thread{ flex:0 1 auto; padding-bottom:var(--s5); -webkit-mask-image:none; mask-image:none; }
+.panes[data-n="1"] > .cpane:has(#hello) .hello{ margin-top:0; }
+
+/* 古い回答の「戻す」は出さない（2026-11-16 全体のレビュー: 押すと最新の依頼が戻っていた・本体の /undo は直前の依頼を戻す）。 */
+.msg--bot:not(.is-last) .notice__act--undo{ display:none; }
+
+
+/* ══ ガラスの意匠（2026-11-17 オーナー「既存のデザインは一切引き継がない・アーティファクトにあるやつで作って」
+ *    「VS Code の設計思想（コード管理がしやすい）も・デザインも含めて」「デザインには最適な言語（文言・技術・書体）」）══
+ * 手本は Design の canvas の L1〜L4（実行中・返答待ち）と P1〜P5（新しい会話・完了・設定・推論機・繋がらない）。
+ * VS Code から: 左端のアクティビティバー（画面の移動）・窓の下の状態バー（ブランチ・走行・文脈・モデル・GPU・灯）・
+ *   コマンドパレット（Ctrl+Shift+P / F1）・シェルは Ctrl+J・枠は Ctrl+\（元からある）。
+ * 色は黒・灰・白だけ。色が付くのは背景のスペクトラム（濃い灰＝赤・白＝青）と、差分の増減・失敗の字・状態の点だけ。
+ * 左の板・右の板は浮いた板、入力欄・道具の粒・走行の帯・パレットは本文の上に浮くガラス。本文はガラスにしない。
+ * テーマは html[data-theme]（dark＝濃い灰・light＝白）。決めるのは app.js の applyTheme（既定はシステムに合わせる）。
+ * 文言: 操作と見出しは日本語。短い状態語・モード名（Agent / Ask）・技術の名前は英語（オーナー 2026-09-21・10-13）。
+ * 書体: Windows は Segoe UI Variable（欧文）＋ Yu Gothic UI（和文）・等幅は Cascadia。Linux は Noto Sans CJK。
+ * 見れば分かる説明（補足の文・例の依頼のカード・キーの一覧の行）は置かない。 */
+:root{
+  --bg:#18181B; --bg-0:#111113; --bg-2:#232327; --bg-3:#2C2C31; --bg-4:#35353B;
+  --line:rgba(255,255,255,.07); --line-2:rgba(255,255,255,.13); --line-3:rgba(255,255,255,.22); --line-focus:rgba(255,255,255,.42);
+  --text:#ECECF1; --text-2:#B4B4BC; --text-3:#8F8F99;
+  --red:#ECECF1; --red-2:#9A9AA3; --red-hover:#FFFFFF; --red-dim:rgba(255,255,255,.10); --on-red:#111116;
+  --red-text:#FF9C8E; --ok:#7DDA8B; --ok-text:#7DDA8B;
+  --sel:rgba(255,255,255,.20); --hud:transparent; --plot:#C8C8D0; --stop-line:rgba(255,255,255,.28);
+  --f-body:"Segoe UI Variable Text","Segoe UI","Yu Gothic UI","BIZ UDPGothic","Noto Sans CJK JP","Noto Sans JP",system-ui,sans-serif;
+  --f-mono:"Cascadia Code","Cascadia Mono",Consolas,"Noto Sans Mono CJK JP","DejaVu Sans Mono",monospace;
+  --f-plate:var(--f-body);
+  --r:8px; --r-lg:14px; --side:300px; --act:44px; --h-title:56px; --h-status:24px;
+  /* 影は 3 段（近い影＋遠い影の重ね）。1＝置いてある板・2＝浮いた板と入力欄・3＝メニューとパレット。 */
+  --elev-1:0 1px 2px rgba(0,0,0,.28), 0 3px 8px rgba(0,0,0,.16);
+  --elev-2:0 1px 2px rgba(0,0,0,.28), 0 8px 20px rgba(0,0,0,.26), 0 20px 40px -12px rgba(0,0,0,.34);
+  --elev-3:0 2px 4px rgba(0,0,0,.30), 0 14px 32px rgba(0,0,0,.36), 0 32px 64px -16px rgba(0,0,0,.48);
+  --shadow-pop:var(--elev-3);
+  --panel:linear-gradient(160deg, rgba(255,255,255,.085), rgba(255,255,255,.035) 55%, rgba(255,255,255,.05));
+  --panel-rim:inset 0 1px 0 rgba(255,255,255,.16), inset 1px 0 0 rgba(255,255,255,.05), inset 0 0 0 1px rgba(255,255,255,.09);
+  --blur-panel:blur(18px) saturate(160%);   /* 2026-11-21 GPU: 28→18px（ぼかしの手間は半径に比例・走行中は背景が描き直すたびに作り直す） */
+  --panel-shadow:var(--elev-2);
+  --glass:linear-gradient(180deg, rgba(255,255,255,.075), rgba(255,255,255,.03));
+  --glass-solid:rgba(34,34,38,.70);
+  --glass-rim:inset 0 1px 0 rgba(255,255,255,.18), inset 0 0 0 1px rgba(255,255,255,.10);
+  --fill-1:rgba(255,255,255,.06); --fill-2:rgba(255,255,255,.11); --row-on:rgba(255,255,255,.11);
+  --sunk:rgba(0,0,0,.24); --scrim:rgba(0,0,0,.35);
+  --spec:228 56 42; --spec-hot:255 98 74; --spec-dim:168 40 32; --spec-blend:lighter; --spec-boost:2.1;
+  --dot:255 255 255; --dot-a:.10;   /* 背景の点の格子（bgfield.js） */
+  --shine-base:var(--text-2); --shine-hi:#FFFFFF;
+}
+html[data-theme="light"]{
+  color-scheme:light;
+  /* ★2026-11-17 オーナー「ライトモードがちょっと明るすぎるかも」: 地を灰に寄せ、板とガラスの白を弱めた（一番薄い字は読める濃さまで上げた）。 */
+  --bg:#E6E6EA; --bg-0:#F2F2F4; --bg-2:#F0F0F3; --bg-3:#E2E2E6; --bg-4:#D8D8DE;
+  --line:rgba(0,0,0,.07); --line-2:rgba(0,0,0,.13); --line-3:rgba(0,0,0,.22); --line-focus:rgba(0,0,0,.45);
+  --text:#16161C; --text-2:#4A4A54; --text-3:#5C5C66;
+  --red:#16161C; --red-2:#5C5C66; --red-hover:#000000; --red-dim:rgba(0,0,0,.06); --on-red:#FFFFFF;
+  --red-text:#B42A20; --ok:#1E7F3A; --ok-text:#1E7F3A;
+  --sel:rgba(0,0,0,.12); --plot:#4E4E58; --stop-line:rgba(0,0,0,.28);
+  --elev-1:0 1px 2px rgba(24,24,36,.06), 0 3px 8px rgba(24,24,36,.05);
+  --elev-2:0 1px 2px rgba(24,24,36,.06), 0 8px 20px rgba(24,24,36,.08), 0 20px 40px -12px rgba(24,24,36,.12);
+  --elev-3:0 2px 4px rgba(24,24,36,.08), 0 14px 32px rgba(24,24,36,.12), 0 32px 64px -16px rgba(24,24,36,.20);
+  --panel:linear-gradient(160deg, rgba(255,255,255,.52), rgba(255,255,255,.30) 55%, rgba(255,255,255,.40));
+  --panel-rim:inset 0 1px 0 rgba(255,255,255,.70), inset 0 0 0 1px rgba(0,0,0,.08);
+  --glass:linear-gradient(180deg, rgba(255,255,255,.50), rgba(255,255,255,.30));
+  --glass-solid:rgba(242,242,245,.88);
+  --glass-rim:inset 0 1px 0 rgba(255,255,255,.75), inset 0 0 0 1px rgba(0,0,0,.10);
+  --fill-1:rgba(0,0,0,.05); --fill-2:rgba(0,0,0,.085); --row-on:rgba(255,255,255,.60);
+  --sunk:rgba(0,0,0,.05); --scrim:rgba(30,30,40,.18);
+  --spec:28 88 235; --spec-hot:0 66 255; --spec-dim:104 146 236; --spec-blend:source-over; --spec-boost:1.75;
+  --dot:0 0 0; --dot-a:.09;
+  --shine-hi:#000000;
+}
+html[data-theme="dark"]{ color-scheme:dark; }
+
+body{ background:var(--bg); font:400 14px/1.6 var(--f-body); }
+.num{ font-family:var(--f-body); }
+code, pre, kbd, .mono{ font-family:var(--f-mono); }
+:focus-visible{ outline:2px solid var(--text); outline-offset:2px; }
+
+/* ── 窓の帯: 左の板の右から始まる透明な帯。左に会話の題、右に道具の粒と窓の操作。 */
+.titlebar{ position:absolute; top:0; left:var(--side); right:0; height:var(--h-title); z-index:30;
+  background:transparent; border-bottom:0; padding:0 6px 0 24px; gap:12px; }
+.titlebar::after{ display:none; }
+body.is-busy .titlebar::before{ display:none; }
+.tb__title{ font:600 15px/1.3 var(--f-body); color:var(--text); }
+.tb__tools{ display:flex; align-items:center; height:36px; padding:0 2px; border-radius:18px; margin-left:auto;
+  background:var(--glass); box-shadow:var(--glass-rim), var(--elev-2);
+  -webkit-backdrop-filter:blur(14px) saturate(160%); backdrop-filter:blur(14px) saturate(160%); }
+body:has(.app.no-drawer) .tb__tools{ display:none; }
+.tb__tools .tb__icon{ width:32px; height:32px; border:0; border-radius:16px; background:transparent; color:var(--text-2); }
+.tb__tools .tb__icon:hover, .tb__tools .tb__icon[aria-pressed="true"]{ background:var(--fill-2); color:var(--text); }
+.tb__tools .ghost{ height:32px; padding:0 12px; border:0; border-radius:16px; background:transparent; color:var(--text-2); font-size:13px; }
+.tb__tools .ghost:hover, .tb__tools .ghost[aria-expanded="true"]{ background:var(--fill-2); color:var(--text); }
+.tb__win{ margin-left:8px; }
+.tb__btn{ width:40px; height:32px; border-radius:10px; color:var(--text-2); }
+.tb__btn:hover{ background:var(--fill-2); color:var(--text); }
+.tb__btn--close:hover{ background:#C42B1C; color:#FFFFFF; }
+
+/* ── 窓の中の並び: 左の板（上から状態バーの上まで）・本文・右の板（帯の下から） */
+.app{ min-height:0; }
+.main{ background:transparent; padding-top:var(--h-title); }   /* ★後ろの点の格子（bgfield.js）を見せる */
+.main::before{ display:none; }
+
+/* ── 左の板: 左端にアクティビティバー（VS Code）、右に会話の一覧 */
+.side{ margin:10px 0 6px 10px; border:0; border-right:0; border-radius:16px; background:var(--panel);
+  -webkit-backdrop-filter:var(--blur-panel); backdrop-filter:var(--blur-panel);
+  box-shadow:var(--panel-rim), var(--panel-shadow); overflow:hidden; padding:8px 8px 8px 0;
+  display:grid; grid-template-columns:var(--act) minmax(0,1fr); grid-template-rows:auto auto auto minmax(0,1fr) auto; }
+.side > .side__nav{ grid-column:1; grid-row:1 / -1; }
+.side > .side__head{ grid-column:2; grid-row:1; }
+.side > .convo-q{ grid-column:2; grid-row:2; }
+.side > .peers{ grid-column:2; grid-row:3; }
+.side > .convos{ grid-column:2; grid-row:4; }
+.side > .side__foot{ display:none; }
+.side__nav{ display:flex; flex-direction:column; align-items:center; gap:4px; margin:0; padding:4px 0 0; }
+.side__nav .slink{ flex:none; width:36px; height:36px; padding:0; border:0; border-radius:10px; position:relative;
+  display:inline-flex; align-items:center; justify-content:center; background:transparent; color:var(--text-3); }
+.side__nav .slink svg{ width:18px; height:18px; }
+.side__nav .slink:hover{ background:var(--fill-1); color:var(--text); }
+.side__nav .slink.is-active{ background:var(--fill-2); color:var(--text); border:0; }
+.side__nav .slink.is-active::before{ content:""; position:absolute; left:-4px; top:9px; bottom:9px; width:2px; border-radius:1px; background:var(--text); }
+.side__nav .slink[data-view="account"]{ margin-top:auto; margin-bottom:2px; }
+.side__head{ height:40px; display:flex; align-items:center; gap:8px; padding:0 2px 0 6px; }
+.mark{ width:18px; height:18px; border-radius:5px; background:var(--red); position:relative; flex:none; }
+.mark::after{ content:""; position:absolute; left:5.5px; top:4px; width:5.5px; height:8.5px;
+  border-left:1.9px solid var(--on-red); border-bottom:1.9px solid var(--on-red); }
+.side__name{ font:600 14px/1 var(--f-body); letter-spacing:.02em; flex:1 1 auto; }
+.new{ margin:0; width:32px; height:32px; padding:0; border:0; border-radius:16px; background:transparent;
+  display:inline-flex; align-items:center; justify-content:center; color:var(--text-2); box-shadow:none; }
+.new::before{ content:"+"; width:auto; font-size:22px; font-weight:300; line-height:1; color:inherit; }
+.new:hover{ background:var(--fill-2); color:var(--text); }
+.convo-q{ margin:6px 0 4px; width:100%; height:34px; padding:0 14px; border:0; border-radius:17px;
+  background:var(--fill-1); color:var(--text); font-size:13px; }
+.convo-q::placeholder{ color:var(--text-3); }
+.convos{ padding:0; gap:0; overflow:auto; }
+.convo-group{ padding:14px 10px 6px; font:400 12px/16px var(--f-body); color:var(--text-3); letter-spacing:0; text-transform:none; border:0; }
+.convo__row{ border-radius:14px; }
+.convo{ display:flex; align-items:center; gap:10px; width:100%; min-height:52px; padding:0 10px; border-radius:14px;
+  color:var(--text); white-space:normal; overflow:visible; }
+.convo:hover{ background:var(--fill-1); }
+.convo.is-active{ background:var(--row-on); box-shadow:var(--glass-rim), var(--elev-1); color:var(--text); }
+.convo.is-running::before, .convo.is-asking::before{ display:none; }
+.convo__ic{ width:30px; height:30px; flex:none; border-radius:15px; background:var(--fill-1); position:relative; }
+.convo__ic::after{ content:""; position:absolute; left:11px; top:9px; width:5px; height:9px; transform:rotate(45deg);
+  border-right:1.6px solid var(--text-2); border-bottom:1.6px solid var(--text-2); }
+.convo.is-running .convo__ic::after{ left:8px; top:8px; width:14px; height:14px; transform:none; border-radius:50%;
+  border:1.6px solid var(--fill-2); border-top-color:var(--text); animation:convo-spin 1.1s linear infinite; }
+.convo.is-asking .convo__ic::after{ content:"?"; left:0; top:0; width:30px; height:30px; transform:none; border:0;
+  display:flex; align-items:center; justify-content:center; font:600 14px/1 var(--f-body); color:var(--text); animation:none; }
+@keyframes convo-spin{ to{ transform:rotate(360deg); } }
+.convo__tx{ flex:1 1 auto; min-width:0; display:flex; flex-direction:column; text-align:left; }
+.convo__t{ font-size:14px; line-height:20px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.convo__s{ font-size:12px; line-height:16px; color:var(--text-3); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.convo__s:empty{ display:none; }
+.convo__tm{ flex:none; font-size:12px; color:var(--text-3); white-space:nowrap; font-variant-numeric:tabular-nums; }
+.convo.is-active .convo__s, .convo.is-active .convo__tm{ color:var(--text-2); }
+.convo__del{ border-radius:10px; font:400 12px/1 var(--f-body); letter-spacing:0; }
+.peers{ padding:0; }
+.empty{ padding:12px 10px; color:var(--text-3); font-size:13px; }
+.mem-link{ margin:0 10px; font-size:13px; color:var(--text-2); background:none; border:0; text-align:left; cursor:pointer; text-decoration:underline; }
+
+/* ── 状態バー（VS Code）: 窓の下の 1 行。左にブランチと走行、右に文脈・モデル・GPU・灯・版。 */
+.statusbar{ flex:none; height:var(--h-status); display:flex; align-items:center; gap:2px; padding:0 10px 0 14px;
+  font:400 12px/1 var(--f-body); color:var(--text-3); background:transparent; user-select:none; -webkit-user-select:none; }
+.sb__item{ height:20px; display:inline-flex; align-items:center; gap:6px; padding:0 8px; border:0; border-radius:6px;
+  background:transparent; color:inherit; font:inherit; white-space:nowrap; }
+button.sb__item{ cursor:pointer; }
+button.sb__item:hover{ background:var(--fill-1); color:var(--text); }
+.sb__item[hidden]{ display:none; }
+.sb__item svg{ width:13px; height:13px; fill:none; stroke:currentColor; stroke-width:1.3; }
+.sb__gap{ flex:1 1 auto; }
+.sb__run{ color:var(--text); }
+.sb__spin{ width:10px; height:10px; border-radius:50%; border:1.5px solid var(--fill-2); border-top-color:var(--text); animation:convo-spin 1.1s linear infinite; }
+.statusbar .lamps{ display:inline-flex; align-items:center; gap:10px; padding:0 8px; font-size:12px; color:var(--text-3); }
+.statusbar .lamp.is-down i{ border-color:var(--red-text); }
+.statusbar .side__ver{ color:var(--text-3); }
+.statusbar .side__engine{ display:none; }
+
+/* ── 本文 */
+.thread{ padding:20px 32px 16px; }
+.msg{ margin-bottom:22px; }
+.msg--user .bubble{ background:var(--fill-2); border:0; border-radius:20px 20px 6px 20px; padding:10px 16px;
+  box-shadow:var(--glass-rim); font-size:14.5px; color:var(--text); }
+.msg--bot .who{ font:600 12px/1 var(--f-body); letter-spacing:0; text-transform:none; color:var(--text-3); }
+.msg--bot .who::before{ display:none; }
+.md-h{ font-family:var(--f-body); letter-spacing:0; }
+.hello__h, .h2, .h3, .ctx__head, .integ__group, .auth__brand, .convo__del, .srv__toggle, .runbar, .logbtn{
+  letter-spacing:0; text-transform:none; }
+.turn__n--live::after{ background:var(--fill-2); }
+
+/* ── 入力欄: 本文の上に浮くガラス。上に作業フォルダの札と走行の帯。 */
+.composer{ padding:0 32px 14px; }
+.ctx__chip{ border-radius:999px; border:0; background:var(--fill-1); box-shadow:var(--glass-rim); color:var(--text-2); font-size:12.5px; }
+.ctx__chip:hover{ background:var(--fill-2); color:var(--text); }
+.runbar{ height:34px; padding:0 14px; border-radius:17px; background:var(--glass); box-shadow:var(--glass-rim);
+  -webkit-backdrop-filter:blur(14px) saturate(160%); backdrop-filter:blur(14px) saturate(160%);
+  font:400 13px/1 var(--f-body); letter-spacing:0; color:var(--text); }
+.runbar__mark{ color:var(--text); }
+.runbar__time, .runbar__tokens, .runbar__hint{ color:var(--text-3); font-family:var(--f-body); }
+.composer__box{ background:var(--glass); -webkit-backdrop-filter:blur(18px) saturate(170%); backdrop-filter:blur(18px) saturate(170%);
+  border:0; border-radius:24px; padding:10px 10px 8px 16px; box-shadow:var(--glass-rim), var(--shadow-pop); }
+.composer__box:focus-within{ border-color:transparent; box-shadow:var(--glass-rim), var(--shadow-pop), 0 0 0 1px var(--line-focus); }
+.composer textarea{ font-size:14.5px; line-height:24px; }   /* ★端数の行の高さ（23.2px）だと、打った後の高さ合わせで 1px 縮んだ */
+.composer textarea::placeholder{ color:var(--text-3); }
+.iconbtn{ width:34px; height:34px; border:0; border-radius:17px; background:transparent; color:var(--text-2); }
+.iconbtn:hover{ background:var(--fill-2); color:var(--text); }
+.composer__add{ background:var(--fill-1); }
+.seg{ border:0; border-radius:16px; padding:2px; background:var(--sunk); }
+.seg__b{ border:0; border-radius:14px; height:28px; padding:0 12px; color:var(--text-3); background:transparent; font-size:12.5px; }
+.seg__b.is-on{ background:var(--fill-2); color:var(--text); box-shadow:var(--glass-rim); }
+.send{ height:34px; min-width:64px; justify-content:center; border-radius:17px; border:0; background:var(--red); color:var(--on-red);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.4), 0 4px 12px rgba(0,0,0,.25); }
+.send:not(.is-stop):not(.send--now):hover{ background:var(--red-hover); }
+.send.is-stop{ background:var(--fill-2); color:var(--text); border:0; box-shadow:var(--glass-rim); }
+.send.is-stop:hover{ background:var(--fill-2); color:var(--text); }
+.send--now{ background:transparent; border:1px solid var(--line-3); color:var(--text); }
+.send--now:hover{ background:var(--fill-1); color:var(--text); }
+.composer__meta{ font-size:12px; color:var(--text-3); }
+.mpick__btn{ border:0; border-radius:12px; background:var(--fill-1); color:var(--text-2); padding:2px 10px; }
+.tolatest{ border:0; border-radius:16px; background:var(--glass); box-shadow:var(--glass-rim), var(--shadow-pop); color:var(--text); }
+
+/* ── 最初の画面（P1）: 見出しと最近の会話。案内の文やキーの一覧は置かない。 */
+.hello{ max-width:var(--col); text-align:left; margin-top:18vh; }
+.hello__h{ font:600 22px/1.4 var(--f-body); margin:0 0 14px; color:var(--text); }
+.hello__cards:empty{ display:none; }
+.hello__recent{ border:0; border-radius:14px; background:transparent; box-shadow:none; }
+.hello__recent-h{ padding:4px 12px; font-size:12px; color:var(--text-3); border:0; }
+.hcard{ border:0; border-radius:10px; background:transparent; color:var(--text); font-size:13.5px; }
+.hcard:hover{ background:var(--fill-1); }
+.hcard::after{ display:none; }
+
+/* ── 右の板（出典・ファイル・ブラウザ）: 帯の下から浮く板。タブは押し分けの粒。 */
+.app.drawer-open .drawer{ margin:var(--h-title) 10px 6px 0; border:0; border-radius:16px; background:var(--panel);
+  -webkit-backdrop-filter:var(--blur-panel); backdrop-filter:var(--blur-panel);
+  box-shadow:var(--panel-rim), var(--panel-shadow); }
+.drawer__head{ border-bottom:0; padding:10px; height:auto; }
+.drawer__tabs{ display:flex; flex:1 1 auto; height:32px; padding:2px; border-radius:16px; background:var(--sunk); gap:0; }
+.drawer__tab{ flex:1 1 auto; justify-content:center; height:28px; padding:0 10px; border:0; border-radius:14px; font:400 12.5px/1 var(--f-body); color:var(--text-3); white-space:nowrap; }
+.drawer__tab.is-active{ background:var(--fill-2); color:var(--text); box-shadow:var(--glass-rim); }
+.fl{ border:0; border-radius:10px; background:transparent; }
+.fl:hover{ background:var(--fill-1); }
+.fl__tag{ border:0; background:var(--fill-1); border-radius:6px; letter-spacing:0; }
+
+/* ── 画面（設定・推論機・記憶・接続・コンソール）: P3 と P4 の形。見出しは本文の書体、行は名前が左・操作が右。 */
+.pane{ width:100%; max-width:960px; box-sizing:border-box; margin:0 auto; padding:24px 40px 48px; }
+.h2{ font:600 22px/1.4 var(--f-body); margin:0 0 18px; }
+.h3{ font:600 14px/1.4 var(--f-body); color:var(--text); margin:22px 0 8px; }
+.kv{ border-radius:14px; background:var(--panel); box-shadow:var(--panel-rim), var(--elev-1); padding:4px 16px; }
+.btn{ height:32px; padding:0 16px; border:0; border-radius:16px; background:var(--fill-2); color:var(--text); font-size:13px; }
+.btn:hover{ background:var(--fill-2); filter:brightness(1.08); }
+.btn--primary{ background:var(--red); color:var(--on-red); }
+.btn--danger{ background:var(--fill-2); color:var(--red-text); }
+.input, select.input{ height:36px; border:0; border-radius:10px; background:var(--fill-1); color:var(--text); box-shadow:inset 0 0 0 1px var(--line-2); }
+.input:hover, select.input:hover{ box-shadow:inset 0 0 0 1px var(--line-3); }
+.input:focus, select.input:focus{ outline:0; box-shadow:inset 0 0 0 1px var(--line-focus), 0 0 0 3px var(--fill-2); }
+/* ★選択肢の一覧（2026-11-17 オーナーの画像: ダークで白い一覧に白い字）。一覧の窓の色はページの色ではなく option の色で決まる。 */
+select{ color-scheme:inherit; }
+select option, select optgroup{ background-color:var(--bg-2); color:var(--text); }
+.theme-row{ display:flex; align-items:center; justify-content:space-between; gap:16px; padding:12px 16px; border-radius:14px;
+  background:var(--panel); box-shadow:var(--panel-rim), var(--elev-1); }
+.theme-row .lbl{ font-size:14px; color:var(--text); }
+.theme-row select.input{ flex:none; width:220px; }
+
+/* ── コマンドパレット（VS Code）: 上の中ほどに浮くガラス。 */
+.qp{ position:fixed; inset:0; z-index:200; background:var(--scrim); display:flex; justify-content:center; align-items:flex-start; padding-top:72px; }
+.qp[hidden]{ display:none; }
+.qp__box{ width:min(620px, calc(100vw - 48px)); border-radius:18px; padding:8px; background:var(--glass-solid);
+  -webkit-backdrop-filter:blur(30px) saturate(160%); backdrop-filter:blur(30px) saturate(160%);
+  box-shadow:var(--glass-rim), var(--elev-3); }
+.qp__in{ width:100%; height:38px; padding:0 14px; border:0; border-radius:12px; background:var(--fill-1); color:var(--text);
+  font:400 14px/1 var(--f-body); outline:0; box-shadow:inset 0 0 0 1px var(--line-focus); }
+.qp__list{ max-height:min(420px, 60vh); overflow:auto; margin-top:6px; display:flex; flex-direction:column; gap:1px; }
+.qp__item{ display:flex; align-items:center; gap:12px; height:34px; padding:0 12px; border:0; border-radius:10px;
+  background:transparent; color:var(--text); font:400 13.5px/1 var(--f-body); text-align:left; cursor:pointer; }
+.qp__item.is-sel{ background:var(--fill-2); }
+.qp__t{ flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.qp__k{ flex:none; font:400 11.5px/1 var(--f-mono); color:var(--text-3); padding:3px 6px; border-radius:6px; background:var(--fill-1); }
+.qp__empty{ padding:10px 12px; color:var(--text-3); font-size:13px; }
+
+/* ── 推論中の字の光（2026-11-17 オーナー「推論中の文字アニメーション（文字が光って横に光が流れるようなやつ）とかも欲しい」）──
+ * 字の形に切り抜いた明るい帯を左から右へ流す（手本: transitions.dev の Shimmer text・JS は使わない）。
+ * 付けるのは走行の帯・状態バーの「いまの動き」と、本文の走っている行だけ。★動きを減らす設定でも止めない（オーナー 2026-10-09 の
+ *   「Windows のアニメーションを切っていても動くように」と同じ扱い・止めると推論中かどうかが見えなくなる）。 */
+body.is-busy .runbar__what, .tr__s.is-live, .sb__run .sb__t{
+  background:linear-gradient(90deg, var(--shine-base) 0%, var(--shine-base) 38%, var(--shine-hi) 50%, var(--shine-base) 62%, var(--shine-base) 100%);
+  background-size:300% 100%; -webkit-background-clip:text; background-clip:text; color:transparent;
+  animation:shine 2.2s steps(44) infinite;   /* 2026-11-21 GPU: 文字の塗り直しを 60 → 20 回/秒 */
+}
+@keyframes shine{ from{ background-position:100% 0; } to{ background-position:0 0; } }
+/* ★Windows の「アニメーションを表示しない」（prefers-reduced-motion）でも光を流す（2026-11-17 オーナー「アニメーションがない？」）。
+ *   原因: 古い層の「*{ animation-duration:.01ms !important }」が光の 2.2 秒を潰していた。字の光は推論中の印なので、ここだけ戻す
+ *   （オーナー 2026-10-09「Windows のアニメーションを切っていても動くように」）。 */
+@media (prefers-reduced-motion: reduce){
+  body.is-busy .runbar__what, .tr__s.is-live, .sb__run .sb__t{ animation-duration:2.2s !important; animation-iteration-count:infinite !important; }
+}
+
+@media (prefers-reduced-transparency: reduce){
+  .side, .app.drawer-open .drawer, .composer__box, .tb__tools, .runbar, .qp__box, .cmenu, .askbox{ -webkit-backdrop-filter:none; backdrop-filter:none; background:var(--bg-2); }
+}
+
+/* ── 撮って見て直した所（2026-11-17） */
+.side__nav .slink > span, .side__nav .slink.is-active > span{ position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+.qp__item{ flex:none; }
+.ctx #ws-branch{ display:none; }   /* ブランチは状態バーに出す（同じ物を 2 か所に出さない） */
+/* 推論機の画面の GPU の欄（P4 の「GPU」）: 左の板から移した。グラフはここで出す。 */
+.view .srv{ border:0; border-radius:14px; background:var(--panel); box-shadow:var(--panel-rim), var(--elev-1); padding:12px 16px; margin:0 0 22px; }
+.view .srv__toggle{ font:600 14px/1.4 var(--f-body); color:var(--text); }
+.view .srv__host{ color:var(--text-3); font-size:12px; }
+.view .srv__head{ font-size:13px; color:var(--text-2); }
+/* 問いの箱（L2 の形）と出典の札 */
+.askbox{ border:0; border-radius:22px; padding:16px; background:var(--glass-solid);
+  -webkit-backdrop-filter:blur(24px) saturate(160%); backdrop-filter:blur(24px) saturate(160%); box-shadow:var(--glass-rim), var(--shadow-pop); }
+.askbox__q{ font:600 15px/1.5 var(--f-body); color:var(--text); }
+.askbox__opt{ border:0; border-radius:12px; background:var(--fill-1); color:var(--text); }
+.askbox__opt:hover{ background:var(--fill-2); border-color:transparent; }
+.askbox__free{ border:0; border-radius:12px; background:var(--fill-1); color:var(--text); box-shadow:inset 0 0 0 1px var(--line-2); }
+.ev{ border:0; border-left:0; border-radius:12px; background:var(--fill-1); box-shadow:inset 0 0 0 1px var(--line); }
+.cshell{ border:0; border-radius:14px; overflow:hidden; box-shadow:var(--panel-rim), var(--panel-shadow); }
+.cshell__bar{ border-bottom:0; }
+
+/* ── 作業中の本文（2026-11-17 オーナーの画像: 作業中のモデルのログが 1 つの塊の文になる）。
+ * 道具の合間の文（経過）は控えめの字にして、手順をたたむときに一緒に隠す。段落の切れ目は app.js の answer が足す。 */
+.msg--bot > .live--narr{ color:var(--text-2); font-size:13.5px; }
+.msg--bot.is-steps-hidden > .live--narr{ display:none; }
+
+/* ── チャットの行の「⋯」とメニュー（2026-11-17 オーナー「この三点ボタンにしません？」・手本は Claude の一覧）。
+ * 「⋯」は行に乗せたとき・選択中・メニューを開いている間だけ出し、時刻と入れ替える。 */
+.convo__more{ position:absolute; right:8px; top:50%; transform:translateY(-50%); width:28px; height:28px; padding:0; border:0; border-radius:8px;
+  display:inline-flex; align-items:center; justify-content:center; background:transparent; color:var(--text-2); cursor:pointer;
+  opacity:0; transition:opacity 120ms ease-out; }
+.convo__more svg{ width:16px; height:16px; fill:currentColor; }
+.convo__row:hover .convo__more, .convo__row:focus-within .convo__more, .convo__row.is-menu .convo__more,
+.convo__row:has(.convo.is-active) .convo__more{ opacity:1; }
+.convo__row:hover .convo__tm, .convo__row:focus-within .convo__tm, .convo__row.is-menu .convo__tm,
+.convo__row:has(.convo.is-active) .convo__tm{ visibility:hidden; }
+.convo__more:hover, .convo__row.is-menu .convo__more{ background:var(--fill-2); color:var(--text); }
+.convo__more:focus-visible{ outline:2px solid var(--text); outline-offset:-2px; }
+.convo.is-unread .convo__t{ font-weight:600; }
+.convo.is-unread .convo__ic::before{ content:""; position:absolute; right:-1px; top:-1px; width:9px; height:9px; border-radius:50%;
+  background:var(--text); box-shadow:0 0 0 2px var(--bg-2); }
+.convo-group--toggle{ display:flex; align-items:center; gap:8px; width:100%; border:0; border-radius:8px; background:transparent;
+  font:400 12px/16px var(--f-body); color:var(--text-3); text-align:left; cursor:pointer; }
+.convo-group--toggle::before{ content:""; width:5px; height:5px; border-right:1.4px solid currentColor; border-bottom:1.4px solid currentColor;
+  transform:rotate(-45deg); }
+.convo-group--toggle[aria-expanded="true"]::before{ transform:rotate(45deg); }
+.convo-group--toggle:hover{ color:var(--text); }
+.convo__row.is-renaming .convo__tx, .convo__row.is-renaming .convo__tm, .convo__row.is-renaming .convo__more{ visibility:hidden; }
+.convo__rename{ position:absolute; left:48px; right:8px; top:50%; transform:translateY(-50%); height:32px; padding:0 10px; border:0; border-radius:8px;
+  background:var(--bg-2); color:var(--text); font:400 14px/1 var(--f-body); box-shadow:inset 0 0 0 1px var(--line-focus); outline:0; }
+.cmenu{ position:fixed; z-index:220; min-width:232px; padding:6px; border-radius:14px; background:var(--glass-solid);
+  -webkit-backdrop-filter:blur(30px) saturate(160%); backdrop-filter:blur(30px) saturate(160%);
+  box-shadow:var(--glass-rim), var(--elev-3); display:flex; flex-direction:column; gap:1px; }
+.cmenu__item{ flex:none; display:flex; align-items:center; gap:16px; height:34px; padding:0 8px 0 12px; border:0; border-radius:9px;
+  background:transparent; color:var(--text); font:400 13.5px/1 var(--f-body); text-align:left; cursor:pointer; }
+.cmenu__item:hover, .cmenu__item:focus-visible{ background:var(--fill-2); outline:0; }
+.cmenu__item:disabled{ color:var(--text-3); background:transparent; cursor:default; }
+.cmenu__t{ flex:1 1 auto; white-space:nowrap; }
+.cmenu__k{ flex:none; min-width:20px; text-align:center; font:400 11.5px/1 var(--f-mono); color:var(--text-3); padding:3px 6px; border-radius:6px; background:var(--fill-1); }
+.cmenu__item.is-danger{ color:var(--red-text); }
+.cmenu__item.is-danger:disabled{ color:var(--text-3); }
+.cmenu__sep{ flex:none; height:1px; margin:5px 8px; background:var(--line-2); }
+.sb__msg{ color:var(--text); }
+.qp__s{ flex:none; max-width:40%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:12px; color:var(--text-3); }
+.view .theme-row select.input{ flex:0 0 240px; width:240px; }   /* ★古い .row .input の flex:1 に負けて、選択欄が行いっぱいに伸びていた（1914px の窓で撮って見つけた） */
+.view .theme-row .lbl{ font-weight:400; }
+/* ── ワークスペース（フォルダー）は入力欄の下の並びの先頭（2026-11-17 オーナー「作業フォルダの表示は下のモデルとかの場所に並べていいのでは」）。
+ * 入力欄の上の行は実行中の 1 行（runbar）だけ。実行していないときは行ごと出さない。 */
+/* ★入力欄の上の実行中の 1 行（runbar）は出さない（2026-11-17 オーナー「入力欄の上にこの表示いらないかも。こっちに Thinking って出てるし、
+ *   経過時間をここの出力の行らへんに足しておけばそれでいい」）。経過時間と知らせは回答の下の 1 行（.meter・app.js の paintMeter）へ。 */
+.composer .ctx{ display:none; }
+.wspick{ position:relative; flex:0 1 auto; min-width:0; }
+.composer__meta .ctx__chip{ height:24px; max-width:220px; padding:0 8px; border:0; border-radius:12px; background:var(--fill-1);
+  box-shadow:none; color:var(--text-2); font-size:12px; }
+.composer__meta .ctx__chip:hover, .composer__meta .ctx__chip[aria-expanded="true"]{ background:var(--fill-2); color:var(--text); }
+.composer__meta .ctx__chip.is-unset{ color:var(--text); }
+.composer__meta .ctx__chip svg{ width:13px; height:13px; }
+.wspick .ctx__menu{ left:0; bottom:calc(100% + 8px); border:0; border-radius:14px; background:var(--glass-solid);
+  -webkit-backdrop-filter:blur(30px) saturate(160%); backdrop-filter:blur(30px) saturate(160%); box-shadow:var(--glass-rim), var(--elev-3); }
+
+/* ── 背景の点の格子（2026-11-17 オーナー「背景をシンプルだけど面白いデザインに・ガラスデザインに合うやつ」・描くのは bgfield.js）。
+ * 窓全体の後ろに 1 枚（左の板の下も）。ガラスの板の後ろに点があるので、ぼかしが見える。 */
+.bgfield{ position:fixed; inset:0; z-index:-1; pointer-events:none; display:block; }
+
+/* ── エクスプローラー（2026-11-17 オーナー「変更とファイルを統一して VSCode みたいに・ポップアウトも」・explorer.js）──
+ * VS Code のビューと同じく、畳める区画（ソース管理・このチャットのファイル・フォルダー）を縦に並べる。差分の色だけは緑と赤。 */
+:root{ --diff-add-bg:rgba(46,160,67,.16); --diff-add-fg:#8DE0A0; --diff-del-bg:rgba(248,81,73,.16); --diff-del-fg:#FFA198; --deco-mod:#E2C08D; }
+html[data-theme="light"]{ --diff-add-bg:rgba(30,127,58,.10); --diff-add-fg:#1E6B33; --diff-del-bg:rgba(180,42,32,.09); --diff-del-fg:#A3271D; --deco-mod:#8A6400; }
+#files.drawer__body{ overflow:auto; padding:0 8px 12px; }
+.x-gap{ flex:1 1 auto; }
+.x-empty{ margin:0; padding:8px 10px; font-size:12.5px; color:var(--text-3); }
+.x-note{ margin:0; padding:4px 10px; font-size:12px; color:var(--text-3); }
+.x-icon{ flex:none; width:26px; height:26px; padding:0; border:0; border-radius:8px; background:transparent; color:var(--text-2);
+  display:inline-flex; align-items:center; justify-content:center; cursor:pointer; }
+.x-icon svg{ width:15px; height:15px; fill:none; stroke:currentColor; stroke-width:1.3; stroke-linecap:round; stroke-linejoin:round; }
+.x-icon--text{ font:500 15px/1 var(--f-body); }
+.x-icon:hover{ background:var(--fill-2); color:var(--text); }
+.x-icon:focus-visible, .xs__h:focus-visible, .xt__row:focus-visible, .scm__file:focus-visible, .x-back:focus-visible, .scm__branch:focus-visible{ outline:2px solid var(--text); outline-offset:-2px; }
+.x-code{ flex:none; width:18px; text-align:center; font:600 12px/1 var(--f-mono); color:var(--deco-mod); }
+.x-code--A, .x-code--U{ color:var(--diff-add-fg); }
+.x-code--D, .x-code--C{ color:var(--diff-del-fg); }
+/* 区画 */
+.xs{ display:flex; flex-direction:column; }
+.xs + .xs{ margin-top:4px; border-top:1px solid var(--line); }
+.xs__head{ position:sticky; top:0; z-index:2; display:flex; align-items:center; gap:2px; min-height:32px; padding-right:2px; background:var(--bg-2); }
+.xs__h{ flex:1 1 auto; min-width:0; display:flex; align-items:center; gap:6px; height:32px; padding:0 6px; border:0; border-radius:8px; background:transparent;
+  color:var(--text); font:600 12.5px/1 var(--f-body); text-align:left; cursor:pointer; }
+.xs__t{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.xs__chev{ flex:none; width:6px; height:6px; margin:0 4px 0 2px; border-right:1.4px solid var(--text-3); border-bottom:1.4px solid var(--text-3); transform:rotate(45deg) translate(-1px,-1px); }
+.xs.is-collapsed .xs__chev{ transform:rotate(-45deg); }
+.xs__badge{ flex:none; min-width:18px; height:18px; padding:0 6px; border-radius:9px; background:var(--fill-2); color:var(--text-2);
+  font:500 11px/18px var(--f-body); text-align:center; }
+.xs__acts{ flex:none; display:inline-flex; opacity:0; transition:opacity 120ms ease-out; }
+.xs__head:hover .xs__acts, .xs__head:focus-within .xs__acts{ opacity:1; }
+.xs__body{ display:flex; flex-direction:column; gap:8px; padding:2px 2px 8px; }
+/* ① ソース管理 */
+.scm__head, .scm__gh{ display:flex; align-items:center; gap:8px; min-height:28px; }
+.scm__branch{ height:26px; max-width:70%; padding:0 10px; border:0; border-radius:13px; background:var(--fill-1); color:var(--text);
+  font:400 12.5px/1 var(--f-mono); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; cursor:pointer; }
+.scm__branch:hover{ background:var(--fill-2); }
+.scm__sync{ font-size:12px; color:var(--text-3); }
+.scm__discard.is-armed{ color:var(--red-text); background:var(--fill-2); }
+.scm__commit{ display:flex; flex-direction:column; gap:8px; }
+.scm__msg{ width:100%; box-sizing:border-box; min-height:56px; resize:vertical; padding:8px 10px; border:0; border-radius:10px;
+  background:var(--fill-1); color:var(--text); font:400 13px/1.5 var(--f-body); box-shadow:inset 0 0 0 1px var(--line-2); }
+.scm__msg:focus{ outline:0; box-shadow:inset 0 0 0 1px var(--line-focus), 0 0 0 3px var(--fill-2); }
+.scm__msg::placeholder{ color:var(--text-3); }
+.scm__commit-btn{ width:100%; justify-content:center; }
+.scm__commit-btn:disabled{ opacity:.45; cursor:default; }
+.scm__group{ display:flex; flex-direction:column; }
+.scm__gh{ padding:0 2px 0 4px; }
+.scm__gt{ font:600 12px/1 var(--f-body); color:var(--text-2); }
+.scm__list{ display:flex; flex-direction:column; }
+.scm__row{ display:flex; align-items:center; gap:2px; min-height:30px; border-radius:8px; padding-right:4px; }
+.scm__row:hover, .scm__row:focus-within{ background:var(--fill-1); }
+.scm__file{ flex:1 1 auto; min-width:0; display:flex; align-items:center; gap:8px; height:30px; padding:0 6px; border:0; background:transparent;
+  color:var(--text); text-align:left; cursor:pointer; border-radius:8px; }
+.scm__name, .scm__dir{ line-height:30px; }
+.scm__name{ flex:none; max-width:60%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:13px; }
+.scm__name.is-deleted{ text-decoration:line-through; color:var(--text-2); }
+.scm__dir{ flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:12px; color:var(--text-3); }
+.scm__acts{ flex:none; display:none; align-items:center; }
+.scm__row:hover .scm__acts, .scm__row:focus-within .scm__acts{ display:inline-flex; }
+/* ② このチャットのファイル（.fl の行をそのまま使う） */
+.xs[data-k="chat"] .fl{ border-radius:8px; }
+/* ③ フォルダーの木（VS Code のエクスプローラー: 1 段 12px・変わったファイルは色と印・変わったファイルを含むフォルダーは点） */
+.xt{ display:flex; flex-direction:column; }
+.xt__row{ display:flex; align-items:center; gap:6px; height:26px; padding:0 6px 0 calc(6px + var(--depth, 0) * 12px); border:0; border-radius:6px;
+  background:transparent; color:var(--text); font:400 13px/26px var(--f-body); text-align:left; cursor:pointer; min-width:0; }
+.xt__row:hover{ background:var(--fill-1); }
+.xt__chev{ flex:none; width:10px; height:10px; position:relative; }
+.xt__row--dir .xt__chev::before{ content:""; position:absolute; left:1px; top:2px; width:5px; height:5px; border-right:1.3px solid var(--text-3);
+  border-bottom:1.3px solid var(--text-3); transform:rotate(-45deg); }
+.xt__row--dir.is-open .xt__chev::before{ transform:rotate(45deg); left:2px; top:0; }
+.xt__ic{ flex:none; width:15px; height:15px; color:var(--text-3); display:inline-flex; }
+.xt__ic svg{ width:15px; height:15px; fill:none; stroke:currentColor; stroke-width:1.2; stroke-linejoin:round; }
+.xt__name{ flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.xt__dot{ flex:none; width:18px; text-align:center; font-size:9px; color:var(--deco-mod); }
+/* 大きさと更新時刻（2026-11-20）。名前を優先し、狭い時は時刻→大きさの順に隠す（詳しくは行の title）。 */
+.xt{ container-type:inline-size; }
+.xt__meta{ flex:none; display:flex; gap:10px; font-size:11px; color:var(--text-3); font-variant-numeric:tabular-nums; }
+.xt__size{ min-width:6ch; text-align:right; }
+.xt__time{ min-width:5ch; text-align:right; }
+@container (max-width: 300px){ .xt__time{ display:none; } }
+@container (max-width: 210px){ .xt__meta{ display:none; } }
+.xt__row.is-changed .xt__name, .xt__row.is-M .xt__name, .xt__row.is-R .xt__name{ color:var(--deco-mod); }
+.xt__row.is-A .xt__name, .xt__row.is-U .xt__name{ color:var(--diff-add-fg); }
+.xt__row.is-D .xt__name{ color:var(--diff-del-fg); text-decoration:line-through; }
+/* 2026-11-21 開いたフォルダだけを読む木: 編集中の行・git が無視する物は薄く・名前の入力欄・読み込みや空の注記 */
+.xt__row.is-active{ background:var(--fill-2); }
+.xt__row.is-ignored .xt__name, .xt__row.is-ignored .xt__ic{ opacity:.55; }
+.xt__row--new{ cursor:default; }
+.xt__input{ flex:1 1 auto; min-width:0; height:22px; padding:0 6px; border:1px solid var(--accent, var(--text-2)); border-radius:4px;
+  background:var(--bg-1, var(--bg-2)); color:var(--text); font:400 13px/20px var(--f-body); outline:none; }
+.xt__note{ padding:2px 6px 2px calc(22px + var(--depth, 0) * 12px); font-size:12px; line-height:20px; color:var(--text-3); }
+.xt__note.is-err{ color:var(--diff-del-fg); }
+.x-link{ border:0; padding:0; background:none; color:var(--accent, var(--text)); font:inherit; text-decoration:underline; text-underline-offset:2px; cursor:pointer; }
+.x-link:hover{ color:var(--text); }
+.x-link:focus-visible{ outline:2px solid var(--text); outline-offset:2px; border-radius:2px; }
+.xt__note .x-link{ font-size:12px; }
+/* エディター（ファイルの中身・差分をパネル全体に出す） */
+.x-ehead{ position:sticky; top:0; z-index:2; display:flex; align-items:center; gap:8px; min-height:40px; background:var(--bg-2); }
+.x-back{ flex:none; height:26px; padding:0 10px; border:0; border-radius:13px; background:var(--fill-1); color:var(--text-2); font-size:12.5px; cursor:pointer; }
+.x-back:hover{ background:var(--fill-2); color:var(--text); }
+.x-etitle{ flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font:400 12.5px/1.3 var(--f-mono); color:var(--text); }
+.x-esub{ font-size:12px; color:var(--text-3); padding:0 4px 8px; }
+.x-img{ max-width:100%; border-radius:8px; }
+.scmd{ border-radius:10px; overflow:auto; background:var(--sunk); box-shadow:inset 0 0 0 1px var(--line); font:400 12px/1.55 var(--f-mono); }
+.scmd__row{ display:grid; grid-template-columns:3.2em 3.2em 1.2em minmax(0,1fr); align-items:start; min-width:max-content; }
+.scmd__o, .scmd__n{ padding:0 6px; text-align:right; color:var(--text-3); user-select:none; -webkit-user-select:none; }
+.scmd__m{ text-align:center; color:var(--text-3); user-select:none; -webkit-user-select:none; }
+.scmd__s{ padding-right:10px; white-space:pre; font:inherit; color:var(--text); background:none; }
+.scmd__row--add{ background:var(--diff-add-bg); }
+.scmd__row--add .scmd__m{ color:var(--diff-add-fg); }
+.scmd__row--del{ background:var(--diff-del-bg); }
+.scmd__row--del .scmd__m{ color:var(--diff-del-fg); }
+.scmd__row--hunk, .scmd__row--note{ display:block; padding:3px 10px; background:var(--fill-1); color:var(--text-3); }
+.cmenu--branch .cmenu__item.is-cur{ font-weight:600; }
+/* 右のパネルの見出しのポップアウト（エクスプローラーのときだけ出す） */
+.drawer__pop{ flex:none; width:30px; height:30px; padding:0; border:0; border-radius:15px; background:transparent; color:var(--text-2);
+  display:inline-flex; align-items:center; justify-content:center; cursor:pointer; }
+.drawer__pop[hidden]{ display:none; }
+.drawer__pop svg{ width:15px; height:15px; fill:none; stroke:currentColor; stroke-width:1.3; stroke-linecap:round; stroke-linejoin:round; }
+.drawer__pop:hover{ background:var(--fill-2); color:var(--text); }
+.drawer__pop:focus-visible{ outline:2px solid var(--text); outline-offset:-2px; }
+/* 別のウィンドウ（explorer.html） */
+body.xwin{ display:flex; flex-direction:column; height:100vh; margin:0; background:var(--bg); overflow:hidden; }
+.xwin__bar{ flex:none; display:flex; align-items:center; gap:10px; height:44px; padding:0 10px 0 14px; }
+.xwin__title{ font:600 13px/1 var(--f-body); color:var(--text); }
+.xwin__ws{ font-size:12px; color:var(--text-3); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.xwin__root{ flex:1 1 auto; min-height:0; overflow:auto; padding:0 8px 12px; }
+.xwin__msg{ flex:none; margin:0; padding:6px 14px; font-size:12px; color:var(--text); background:var(--fill-1); }
+.xwin__msg[hidden]{ display:none; }
+/* 状態バーのブランチと変更の数は押せる（VS Code と同じ） */
+#sb-branch, #sb-scm{ cursor:pointer; }
+#sb-branch:hover, #sb-scm:hover{ background:var(--fill-1); color:var(--text); }
+/* Quick Open の種類の印（チャット・ファイル） */
+.qp__ic{ flex:none; width:16px; height:16px; color:var(--text-3); display:inline-flex; }
+.qp__ic svg{ width:16px; height:16px; fill:none; stroke:currentColor; stroke-width:1.2; stroke-linejoin:round; }
+
+/* 回答の下の 1 行の知らせ（実行中の待ち・背景の仕事・本体の一言）。 */
+.msg--bot > .meter .meter__note{ margin-left:10px; color:var(--text-2); }
+.msg--bot > .meter .meter__note.is-gate{ color:var(--red-text); }
+.msg--bot > .meter .meter__note.is-unknown{ color:var(--text); }
+
+/* ── エディター（2026-11-17 オーナー「よりVSCode機能に近づけて。エディタとしても使えるように」・Monaco・explorer.js）──
+ * タブは VS Code と同じ形（選んだタブは本文と同じ地＋上に細い線・変更があれば ●・× は乗せたときと選んだとき）。 */
+:root{ --editor-bg:#1C1C20; }
+html[data-theme="light"]{ --editor-bg:#F3F3F5; }
+.tb__tools .tb__icon[aria-expanded="true"]{ background:var(--fill-2); color:var(--text); }
+.tb__tools .tb__icon svg{ width:16px; height:16px; }
+.drawer__body--editor{ display:flex; flex-direction:column; flex:1 1 auto; min-height:0; padding:0; overflow:hidden; }
+.drawer__body--editor[hidden]{ display:none; }
+.xe{ display:flex; flex-direction:column; min-height:0; }
+.xe__bar{ flex:none; display:flex; align-items:stretch; gap:2px; height:36px; padding:0 4px 0 2px; border-bottom:1px solid var(--line); }
+.xe__back{ align-self:center; }
+.xe__tabs{ flex:1 1 auto; min-width:0; display:flex; overflow-x:auto; scrollbar-width:none; }
+.xe__tabs::-webkit-scrollbar{ display:none; }
+.xe__tab{ flex:none; position:relative; display:flex; align-items:center; max-width:220px; border-radius:8px 8px 0 0; color:var(--text-3); }
+.xe__tab:hover{ color:var(--text-2); }
+.xe__tab.is-active{ background:var(--editor-bg); color:var(--text); }
+.xe__tab.is-active::before{ content:""; position:absolute; left:8px; right:8px; top:0; height:2px; border-radius:1px; background:var(--text); }
+.xe__tt{ display:flex; align-items:center; gap:6px; min-width:0; height:100%; padding:0 4px 0 10px; border:0; background:transparent;
+  color:inherit; font:400 12.5px/1 var(--f-body); cursor:pointer; }
+.xe__tn{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.xe__td{ max-width:90px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:11px; color:var(--text-3); }
+.xe__x{ flex:none; min-width:22px; height:22px; margin-right:4px; padding:0; border:0; border-radius:6px; background:transparent;
+  color:var(--text-3); font:400 13px/1 var(--f-body); cursor:pointer; visibility:hidden; }
+.xe__tab:hover .xe__x, .xe__tab.is-active .xe__x, .xe__tab.is-dirty .xe__x, .xe__x.is-armed{ visibility:visible; }
+.xe__x:hover{ background:var(--fill-2); color:var(--text); }
+.xe__x:focus-visible, .xe__tt:focus-visible{ outline:2px solid var(--text); outline-offset:-2px; visibility:visible; }
+.xe__x.is-armed{ padding:0 6px; color:var(--red-text); font-size:11.5px; }
+.xe__acts{ flex:none; display:inline-flex; align-items:center; }
+.xe__acts [hidden]{ display:none; }
+.xe__note{ flex:none; display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:6px 10px; font-size:12px; color:var(--text); background:var(--fill-1); }
+.xe__note[hidden]{ display:none; }
+.xe__host{ flex:1 1 auto; min-height:0; position:relative; background:var(--editor-bg); }
+.xe__ed{ position:absolute; inset:0; }
+.xe__ed[hidden]{ display:none; }
+.xe__status{ flex:none; height:24px; padding:0 12px; border-top:1px solid var(--line); font-size:12px; line-height:24px; color:var(--text-3);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.xo__row.is-active{ background:var(--fill-2); }
+.sb__editor{ color:var(--text-2); }
+/* 別のウィンドウ: 広いときは左にエクスプローラー・右にエディター（狭いときは 1 つずつ） */
+.xwin__main{ flex:1 1 auto; min-height:0; display:flex; }
+.xwin__main > .xwin__root{ flex:1 1 auto; }
+body.xwin--wide .xwin__main > .xwin__root{ flex:0 0 300px; border-right:1px solid var(--line); }
+.xwin__editor{ flex:1 1 auto; min-width:0; display:flex; flex-direction:column; }
+.xwin__editor[hidden], .xwin__main > .xwin__root[hidden]{ display:none; }
+body.xwin--wide .xe__back{ display:none; }   /* 広い別のウィンドウでは左にエクスプローラーが見えている */
+
+/* ── エディターとエージェントをつなぐ（2026-11-17 オーナー「ツールとハーネス強化」の案 3）──
+   入力欄の下の「エディターの今」の札・このチャットのファイルの行の差分ボタン・エージェントの変更の差分の注記。 */
+.edctx{ flex:0 1 auto; min-width:0; max-width:220px; }
+.edctx svg{ width:13px; height:13px; flex:none; fill:none; stroke:currentColor; stroke-width:1.3; stroke-linejoin:round; stroke-linecap:round; }
+.edctx #edctx-t{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-family:var(--f-mono); font-size:11.5px; }
+.edctx.is-off{ opacity:.5; }
+.edctx.is-off #edctx-t{ text-decoration:line-through; }
+.fl-row{ display:flex; align-items:center; gap:2px; }
+.fl-row > .fl{ flex:1 1 auto; min-width:0; }
+.fl__diff{ flex:none; width:28px; height:28px; display:grid; place-items:center; border-radius:8px; }
+.fl__diff svg{ width:14px; height:14px; fill:none; stroke:currentColor; stroke-width:1.4; stroke-linecap:round; }
+.xe__note.is-info{ color:var(--text-2); }
+.xe__note.is-info span + span{ color:var(--text-3); }
+
+/* ── Chrome とつなぐ（設定・2026-11-18）── */
+.chromelink__row{ display:flex; align-items:center; gap:8px; min-width:0; margin:6px 0; }
+.chromelink__k{ flex:none; width:5.5em; color:var(--text-2); font-size:12.5px; }
+.chromelink__token, .chromelink__path{ flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  padding:4px 8px; border-radius:8px; background:var(--fill-1); font-size:12px; }
+.chromelink__steps{ margin:8px 0 4px; padding-left:1.4em; }
+.chromelink__steps li{ margin:2px 0; }
+#chrome-status.is-on{ color:var(--text); }
+
+/* ── 会話のグループ（2026-11-19 オーナー「ドラッグ操作とかで会話をまとめられるようにしたい」）。
+ * 見出しは日付の見出しと同じ小ささに、左に畳む印・右に数と「⋯」。ドラッグ中は落とし先を縁取りで見せる。 */
+.convo-group--user{ position:relative; display:flex; align-items:center; padding:10px 4px 2px 4px; }
+.cgroup__t{ flex:1 1 auto; min-width:0; display:flex; align-items:center; gap:6px; height:28px; padding:0 40px 0 6px; border:0; border-radius:8px;
+  background:transparent; color:var(--text-2); font:600 12px/16px var(--f-body); text-align:left; cursor:pointer; }
+.cgroup__t:hover{ background:var(--fill-1); color:var(--text); }
+.cgroup__t:focus-visible{ outline:2px solid var(--text); outline-offset:-2px; }
+.cgroup__car{ flex:none; width:6px; height:6px; margin:0 3px 0 2px; border-right:1.5px solid currentColor; border-bottom:1.5px solid currentColor;
+  transform:rotate(45deg) translate(-1px,-1px); }
+.convo-group--user.is-closed .cgroup__car{ transform:rotate(-45deg); }
+.cgroup__n{ min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.cgroup__c{ flex:none; font-weight:400; color:var(--text-3); font-variant-numeric:tabular-nums; }
+.cgroup__more{ right:6px; top:calc(50% + 4px); }
+.convo-group--user:hover .cgroup__more, .convo-group--user:focus-within .cgroup__more, .cgroup__more[aria-expanded="true"]{ opacity:1; }
+.cgroup__rename{ position:absolute; left:8px; right:8px; bottom:2px; height:28px; padding:0 10px; border:0; border-radius:8px;
+  background:var(--bg-3); color:var(--text); font:600 12px/16px var(--f-body); box-shadow:0 0 0 2px var(--line-2); }
+.convo-group--user.is-renaming .cgroup__t, .convo-group--user.is-renaming .cgroup__more{ visibility:hidden; }
+
+.convo__row.is-dragging{ opacity:.45; }
+.convo__row.is-drop .convo, .convo-group.is-drop .cgroup__t{ box-shadow:inset 0 0 0 2px var(--text-2); background:var(--fill-1); }
+.convo__row.is-drop-new .convo{ box-shadow:inset 0 0 0 2px var(--text-2); background:var(--fill-2); }
+.convo-group.is-drop-out{ color:var(--text); }
+.convo-group.is-drop-out::after{ content:"ここに置くとグループから外れます"; margin-left:8px; color:var(--text-2); }
+.convos.is-drop-out{ box-shadow:inset 0 0 0 1px var(--line-2); border-radius:14px; }
+body.is-convo-dragging, body.is-convo-dragging *{ cursor:grabbing !important; user-select:none; }
+.convo-ghost{ position:fixed; z-index:1000; pointer-events:none; max-width:240px; padding:6px 12px; border-radius:10px;
+  background:var(--bg-3); color:var(--text); font:400 13px/18px var(--f-body); box-shadow:var(--elev-2);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+/* ── 計画モードの「この計画で実行」（2026-11-19）。本文の下に場所を取って置く（枠の外に浮かせると最後の答えで切れた）。最後の計画にだけ出す。 */
+.msg__plan{ display:none; align-items:center; gap:var(--s2); margin-top:var(--s3); flex-wrap:wrap; }
+.msg--bot.is-last > .msg__plan{ display:flex; }
+.plan-run{ height:32px; padding:0 var(--s3); border:0; border-radius:var(--r); background:var(--text); color:var(--bg-0);
+  font:600 13px/32px var(--f-body); cursor:pointer; }
+.plan-run:hover{ opacity:.88; }
+.plan-run:focus-visible{ outline:2px solid var(--red); outline-offset:2px; }
+.plan-run__note{ font-size:12px; color:var(--text-3); }
+
+/* ══ 2026-11-23 ネイティブに寄せる（オーナー「ネイティブアプリケーションにより近づけるために UI/UX を改善して」
+ *    「ASK の出し方やエクスプローラー、サイドバー等」「チャットモードがほしい（作業フォルダとかいらないやつ）」「最終報告の MD 形式も見やすく」）══ */
+
+/* ── Chat（talk）: ワークスペースを持たない会話。フォルダー・添付・エディターの今・Tools の札を出さない。 */
+body.is-talk .wspick, body.is-talk #edctx, body.is-talk #use-tools-label, body.is-talk .composer__add{ display:none; }
+
+/* ── 質問のパネル（ASK）: 入力欄の上に、入力欄と同じ幅のガラス。見出し・質問文・番号つきの選択肢の一覧・最後の行に「その他」。
+ *    選択肢の一覧は 1 つの枠の中の行（Windows の設定・VS Code の Quick Pick と同じ）。行は押すとそのまま答え。 */
+.askbox{ width:calc(100% - 2 * var(--s5)); max-width:var(--col); margin:0 auto 8px; padding:12px; border:0; border-radius:16px; background:var(--glass-solid);
+  -webkit-backdrop-filter:var(--blur-panel); backdrop-filter:var(--blur-panel); box-shadow:var(--glass-rim), var(--shadow-pop); }
+.askbox__head{ display:flex; align-items:center; gap:6px; margin:0 0 4px 2px; font:600 12px/16px var(--f-body); color:var(--text-2); }
+.askbox__head svg{ width:14px; height:14px; fill:none; stroke:currentColor; stroke-width:1.3; stroke-linecap:round; }
+.askbox__head .askbox__dot{ fill:currentColor; stroke:none; }
+.askbox__q{ margin:0 2px 10px; font:600 15px/1.55 var(--f-body); color:var(--text); white-space:pre-wrap; overflow-wrap:anywhere; }
+.askbox__row{ display:flex; flex-direction:column; flex-wrap:nowrap; align-items:stretch; gap:0; max-height:46vh; overflow:auto; border-radius:10px;
+  background:var(--fill-1); box-shadow:inset 0 0 0 1px var(--line-2); }
+.askbox__opt{ display:flex; flex-direction:row; flex-wrap:nowrap; align-items:flex-start; justify-content:flex-start; gap:10px;
+  width:100%; min-height:40px; margin:0; padding:9px 12px; border:0; border-radius:0; background:transparent; box-shadow:none;
+  color:var(--text); text-align:left; font:400 14px/22px var(--f-body); cursor:pointer; }
+.askbox__opt + .askbox__opt, .askbox__other{ border-top:1px solid var(--line); }
+.askbox__opt:hover{ background:var(--fill-1); }
+.askbox__opt:active{ background:var(--fill-2); }
+.askbox__opt:focus-visible{ outline:2px solid var(--line-focus); outline-offset:-2px; background:var(--fill-1); }
+.askbox__key{ flex:none; width:20px; height:20px; margin-top:1px; display:inline-flex; align-items:center; justify-content:center;
+  border:0; border-radius:5px; background:transparent; box-shadow:inset 0 0 0 1px var(--line-3);
+  font:600 11px/1 var(--f-mono); color:var(--text-2); }
+.askbox__key:empty{ visibility:hidden; }
+.askbox__optx{ display:flex; flex-direction:column; min-width:0; }
+.askbox__optlabel{ font-weight:500; overflow-wrap:anywhere; }
+.askbox__optdesc{ max-width:none; font-size:12.5px; line-height:18px; color:var(--text-3); }
+.askbox__other{ display:flex; align-items:center; gap:10px; padding:5px 5px 5px 12px; }
+.askbox__key--pen{ box-shadow:none; color:var(--text-3); }
+.askbox__key--pen svg{ width:13px; height:13px; fill:none; stroke:currentColor; stroke-width:1.3; stroke-linejoin:round; }
+.askbox__free{ flex:1 1 auto; width:auto; min-width:0; height:30px; margin:0; padding:0 8px; border:0; border-radius:6px;
+  background:transparent; color:var(--text); font:400 14px/30px var(--f-body); box-shadow:none; }
+.askbox__free:hover{ background:var(--fill-1); }
+.askbox__free:focus-visible{ outline:none; background:var(--fill-1); box-shadow:inset 0 -2px 0 var(--text); }   /* Windows の TextBox と同じ下の線 */
+.askbox__go{ flex:none; height:30px; padding:0 14px; border:0; border-radius:6px; background:var(--red); color:var(--on-red);
+  font:600 13px/30px var(--f-body); cursor:pointer; }
+.askbox__go:hover{ background:var(--red-hover); }
+.askbox__go:disabled{ background:var(--fill-2); color:var(--text-3); cursor:default; }
+.askbox.is-sending, .askbox.is-sending *{ cursor:progress; }
+.askbox__err{ margin:8px 2px 0; }
+
+/* ★ここから下の窓の枠とサイドバーの決まりはデスクトップのアプリ（body[data-view]）だけ。ウェブ版（src/laps/webremote）も
+ *   この styles.css を読むが、帯と一覧の作りが違う（帯にメニューのボタン・アクティビティバーが無い）。 */
+/* ── 窓の枠（Windows 11・VS Code の作法）: 帯は窓の全幅 40px・左右の板は窓の端に付ける（外の余白・角丸・影をやめ、境は 1px の線）。
+ *    枠（帯・サイドバー・右のパネル・状態バー）は本文より一段暗い単色（Mica に近い・ぼかしの手間も無い）。
+ *    ガラスは浮く物（入力欄・質問のパネル・メニュー・パレット）だけ＝Windows 11 の Acrylic と同じ使い分け。 */
+body[data-view]{ --h-title:40px; }
+:root{ --chrome:#141417; --chrome-hi:#1B1B1F; --chrome-line:rgba(255,255,255,.075); }
+html[data-theme="light"]{ --chrome:#DCDCE1; --chrome-hi:#D3D3D9; --chrome-line:rgba(0,0,0,.09); }
+body[data-view].side-off{ --side:var(--act); }
+
+body[data-view] .titlebar{ position:relative; left:auto; right:auto; top:auto; flex:none; display:flex; align-items:stretch; gap:0;
+  height:var(--h-title); padding:0; background:var(--chrome); border-bottom:1px solid var(--chrome-line); }
+body[data-view] .tb__brand{ width:var(--side); flex:none; height:100%; display:flex; align-items:center; gap:8px; padding:0 10px 0 0;
+  border-right:0; overflow:hidden; }
+body[data-view] .tb__side{ flex:none; width:var(--act); height:100%; border:0; border-radius:0; background:transparent; color:var(--text-2);
+  display:inline-flex; align-items:center; justify-content:center; cursor:pointer; }
+body[data-view] .tb__side svg{ width:16px; height:16px; }
+body[data-view] .tb__side:hover{ background:var(--fill-1); color:var(--text); }
+body[data-view] .tb__brand .mark{ width:16px; height:16px; border-radius:4px; }
+body[data-view] .tb__brand .mark::after{ left:5px; top:3.5px; width:5px; height:7.5px; border-left-width:1.7px; border-bottom-width:1.7px; }
+body[data-view] .tb__name{ font:600 13px/1 var(--f-body); letter-spacing:.02em; color:var(--text); white-space:nowrap; }
+body[data-view].side-off .tb__brand{ padding:0; }
+body[data-view].side-off .tb__brand > :not(.tb__side){ display:none; }
+body[data-view] .tb__title{ flex:1 1 auto; min-width:0; align-self:center; padding:0 16px; font:400 13px/1.3 var(--f-body); color:var(--text-2);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+body[data-view] .tb__tools{ flex:none; align-self:center; height:auto; margin:0 4px 0 auto; padding:0; gap:2px; border-radius:0; background:transparent;
+  box-shadow:none; -webkit-backdrop-filter:none; backdrop-filter:none; }
+body[data-view] .tb__tools .tb__icon{ width:34px; height:28px; border-radius:4px; }
+body[data-view] .tb__tools .tb__icon svg{ width:16px; height:16px; }
+body[data-view] .tb__win{ flex:none; display:flex; align-items:stretch; height:100%; margin:0; }
+body[data-view] .tb__btn{ width:46px; height:100%; border:0; border-radius:0; background:transparent; color:var(--text);
+  display:inline-flex; align-items:center; justify-content:center; }
+body[data-view] .tb__btn svg{ width:10px; height:10px; }
+body[data-view] .tb__btn:hover{ background:var(--fill-2); color:var(--text); }
+body[data-view] .tb__btn:active{ background:var(--fill-1); }
+body[data-view] .tb__btn--close:hover{ background:#C42B1C; color:#FFFFFF; }
+body[data-view] .tb__btn--close:active{ background:#C83C30; color:#FFFFFF; }
+
+body[data-view] .main{ padding-top:0; }
+body[data-view] .side{ margin:0; border:0; border-right:1px solid var(--chrome-line); border-radius:0; background:var(--chrome);
+  -webkit-backdrop-filter:none; backdrop-filter:none; box-shadow:none; padding:0 8px 8px 0; }
+body[data-view] .side__nav{ padding:6px 0 0; align-self:stretch; box-shadow:inset -1px 0 0 var(--chrome-line); }
+body[data-view] .side__nav .slink{ width:var(--act); height:40px; border-radius:0; color:var(--text-3); }
+body[data-view] .side__nav .slink svg{ width:20px; height:20px; }
+body[data-view] .side__nav .slink:hover{ background:transparent; color:var(--text); }
+body[data-view] .side__nav .slink.is-active{ background:transparent; color:var(--text); }
+body[data-view] .side__nav .slink.is-active::before{ left:0; top:10px; bottom:10px; width:2px; }
+body[data-view].side-off .side{ padding:0; grid-template-columns:var(--act); border-right:1px solid var(--chrome-line); }
+body[data-view].side-off .side > :not(.side__nav){ display:none; }
+
+body[data-view] .app.drawer-open .drawer{ margin:0; border:0; border-left:1px solid var(--chrome-line); border-radius:0; background:var(--chrome);
+  -webkit-backdrop-filter:none; backdrop-filter:none; box-shadow:none; }
+body[data-view] .statusbar{ background:var(--chrome); border-top:1px solid var(--chrome-line); padding:0 8px 0 10px; }
+body[data-view] .sb__item{ border-radius:3px; }
+
+/* ── サイドバーの一覧（ネイティブのリスト）: 先頭に「新しいチャット」の行・行は面の角丸 6px・選んだ行は面と左の 3px の印・影なし。
+ *    状態の印は 16px（実行中＝回る輪・返答待ち＝?・終わった物は印なし）。キー: ↑↓ Home End・Enter・F2・メニューのキー（app.js）。 */
+body[data-view] .side__head{ height:auto; padding:8px 0 4px 8px; }
+body[data-view] .side__head .mark, body[data-view] .side__head .side__name{ display:none; }
+body[data-view] .new{ flex:1 1 auto; width:auto; height:34px; margin:0; padding:0 10px 0 8px; gap:8px; border:0; border-radius:6px;
+  display:flex; align-items:center; justify-content:flex-start; background:transparent; color:var(--text); box-shadow:none;
+  font:400 13px/1 var(--f-body); }
+body[data-view] .new::before{ content:"+"; flex:none; width:16px; font-size:18px; font-weight:300; line-height:1; text-align:center; color:var(--text-2); }
+body[data-view] .new:hover{ background:var(--fill-1); color:var(--text); }
+body[data-view] .new:active{ background:var(--fill-2); }
+body[data-view] .new__t{ flex:1 1 auto; text-align:left; }
+body[data-view] .new__k{ flex:none; font:400 11px/1 var(--f-body); color:var(--text-3); background:none; border:0; padding:0; }
+body[data-view] .convo-q{ height:30px; margin:2px 0 6px 8px; width:calc(100% - 8px); padding:0 10px; border-radius:6px; font-size:13px;
+  background:var(--fill-1); box-shadow:inset 0 0 0 1px var(--chrome-line); }
+body[data-view] .convo-q:focus-visible{ outline:none; box-shadow:inset 0 0 0 1px var(--line-2), inset 0 -2px 0 var(--text); }
+body[data-view] .convos{ padding:0 0 0 8px; }
+body[data-view] .peers{ padding-left:8px; }
+body[data-view] .convo-group{ padding:12px 10px 4px; font:600 11.5px/16px var(--f-body); color:var(--text-3); }
+body[data-view] .convo__row{ border-radius:6px; }
+body[data-view] .convo{ position:relative; gap:8px; min-height:34px; padding:6px 8px 6px 10px; border-radius:6px; }
+body[data-view] .convo:hover{ background:var(--fill-1); }
+body[data-view] .convo:active{ background:var(--fill-2); }
+body[data-view] .convo.is-active{ background:var(--fill-2); box-shadow:none; }
+body[data-view] .convo.is-active::before{ display:block; content:""; position:absolute; left:0; top:50%; width:3px; height:16px; margin-top:-8px;
+  border-radius:2px; background:var(--text); }
+body[data-view] .convo:focus-visible{ outline:2px solid var(--line-focus); outline-offset:-2px; }
+body[data-view] .convo__ic{ width:16px; height:16px; align-self:flex-start; margin-top:2px; border-radius:0; background:transparent; }
+body[data-view] .convo__ic::after{ display:none; }
+body[data-view] .convo.is-running .convo__ic::after{ display:block; left:1px; top:1px; width:14px; height:14px; }
+body[data-view] .convo.is-asking .convo__ic::after{ display:flex; left:0; top:0; width:16px; height:16px; border-radius:50%;
+  box-shadow:inset 0 0 0 1.3px var(--text); font:700 10px/1 var(--f-body); }
+body[data-view] .convo__t{ font-size:13px; line-height:20px; }
+body[data-view] .convo__s{ font-size:12px; line-height:16px; }
+body[data-view] .convo__tm{ align-self:flex-start; font-size:11.5px; line-height:20px; }
+body[data-view] .convo__more{ border-radius:4px; }
+
+/* ── 最初の画面: 例のカードの箱は空白だけのとき :empty に当たらず、上の線だけが出ていた（会話の無いフォルダー・Chat）。 */
+.hello__cards:not(:has(*)){ display:none; }
+
+/* ── 右のパネル（エクスプローラー）: タブは下線（VS Code のパネルの見出し）・区画の見出しと木の行は詰める・字下げの線・
+ *    ボタンは角丸 4px の普通のボタン。中身の作り（explorer.js）は変えない。 */
+.drawer__head{ height:36px; padding:0 4px 0 6px; gap:2px; border-bottom:1px solid var(--chrome-line); }
+.drawer__tabs{ height:100%; padding:0; gap:0; border-radius:0; background:transparent; }
+.drawer__tab{ flex:none; height:100%; padding:0 10px; border:0; border-radius:0; background:transparent; color:var(--text-3);
+  font:400 12.5px/1 var(--f-body); }
+.drawer__tab:hover{ color:var(--text); background:transparent; }
+.drawer__tab.is-active{ background:transparent; color:var(--text); box-shadow:inset 0 -2px 0 var(--text); }
+.drawer__pop, .drawer__close{ width:28px; height:28px; border-radius:4px; }
+#files.drawer__body{ padding:0 4px 12px; }
+.xs + .xs{ margin-top:0; border-top:1px solid var(--chrome-line); }
+.xs__head{ min-height:26px; background:var(--chrome); }
+.xs__h{ height:26px; padding:0 4px; border-radius:3px; font:600 12px/1 var(--f-body); }
+.xs__badge{ height:16px; min-width:16px; padding:0 5px; border-radius:8px; font-size:10.5px; line-height:16px; }
+.x-icon{ width:24px; height:24px; border-radius:4px; }
+.x-back{ height:24px; border-radius:4px; }
+.scm__branch{ height:24px; border-radius:4px; }
+.scm__msg{ border-radius:4px; min-height:52px; }
+.scm__msg:focus{ box-shadow:inset 0 0 0 1px var(--line-2), inset 0 -2px 0 var(--text); }
+.scm__commit-btn{ height:28px; min-height:28px; border-radius:4px; font-size:13px; }
+.scm__row{ min-height:22px; border-radius:3px; }
+.scm__file{ height:22px; border-radius:3px; }
+.scm__name, .scm__dir{ line-height:22px; }
+.xs[data-k="chat"] .fl{ border-radius:3px; }
+.xt__row{ height:22px; line-height:22px; border-radius:3px; padding-left:calc(6px + var(--depth, 0) * 12px);
+  background-image:repeating-linear-gradient(90deg, transparent 0 11px, var(--chrome-line) 11px 12px);
+  background-size:calc(var(--depth, 0) * 12px) 100%; background-position:6px 0; background-repeat:no-repeat; }
+.xt__row:hover{ background-color:var(--fill-1); }
+.xt__row.is-active{ background-color:var(--fill-2); }
+.xt__row:focus-visible{ outline:1px solid var(--line-focus); outline-offset:-1px; }
+.x-ehead{ min-height:36px; background:var(--chrome); }
+.xwin__bar{ height:40px; background:var(--chrome); border-bottom:1px solid var(--chrome-line); }
+.btn{ border-radius:4px; }
+#drawer-close{ width:28px; height:28px; padding:0; border:0; border-radius:4px; }
+
+/* ── 最終報告の Markdown（2026-11-23 オーナー「最終報告の MD 形式も見やすくしてほしい」）。
+ *    見出しの段を 4 段ではっきり分ける（h1 は下に線・h3 を薄くしない）・和文の行間を 1.75 に・表は枠を角丸 8px で囲み、
+ *    升目は横の線だけ（縦は細く）・数字は等幅の数字・区切り線を描く・コードの札は薄く小さく・コードの枠は見出しの帯つき。 */
+.msg--bot .line{ line-height:1.75; margin-bottom:10px; }
+.msg--bot strong{ font-weight:650; color:var(--text); }
+.md-h{ margin:22px 0 8px; font-family:var(--f-body); font-weight:600; letter-spacing:0; line-height:1.4; color:var(--text); }
+.md-h--1{ font-size:18px; padding-bottom:6px; border-bottom:1px solid var(--line-2); }
+.md-h--2{ font-size:16px; }
+.md-h--3{ font-size:14.5px; color:var(--text); }
+.md-h--4{ font-size:14px; color:var(--text-2); }
+.md-list{ margin:6px 0 12px; padding-left:1.5em; }
+.md-list li{ margin:4px 0; padding-left:2px; line-height:1.7; }
+.md-list li::marker{ color:var(--text-3); font-variant-numeric:tabular-nums; }
+.md-list .md-list{ margin:2px 0 4px; }
+.md-hr{ height:0; margin:18px 0; border:0; border-top:1px solid var(--line-2); }
+.md-quote{ margin:12px 0; padding:2px 0 2px 14px; border-left:3px solid var(--line-3); color:var(--text-2); }
+.md-inline{ padding:1px 5px; border-radius:4px; background:var(--fill-1); box-shadow:inset 0 0 0 1px var(--line); font-size:.88em; }
+.md-table__wrap{ width:fit-content; max-width:100%; margin:10px 0 14px; border-radius:8px; box-shadow:inset 0 0 0 1px var(--line-2); }
+.md-table{ border-collapse:separate; border-spacing:0; font-size:13.5px; line-height:1.55; font-variant-numeric:tabular-nums; }
+.md-table th, .md-table td{ border:0; border-bottom:1px solid var(--line); padding:7px 14px; }
+.md-table th + th, .md-table td + td{ border-left:1px solid var(--line); }
+.md-table tbody tr:last-child td{ border-bottom:0; }
+.md-table th{ background:var(--fill-1); font-weight:600; color:var(--text); white-space:nowrap; border-bottom:1px solid var(--line-2); }
+.md-table th:first-child{ border-top-left-radius:8px; }
+.md-table th:last-child{ border-top-right-radius:8px; }
+.md-table tr:nth-child(even) td{ background:transparent; }
+.md-table tbody tr:hover td{ background:var(--fill-1); }
+.md-code{ margin:10px 0 14px; border:0; border-radius:8px; background:var(--sunk); box-shadow:inset 0 0 0 1px var(--line-2); }
+.md-code__head{ height:30px; padding:0 6px 0 12px; background:var(--fill-1); border-bottom:1px solid var(--line); font:400 11.5px/30px var(--f-mono); color:var(--text-3); }
+.md-code__copy{ height:22px; padding:0 8px; border:0; border-radius:4px; background:transparent; color:var(--text-2); font:400 12px/22px var(--f-body); }
+.md-code__copy:hover{ background:var(--fill-2); color:var(--text); }
+.md-code pre{ padding:12px 14px; font-size:12.5px; line-height:1.6; }
+
+/* ── 一覧の区画（2026-11-24 オーナー「サイドバーの UI/UX を少し改善して。特にグループ化とカードデザイン」「『ほかのデバイス』という括りもやめ、
+ *    Claude アプリと同じような UI/UX に」）。手本は Claude のデスクトップアプリ: 見出しは「機械 · フォルダー」の小さな灰色の字で、右の ⌄ で畳む。
+ *    行は 1 行で、題の左端は見出しの左端と同じ。走っている・入力待ちの行は面（薄い塗り）の付いたカード。ほかの機械の会話は右にコンピューターの
+ *    印（繋がっていれば緑の点）。並べ方は app.js の renderConvos。 */
+body[data-view] .convos{ gap:2px; }
+body[data-view] .convo-group--sec{ position:relative; display:flex; align-items:center; padding:12px 0 2px; font:600 11.5px/16px var(--f-body);
+  color:var(--text-3); letter-spacing:0; text-transform:none; }
+body[data-view] .convos > .convo-group--sec:first-child{ padding-top:2px; }
+body[data-view] .convo-group--sec .cgroup__t{ flex:1 1 auto; min-width:0; display:flex; align-items:center; gap:5px; height:26px; margin:0;
+  padding:0 34px 0 10px; border:0; border-radius:6px; background:transparent; color:inherit; font:inherit; text-align:left; cursor:pointer; }
+body[data-view] .convo-group--sec.is-fixed .cgroup__t{ cursor:default; }
+body[data-view] .convo-group--sec button.cgroup__t:hover{ background:var(--fill-1); color:var(--text); }
+body[data-view] .convo-group--sec button.cgroup__t:focus-visible{ outline:2px solid var(--line-focus); outline-offset:-2px; }
+body[data-view] .convo-group--sec .cgroup__n{ flex:0 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+body[data-view] .convo-group--sec .cgroup__m{ flex:0 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:400; }
+body[data-view] .convo-group--sec .cgroup__c{ flex:none; font-weight:400; color:var(--text-3); }
+body[data-view] .convo-group--sec .cgroup__car{ flex:none; display:inline-flex; width:14px; height:14px; margin:0; border:0; transform:none;
+  transition:transform .12s ease-out; }
+body[data-view] .convo-group--sec .cgroup__car svg{ width:14px; height:14px; display:block; }
+body[data-view] .convo-group--sec.is-closed .cgroup__car{ transform:rotate(-90deg); }
+body[data-view] .convo-group--sec .cgroup__live{ flex:none; width:10px; height:10px; border-radius:50%; border:1.5px solid var(--fill-2);
+  border-top-color:var(--text); animation:convo-spin 1.1s linear infinite; }
+body[data-view] .convo-group--sec .cgroup__more{ top:auto; bottom:3px; right:4px; width:22px; height:20px; transform:none; }
+body[data-view] .convo-group--sec .cgroup__more svg{ width:14px; height:14px; }
+body[data-view] .convo-group--sec .cgroup__rename{ left:4px; right:4px; bottom:0; height:26px; }
+
+/* 行: 1 行・状態の印は右（題の左端を見出しとそろえる）。 */
+body[data-view] .convo__ic{ display:none; }
+body[data-view] .convo{ min-height:32px; padding:6px 8px 6px 10px; }
+body[data-view] .convo.is-running, body[data-view] .convo.is-asking{ background:var(--fill-1); }
+body[data-view] .convo.is-running:hover, body[data-view] .convo.is-asking:hover{ background:var(--fill-2); }
+body[data-view] .convo.is-active{ background:var(--fill-2); }
+body[data-view] .convo.is-asking .convo__t{ font-weight:600; }
+body[data-view] .convo.is-offline .convo__t{ color:var(--text-2); }
+body[data-view] .convo__tm.is-ask{ color:var(--text); font-weight:600; }
+body[data-view] .convo__tm.is-live{ align-self:center; display:inline-flex; width:14px; height:14px; }
+body[data-view] .convo__tm.is-live::before{ content:""; width:12px; height:12px; margin:1px; border-radius:50%; border:1.5px solid var(--fill-2);
+  border-top-color:var(--text); animation:convo-spin 1.1s linear infinite; }
+body[data-view] .convo__tm.is-machine{ position:relative; align-self:center; display:inline-flex; color:var(--text-3); }
+body[data-view] .convo__tm.is-machine svg{ width:16px; height:16px; display:block; }
+body[data-view] .convo__tm.is-on::after{ content:""; position:absolute; right:-2px; top:0; width:6px; height:6px; border-radius:50%;
+  background:var(--ok); box-shadow:0 0 0 1.5px var(--chrome); }
+@media (prefers-reduced-motion: reduce){
+  body[data-view] .convo__tm.is-live::before, body[data-view] .convo-group--sec .cgroup__live{ animation:none; border-top-color:var(--text-2); }
+}
+
+/* 「さらに N 件」（1 区画 8 行より多いとき）。 */
+.convo-more-rows{ display:block; width:100%; height:26px; padding:0 10px; border:0; border-radius:6px; background:transparent; color:var(--text-3);
+  font:400 12px/26px var(--f-body); text-align:left; cursor:pointer; }
+.convo-more-rows:hover{ background:var(--fill-1); color:var(--text); }
+.convo-more-rows:focus-visible{ outline:2px solid var(--line-focus); outline-offset:-2px; }
+
+/* ドラッグ: 空き地へ運んでいる間の「外す」の印（離したら消える）。見出しの横の一言は幅に収める。 */
+body[data-view] .convos.is-drop-out{ box-shadow:inset 0 0 0 1px var(--line-2); border-radius:6px; }
+body[data-view] .convo-group--sec.is-drop-out::after{ flex:0 1 auto; min-width:0; margin:0 8px 0 0; overflow:hidden; text-overflow:ellipsis;
+  white-space:nowrap; font-weight:400; }

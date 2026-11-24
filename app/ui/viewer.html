@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#131011">
+<title>L.A.P.S — Files</title>
+<link rel="stylesheet" href="fonts.css">
+<link rel="stylesheet" href="styles.css">
+</head>
+<!-- ★別の窓の Files（2026-10-18 オーナー「画面分離にも対応させたい」→「両方」）。
+     中身はメインの窓が描いて渡す（app.js の filesPopOut → Rust の viewer_open）。ここは出すだけ（viewer.js）。
+     「Dock」でメインの窓の右の欄へ返して、この窓は閉じる。 -->
+<body class="viewer">
+  <header class="vw__head">
+    <div class="fv__title">
+      <span class="fv__name" id="v-name"></span>
+      <span class="fv__path" id="v-path"></span>
+    </div>
+    <div class="fv__acts">
+      <button class="fv__btn" id="v-reload" type="button" title="Reload" aria-label="Reload">↻</button>
+      <button class="fv__btn" id="v-reveal" type="button" title="Show in Explorer">Folder</button>
+      <button class="fv__btn" id="v-open" type="button" title="Open in its default app" hidden>Open</button>
+      <button class="fv__btn" id="v-dock" type="button" title="Back to the main window">Dock</button>
+    </div>
+  </header>
+  <p class="fv__note fv__note--bad vw__msg" id="v-msg" role="status"></p>
+  <main class="vw__body" id="v-body"><p class="empty">Loading…</p></main>
+  <script src="viewer.js"></script>
+</body>
+</html>

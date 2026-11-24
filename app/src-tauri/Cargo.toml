@@ -1,0 +1,126 @@
+[package]
+name = "blackwall-console"
+version = "0.1.732"
+description = "L.A.P.S Console — 手元 GPU の推論を1枚で扱う計器"
+authors = ["L.A.P.S contributors"]
+edition = "2021"
+# Tauri v2 が要求する下限。ここより古い toolchain では tauri 本体が通らない。
+rust-version = "1.77"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+# 既定 feature のまま使う。asset プロトコルもトレイもアップデータも使っていない。
+# ★unstable: 右の欄のブラウザを同じ窓の子の webview として重ねる（Window::add_child・2026-10-18 browser.rs）。
+tauri = { version = "2", features = ["unstable"] }
+
+# 作業ディレクトリの選択（workspace.rs）。ネイティブのフォルダ選択ダイアログだけのために入れる。
+# ★呼ぶのは Rust 側だけで、WebView には capabilities で dialog:* を一切開けない
+#   （画面側から任意のパスを開かせる口を作らないため。shell を入れていないのと同じ理由）。
+tauri-plugin-dialog = "2"
+
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# rt-multi-thread … Tauri の非同期ランタイム
+# process        … llama-server を子プロセスとして起動・監視する（llama.rs）
+# fs / io-util   … 数 GB の .gguf を追記モードで書き、途中から再開する（hf.rs）
+# time           … ポーリング間隔と待ち（llama.rs）
+# macros         … 単体試験の #[tokio::test]
+tokio = { version = "1", features = [
+    "rt-multi-thread",
+    "process",
+    "fs",
+    "io-util",
+    "time",
+    "macros",
+    "net",
+    "sync",
+] }
+
+# ふだんの Chrome をつなぐ口（chromebridge.rs・2026-11-18）。127.0.0.1 の WebSocket だけ（TLS は使わない）。
+tokio-tungstenite = { version = "0.24", default-features = false, features = ["handshake"] }
+futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }
+
+# ★ default-features = false + rustls-tls
+#   既定の native-tls は Linux で OpenSSL の開発ヘッダを要求する。このツリーは Windows で
+#   ビルドするが、型検査は Linux でも回せるようにしておきたいので、証明書ストアごと
+#   自己完結する rustls を使う（Hugging Face との HTTPS はこれで足りる）。
+reqwest = { version = "0.12", default-features = false, features = [
+    "json",
+    "stream",
+    "charset",
+    "http2",
+    "rustls-tls",
+] }
+
+# ダウンロードしたモデルの照合。HF の 302 が返す x-linked-etag（= 実体の SHA256）と突き合わせる。
+# ★journal.rs も使う（記録の本文を保存せずに「同じ内容か」を判定するための短い指紋）。
+sha2 = "0.10"
+
+# 記録（journal.rs）をサーバへ送るときの圧縮。
+# 自前で deflate を書く案は捨てた。圧縮の誤りは「サーバで展開できない＝記録が届かない」
+#   という、いちばん気づきにくい壊れ方をする。
+flate2 = "1"
+
+# 画像・端末の出力の受け渡し（filepreview.rs・localshell.rs）。
+base64 = "0.22"
+
+# 記録の時刻に**現地時刻のずれ**を付けるためだけに使う（書式は自前・journal.rs の rfc3339）。
+# ★UTC 固定にしない。UTC と JST の食い違いは実際に踏んでいる（knowledge/incidents）。
+#   `local-offset` は Unix の多スレッドでは安全側に倒れて失敗するので、そのときは
+#   UTC（+00:00）で書く＝**ずれの表記そのものがどちらだったかを語る**（黙って嘘をつかない）。
+#   配布先は Windows で、そこでは GetTimeZoneInformation が使われるため取得できる。
+time = { version = "0.3", default-features = false, features = ["local-offset"] }
+
+# 会話のシェル（localshell.rs・2026-11-11）。Windows は ConPTY・Linux は pty で、この PC の既定の殻を擬似端末で動かす。
+portable-pty = "0.9"
+
+[target.'cfg(windows)'.dependencies]
+# ★右の欄のブラウザのページで JS を動かして値を受け取る（browser.rs の exec_js・ExecuteScript）。どちらも Tauri（wry）が
+#   既に使っている版（0.38 / 0.61）＝新しい取り寄せは無い。
+webview2-com = "0.38"
+windows-core = "0.61"
+# 子の webview の窓に兄弟の上へ描かせない印（WS_CLIPSIBLINGS）を付け、一番上へ上げ直す（browser.rs の raise_child）。
+#   webview2-com が使う windows 0.61 の HWND をそのまま扱うため、同じ版を別名で入れる（新しい取り寄せは無い）。
+windows61 = { package = "windows", version = "0.61", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging"] }
+# GPU と空き VRAM の取得（gpu.rs）。
+#   Win32_Graphics_Dxgi        … IDXGIAdapter3::QueryVideoMemoryInfo（ベンダー非依存の Budget）
+#   Win32_System_LibraryLoader … nvml.dll を実行時に自力で読む（PATH に無いためフルパス解決）
+#   Win32_Foundation           … HMODULE
+# ⚠ 版を上げるときは gpu.rs を必ず読み直すこと。windows crate は minor 版で
+#   ハンドル型（HMODULE が isize か *mut c_void か）や戻り値の形が変わる。
+windows = { version = "0.58", features = [
+    "Win32_Foundation",
+    "Win32_Graphics_Dxgi",
+    "Win32_Graphics_Dxgi_Common",
+    "Win32_System_LibraryLoader",
+    "Win32_Storage_FileSystem",
+    # Windows の通知（calltoast.rs・ほかのデバイスのチャットの知らせ）。新しい部品は足さず、この crate の WinRT の口を使う。
+    "UI_Notifications",
+    "Data_Xml_Dom",
+    "Foundation",
+] }
+
+# 意図的に入れていないもの:
+#   tauri-plugin-shell … llama-server は llama.rs が tokio::process::Command で直接起動する。
+#                        プラグインを挟むと WebView 側にも spawn の権限を開ける口ができるので、
+#                        必要のない攻撃面を作らないために採らない（capabilities/default.json 参照）。
+#   thiserror          … 全モジュールがコマンド境界で Result<_, String> に畳んでいる。
+#                        エラー型を1つも定義していないので依存する理由が無い。
+
+[profile.release]
+panic = "abort"
+# ★2026-11-16 オーナー「出荷もっと早くならないの？」「毎回組み立てる必要あるの？」: 全体を 1 つにまとめる最適化（lto = true・
+#   codegen-units = 1）は、Windows と Linux の組み立てでそれぞれ 1 分半近くかかっていた（0.1.686 の出荷 6 分半のうち）。この窓は画面の殻で、
+#   速さの差は感じない。分けて並べて最適化する（thin・16）に。
+codegen-units = 16
+lto = "thin"
+opt-level = "s"
+strip = true
+
+# blackwall-core が同じソースを `no_tauri` 付きで #[path] 参照する（試験用）。本体はその feature を
+# 宣言しないので「unexpected cfg」警告が出る。既知の値として教える（挙動は変わらない）。
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(feature, values("no_tauri"))'] }

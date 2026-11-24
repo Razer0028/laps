@@ -1,0 +1,21 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "WebView に与える権限。ネットワーク I/O・プロセス起動・ファイル操作はすべて Rust 側の #[tauri::command] が行うため、WebView には core の既定以外を一切与えない。shell プラグインを入れていないので shell:allow-spawn / shell:allow-kill も存在しない（llama-server は llama.rs が tokio::process::Command で直接起動する）。ここに権限を足すのは、その口が本当に画面側から必要になったときだけ。 2026-10-08: 窓の帯をアプリの中に描く（decorations:false・オーナー「上のタブの部分とかも表示されてしまっている」）ため、窓の最小化・最大化・閉じる・ドラッグ・最大化の状態の読み取りだけを足した。 2026-10-12: 声の係の着信（オーナー「タスクが終了したときなどアシスタントから通話をかけてくるように」）のため、窓を前に出す・最小化から戻す・表示する・タスクバーで知らせるの 4 つを足した。",
+  "windows": [
+    "main"
+  ],
+  "permissions": [
+    "core:default",
+    "core:window:allow-start-dragging",
+    "core:window:allow-minimize",
+    "core:window:allow-toggle-maximize",
+    "core:window:allow-internal-toggle-maximize",
+    "core:window:allow-close",
+    "core:window:allow-is-maximized",
+    "core:window:allow-set-focus",
+    "core:window:allow-unminimize",
+    "core:window:allow-show",
+    "core:window:allow-request-user-attention"
+  ]
+}

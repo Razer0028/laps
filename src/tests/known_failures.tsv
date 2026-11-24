@@ -1,0 +1,83 @@
+# クラウドで落ちる既知の試験（2026-10-15・DESIGN-improvements の 2-7）。conftest.py が読む。
+# 形式: <nodeid><TAB><lab|stale><TAB><理由>。nodeid が "[" で始まる引数の途中で切れていれば、その頭で始まる物すべてに当てる。
+#   lab   … ラボにしか無いファイル・コマンド（scratch/・走行記録・dpkg・ss・/home/user/project の鍵など）。根に scratch/ が
+#           無い所（クラウド・別の作業木）では飛ばす。ラボの作業木では普通に走る。
+#   stale … 今の作りに無い物（旧 agent.py の関門・配線の文字列・わざと変えた値）を確かめている。xfail（strict ではない）で
+#           走らせ続ける＝通り始めたら XPASS で分かる。直すか消すかは 1 本ずつ決める。
+# ここに無くてクラウドで落ちる物が「本物」（回帰か、まだ決めていない物＝DESIGN-improvements の 2-7 の表）。
+tests/test_bash_dpkg_install.py::test_壊れたdebのdpkg_iは失敗としてokFalseで返りシステムを汚さない	lab	AssertionError: 壊れたアーカイブなのにパッケージ DB へ登録されている assert 'garbage' not in 'Desired=Unk...evelopment\n' 'garbage' is
+tests/test_bash_server_lifecycle.py::test_強い候補を切り捨てたなら止まったと言わない	lab	AssertionError: Error: グループ 14046 は片付きました（構成員は SIGTERM で居なくなりました）が、**同じ作業場に、この起動の残骸かもしれない待ち受けが残っています**。 ⚠ 親子関係
+tests/test_bw_view.py::test_report_renders_html	lab	AssertionError: assert ('<title>' in '') + where '' = CompletedProcess(args=['bash', '/home/user/blackwall/src
+tests/test_deb_packaging.py::test_check_deb_passes_on_well_formed_deb	lab	AssertionError: 対象: <tmp> OK Package: blackwall OK Version: 9.9.9 OK ファイル名と Version が一致 -- 注: pyproject は 0.1.
+tests/test_deb_packaging.py::test_resolver_evaluates_markers_per_python_version	lab	FileNotFoundError: [Errno 2] No such file or directory: '/home/user/blackwall/.venv/bin/python'
+tests/test_deb_packaging.py::test_resolver_rejects_wheels_the_target_python_cannot_use	lab	FileNotFoundError: [Errno 2] No such file or directory: '/home/user/blackwall/.venv/bin/python'
+tests/test_deb_packaging.py::test_resolver_usage_errors	lab	FileNotFoundError: [Errno 2] No such file or directory: '/home/user/blackwall/.venv/bin/python'
+tests/test_preflight.py::test_the_bench_refuses_to_run_without_a_backend	lab	FileNotFoundError: [Errno 2] No such file or directory: '/home/user/blackwall/.venv/bin/python'
+tests/test_real_tasks.py::test_the_right_answer_passes_the_check[add_config_option]	lab	AssertionError: add_config_option: 正解を当てても check が通らない＝採点器が壊れている bash: line 1: /home/user/blackwall/.venv/bin/
+tests/test_real_tasks.py::test_the_right_answer_passes_the_check[argparse_count_flag]	lab	AssertionError: argparse_count_flag: 正解を当てても check が通らない＝採点器が壊れている bash: line 1: /home/user/blackwall/.venv/bi
+tests/test_real_tasks.py::test_the_right_answer_passes_the_check[checksum_mismatch]	lab	AssertionError: checksum_mismatch: 正解を当てても check が通らない＝採点器が壊れている bash: line 1: /home/user/blackwall/.venv/bin/
+tests/test_real_tasks.py::test_the_right_answer_passes_the_check[cli_exit_code]	lab	AssertionError: cli_exit_code: 正解を当てても check が通らない＝採点器が壊れている bash: line 1: /home/user/blackwall/.venv/bin/pyth
+tests/test_real_tasks.py::test_the_right_answer_passes_the_check[count_matching_errors]	lab	AssertionError: count_matching_errors: 正解を当てても check が通らない＝採点器が壊れている bash: line 1: /home/user/blackwall/.venv/
+tests/test_real_tasks.py::test_the_right_answer_passes_the_check[cron_schedule]	lab	AssertionError: cron_schedule: 正解を当てても check が通らない＝採点器が壊れている bash: line 1: /home/user/blackwall/.venv/bin/pyth
+tests/test_real_tasks.py::test_the_right_answer_passes_the_check[dedupe_keep_order]	lab	AssertionError: dedupe_keep_order: 正解を当てても check が通らない＝採点器が壊れている bash: line 1: /home/user/blackwall/.venv/bin/
+tests/test_real_tasks.py::test_the_right_answer_passes_the_check[disk_top3]	lab	AssertionError: disk_top3: 正解を当てても check が通らない＝採点器が壊れている bash: line 1: /home/user/blackwall/.venv/bin/python: 
+tests/test_real_tasks.py::test_the_right_answer_passes_the_check[duplicate_host_entry]	lab	AssertionError: duplicate_host_entry: 正解を当てても check が通らない＝採点器が壊れている bash: line 1: /home/user/blackwall/.venv/b
+tests/test_real_tasks.py::test_the_right_answer_passes_the_check[env_merge]	lab	AssertionError: env_merge: 正解を当てても check が通らない＝採点器が壊れている bash: line 1: /home/user/blackwall/.venv/bin/python: 
+tests/test_real_tasks.py::test_the_right_answer_passes_the_check[first_failure_time]	lab	AssertionError: first_failure_time: 正解を当てても check が通らない＝採点器が壊れている bash: line 1: /home/user/blackwall/.venv/bin
+tests/test_real_tasks.py::test_the_right_answer_passes_the_check[fix_broken_import]	lab	AssertionError: fix_broken_import: 正解を当てても check が通らない＝採点器が壊れている bash: line 1: /home/user/blackwall/.venv/bin/
+tests/test_real_tasks.py::test_the_right_answer_passes_the_check[fix_failing_test]	lab	AssertionError: fix_failing_test: 正解を当てても check が通らない＝採点器が壊れている bash: line 1: /home/user/blackwall/.venv/bin/p
+tests/test_real_tasks.py::test_the_right_answer_passes_the_check[fix_the_test_not_the_code]	lab	AssertionError: fix_the_test_not_the_code: 正解を当てても check が通らない＝採点器が壊れている bash: line 1: /home/user/blackwall/.v
+tests/test_real_tasks.py::test_the_right_answer_passes_the_check[implement_slug]	lab	AssertionError: implement_slug: 正解を当てても check が通らない＝採点器が壊れている bash: line 1: /home/user/blackwall/.venv/bin/pyt
+tests/test_real_tasks.py::test_the_right_answer_passes_the_check[inventory_diff]	lab	AssertionError: inventory_diff: 正解を当てても check が通らない＝採点器が壊れている bash: line 1: /home/user/blackwall/.venv/bin/pyt
+tests/test_real_tasks.py::test_the_right_answer_passes_the_check[json_event_summary]	lab	AssertionError: json_event_summary: 正解を当てても check が通らない＝採点器が壊れている bash: line 1: /home/user/blackwall/.venv/bin
+tests/test_real_tasks.py::test_the_right_answer_passes_the_check[json_syntax_fix]	lab	AssertionError: json_syntax_fix: 正解を当てても check が通らない＝採点器が壊れている bash: line 1: /home/user/blackwall/.venv/bin/py
+tests/test_real_tasks.py::test_the_right_answer_passes_the_check[kv_split_bug]	lab	AssertionError: kv_split_bug: 正解を当てても check が通らない＝採点器が壊れている bash: line 1: /home/user/blackwall/.venv/bin/pytho
+tests/test_real_tasks.py::test_the_right_answer_passes_the_check[mutable_default]	lab	AssertionError: mutable_default: 正解を当てても check が通らない＝採点器が壊れている bash: line 1: /home/user/blackwall/.venv/bin/py
+tests/test_real_tasks.py::test_the_right_answer_passes_the_check[offbyone_paginator]	lab	AssertionError: offbyone_paginator: 正解を当てても check が通らない＝採点器が壊れている bash: line 1: /home/user/blackwall/.venv/bin
+tests/test_real_tasks.py::test_the_right_answer_passes_the_check[port_alignment_two_files]	lab	AssertionError: port_alignment_two_files: 正解を当てても check が通らない＝採点器が壊れている bash: line 1: /home/user/blackwall/.ve
+tests/test_real_tasks.py::test_the_right_answer_passes_the_check[port_conflict]	lab	AssertionError: port_conflict: 正解を当てても check が通らない＝採点器が壊れている bash: line 1: /home/user/blackwall/.venv/bin/pyth
+tests/test_real_tasks.py::test_the_right_answer_passes_the_check[port_script]	lab	AssertionError: port_script: 正解を当てても check が通らない＝採点器が壊れている bash: line 1: /home/user/blackwall/.venv/bin/python
+tests/test_real_tasks.py::test_the_right_answer_passes_the_check[port_to_pathlib]	lab	AssertionError: port_to_pathlib: 正解を当てても check が通らない＝採点器が壊れている bash: line 1: /home/user/blackwall/.venv/bin/py
+tests/test_real_tasks.py::test_the_right_answer_passes_the_check[raise_typed_error]	lab	AssertionError: raise_typed_error: 正解を当てても check が通らない＝採点器が壊れている bash: line 1: /home/user/blackwall/.venv/bin/
+tests/test_real_tasks.py::test_the_right_answer_passes_the_check[rename_across_files]	lab	AssertionError: rename_across_files: 正解を当てても check が通らない＝採点器が壊れている bash: line 1: /home/user/blackwall/.venv/bi
+tests/test_real_tasks.py::test_the_right_answer_passes_the_check[requirements_dedupe]	lab	AssertionError: requirements_dedupe: 正解を当てても check が通らない＝採点器が壊れている bash: line 1: /home/user/blackwall/.venv/bi
+tests/test_real_tasks.py::test_the_right_answer_passes_the_check[retry_with_attempts]	lab	AssertionError: retry_with_attempts: 正解を当てても check が通らない＝採点器が壊れている bash: line 1: /home/user/blackwall/.venv/bi
+tests/test_real_tasks.py::test_the_right_answer_passes_the_check[split_even_remainder]	lab	AssertionError: split_even_remainder: 正解を当てても check が通らない＝採点器が壊れている bash: line 1: /home/user/blackwall/.venv/b
+tests/test_real_tasks.py::test_the_right_answer_passes_the_check[tie_order_sort]	lab	AssertionError: tie_order_sort: 正解を当てても check が通らない＝採点器が壊れている bash: line 1: /home/user/blackwall/.venv/bin/pyt
+tests/test_real_tasks.py::test_the_right_answer_passes_the_check[top_talker]	lab	AssertionError: top_talker: 正解を当てても check が通らない＝採点器が壊れている bash: line 1: /home/user/blackwall/.venv/bin/python:
+tests/test_real_tasks.py::test_the_right_answer_passes_the_check[unit_restart_policy]	lab	AssertionError: unit_restart_policy: 正解を当てても check が通らない＝採点器が壊れている bash: line 1: /home/user/blackwall/.venv/bi
+tests/test_real_tasks.py::test_the_right_answer_passes_the_check[version_bump_three_places]	lab	AssertionError: version_bump_three_places: 正解を当てても check が通らない＝採点器が壊れている bash: line 1: /home/user/blackwall/.v
+tests/test_real_tasks.py::test_the_right_answer_passes_the_check[window_clamp]	lab	AssertionError: window_clamp: 正解を当てても check が通らない＝採点器が壊れている bash: line 1: /home/user/blackwall/.venv/bin/pytho
+tests/test_release_route_gates.py::test_JSONが指す現物が無ければ止める	lab	AssertionError: assert '現物がありません' in 'NG 実機の公開鍵を読めません（/home/user/project/app/src-tauri/tauri.conf.json）。署名を確かめられな
+tests/test_release_route_gates.py::test_古い版に行き止まりのJSONを返していたら止める	lab	AssertionError: assert '配布先がありません' in 'NG 実機の公開鍵を読めません（/home/user/project/app/src-tauri/tauri.conf.json）。署名を確かめられ
+tests/test_release_route_gates.py::test_同じ現物に別々の署名が載っていたら止める	lab	AssertionError: assert '別々の署名' in 'NG 実機の公開鍵を読めません（/home/user/project/app/src-tauri/tauri.conf.json）。署名を確かめられないので
+tests/test_release_route_gates.py::test_最新版の行き止まりJSONは正常	lab	AssertionError: NG 実機の公開鍵を読めません（/home/user/project/app/src-tauri/tauri.conf.json）。署名を確かめられないので止めます。 assert 1 == 0
+tests/test_s3_gate_wired.py::test_猶予の中なら通り_切れたら落ちる	lab	FileNotFoundError: [Errno 2] No such file or directory: '/home/user/blackwall/.venv/bin/python'
+tests/test_sampling_params.py::test_temperature_is_single_source_and_env_overridable	stale	AssertionError: assert 1.0 == 0.7 + where 1.0 = <function temperature at 0x7f86ba1147c0>() + where <function t
+tests/test_sampling_params.py::test_全ての送信経路に載っている	stale	AssertionError: 送信経路 4 箇所のうち 0 箇所にしか載っていない assert 0 == 4
+tests/test_sampling_params.py::test_公式の推奨値が既定	stale	AssertionError: Qwen3-Coder の推奨は 0.8（0.95 はサーバ既定／別モデルの値） assert 0.95 == 0.8
+tests/test_sampling_params.py::test_壊れた値は既定に戻す	stale	assert 0.95 == 0.8
+tests/test_system_state.py::test_the_count_matches_reality	lab	assert 'ゼロ件' in "合計 2 件\nSystem has not been booted with systemd as init system (PID 1). Can't operate.\nFaile
+tests/test_system_state_all_verbs_execute.py::test_全動詞が見出しつきで答えを返す[listening]	lab	AssertionError: 待ち受けている TCP ポート（/proc/net/tcp から。★`ss` も `netstat` も無いため**持ち主の PID/名前は分かりません**） 0.0.0.0:2024 0
+tests/test_worktree_shared_siblings.py::test_兄弟階層へ出る箇所は一覧と一致する	lab	AssertionError: 兄弟階層（bench/scripts/android/app/.venv 等、worktree では wt/ のsymlink farm 経由で live を読む、または /root/bl
+tests/test_fold_repeat_shared.py::test_畳みの実装は一箇所だけ	stale	公開時点（2026-11-24）で元の木でも落ちる（畳みの実装の場所が変わった）
+tests/test_redact.py::test_実物のソースに当てて誤爆がないこと	stale	公開時点で元の木でも落ちる（ソースの文に誤爆 12 件・伏字の判定の課題）
+tests/test_term_app.py::test_main_json_prints_events_and_exit_code	stale	公開時点で元の木でも落ちる
+tests/test_term_config.py::test_resolve_の環境変数名は設計どおり	stale	公開時点で元の木でも落ちる（LAPS_UI が表に増えた）
+tests/test_term_render.py::test_think_shown_by_default	stale	公開時点で元の木でも落ちる
+tests/test_term_render.py::test_set_verbose_toggle	stale	公開時点で元の木でも落ちる
+tests/test_term_render.py::test_term_knows_every_notice_kind_the_core_emits_or_names_the_gap	stale	公開時点で元の木でも落ちる
+tests/test_tool_output_folding.py::test_globの列挙上限は無言ではない	stale	公開時点で元の木でも落ちる
+tests/test_tool_output_folding.py::test_畳みが実際に呼ばれている	stale	公開時点で元の木でも落ちる
+tests/test_checkpoint.py::test_ツールを実行する場所は一箇所しかない	stale	公開時点（2026-11-24）で元の木でも落ちる
+tests/test_failure_visibility.py::test_real_nesting_is_still_refused	stale	公開時点で元の木でも落ちる
+tests/test_term_conversation_20261021.py::test_next_thought_comes_after_the_read_tool_that_ran_before_it	stale	公開時点で元の木でも落ちる
+tests/test_edit_syntax_gate.py::test_truly_broken_yaml_is_still_refused	stale	公開時点（2026-11-24）で元の木でも落ちる
+tests/test_preflight.py::test_a_dead_run_cannot_satisfy_a_file_only_check	stale	公開時点で元の木でも落ちる
+tests/test_serve_records_notices.py::test_prompt_and_serve_notices_are_recorded	stale	公開時点で元の木でも落ちる
+tests/test_serve_records_result.py::test_result_is_recorded_in_session_events	stale	公開時点で元の木でも落ちる
+tests/test_term_client.py::test_ping_で_pong_が返り_status_が更新される	stale	公開時点で元の木でも落ちる（推論機に届かないと done まで 60 秒を超える）
+tests/test_term_client.py::test_ping_の間に来た事象は失われない	stale	公開時点で元の木でも落ちる
+tests/test_term_client.py::test_send_の本文に禁止鍵を入れない	stale	公開時点で元の木でも落ちる
+tests/test_term_client.py::test_send_は_rid_を返し_done_がちょうど_1_つ来る	stale	公開時点で元の木でも落ちる
+tests/test_tool_result_contract.py::test_読めなかった頁を0件と言わない	stale	公開時点で元の木でも落ちる

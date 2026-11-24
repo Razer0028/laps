@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ja" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>L.A.P.S — シェル</title>
+<link rel="stylesheet" href="vendor/xterm.css">
+<!-- 別の窓のシェル（2026-11-17 オーナー「シェル機能はアプリと分離して表示できるようにしておくといいかもしれませんね」）。
+     窓ごとに新しい殻を開く（中身は shellwin.js・Rust の localshell.rs の local_shell_* を本体の窓と同じく使う）。
+     色はアプリの設定（localStorage の bw.theme）に合わせる＝本体と同じ濃い灰と白の 2 組。 -->
+<style>
+:root{ --bg:#18181B; --bar:#232327; --text:#ECECF1; --text-3:#8F8F99; --fill-2:rgba(255,255,255,.12); --red-text:#FF9C8E;
+  --f-body:"Segoe UI Variable Text","Segoe UI","Yu Gothic UI","Noto Sans CJK JP",system-ui,sans-serif; }
+html[data-theme="light"]{ --bg:#E6E6EA; --bar:#F0F0F3; --text:#16161C; --text-3:#5C5C66; --fill-2:rgba(0,0,0,.08); --red-text:#B42A20; color-scheme:light; }
+html, body{ margin:0; height:100%; overflow:hidden; background:var(--bg); color:var(--text); font:400 13px/1.5 var(--f-body); }
+body{ display:flex; flex-direction:column; }
+.bar{ flex:none; height:34px; display:flex; align-items:center; gap:10px; padding:0 10px 0 14px; background:var(--bar); }
+.bar__name{ font-weight:600; }
+.bar__cwd{ flex:1 1 auto; min-width:0; color:var(--text-3); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.bar button{ height:26px; padding:0 12px; border:0; border-radius:13px; background:transparent; color:var(--text-3); font:inherit; cursor:pointer; }
+.bar button:hover{ background:var(--fill-2); color:var(--text); }
+.bar button:focus-visible{ outline:2px solid var(--text); outline-offset:1px; }
+.stage{ flex:1 1 auto; min-height:0; padding:6px 0 0 10px; }
+.stage .xterm{ height:100%; }
+.err{ padding:16px; color:var(--red-text); }
+</style>
+</head>
+<body>
+<div class="bar">
+  <span class="bar__name" id="name">シェル</span>
+  <span class="bar__cwd" id="cwd"></span>
+  <button type="button" id="clear" title="画面を消す">消す</button>
+</div>
+<div class="stage" id="stage"></div>
+<script src="vendor/xterm.js"></script>
+<script src="vendor/addon-fit.js"></script>
+<script src="vendor/addon-unicode11.js"></script>
+<script src="vendor/addon-webgl.js"></script>
+<script src="shellwin.js"></script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "viewer",
+  "description": "別の窓（Files を切り離した窓・viewer.html）に与える権限。2026-10-18 オーナー「画面分離にも対応させたい」。中身はメインの窓が描いて渡す（事象 viewer-show を受ける・戻すときに viewer-dock を送る）ので、core の既定（事象の受け渡し）と、自分を閉じる・前に出すだけ。ファイルを読む・フォルダで開くは Rust の命令（filepreview.rs）が場所を確かめてから行う。",
+  "windows": [
+    "viewer"
+  ],
+  "permissions": [
+    "core:default",
+    "core:window:allow-close",
+    "core:window:allow-set-focus"
+  ]
+}

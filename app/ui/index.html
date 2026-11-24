@@ -1,0 +1,674 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#131011">
+<title>L.A.P.S Console</title>
+<link rel="stylesheet" href="fonts.css">
+<link rel="stylesheet" href="vendor/xterm.css">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body data-view="chat">
+<!-- ★窓の帯（2026-10-08 オーナー「UI/UX をよりグラフィカルかつ実用的に」「上のタブの部分とかも表示されてしまっている」
+     「元はサイバーパンクの Blackwall がコンセプト」）。Windows 標準の帯をやめ（tauri.conf の decorations:false）、
+     アプリの帯と一体にした。つかんで動かす・二度押しで最大化（data-tauri-drag-region）・右端に最小化／最大化／閉じる。
+     会話の題と Sources は旧来の上の帯（.top）から移した（縦が 48px 空く）。 -->
+<header class="titlebar" data-tauri-drag-region>
+  <!-- ★2026-11-23 ネイティブに寄せる: 帯は窓の全幅。左はサイドバーの開閉（アクティビティバーの真上）とアプリの印。 -->
+  <div class="tb__brand" data-tauri-drag-region>
+    <button class="tb__icon tb__side" id="side-toggle" type="button" aria-pressed="true" aria-label="サイドバー"
+            title="サイドバーの表示を切り替え（Ctrl+B）">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="3" width="12" height="10" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M6 3.5v9" stroke="currentColor" stroke-width="1.3"/></svg>
+    </button>
+    <span class="mark" aria-hidden="true"></span>
+    <span class="tb__name" data-tauri-drag-region>L.A.P.S</span>
+  </div>
+  <div class="tb__title" id="top-title" data-tauri-drag-region>新しいチャット</div>
+  <!-- ★会話のシェル（2026-11-11 オーナー「シェルを会話の画面から開けるように」）。中身は shell.js。 -->
+  <div class="tb__tools">
+  <button class="tb__icon" id="shell-toggle" type="button" aria-pressed="false" aria-label="ターミナル"
+          title="ターミナルの表示を切り替え（Ctrl+J）">
+    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 4.5l3.5 3.5L3 11.5M8 11.5h5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </button>
+  <button class="tb__icon" id="split-add" type="button" aria-label="分割" title="チャットを分割（Ctrl+\）">
+    <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="3" width="12" height="10" rx="1" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M8 3v10" stroke="currentColor" stroke-width="1.2"/></svg>
+  </button>
+  <!-- ★右のパネルの開閉はアイコン（2026-11-17 オーナー「ここのやつはみ出してるかも」・VS Code の「セカンダリ サイド バーの切り替え」と同じ形）。
+       いま開いているタブの名前はツールチップ（app.js の setDrawerTab）。 -->
+  <button class="tb__icon" id="drawer-toggle" type="button" aria-expanded="false" aria-label="サイドパネル（ソース）" title="サイドパネル（ソース）">
+    <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="3" width="12" height="10" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M10 3.5v9" stroke="currentColor" stroke-width="1.3"/></svg>
+  </button>
+  </div>
+  <div class="tb__win">
+    <button class="tb__btn" id="win-min" type="button" aria-label="最小化" title="最小化">
+      <svg viewBox="0 0 10 10" aria-hidden="true"><path d="M1 5.5h8"/></svg></button>
+    <button class="tb__btn" id="win-max" type="button" aria-label="最大化" title="最大化">
+      <svg viewBox="0 0 10 10" aria-hidden="true"><rect class="tb__max" x="1.5" y="1.5" width="7" height="7"/>
+        <path class="tb__restore" d="M3 1.5h5.5V7M1.5 3h5.5v5.5H1.5z"/></svg></button>
+    <button class="tb__btn tb__btn--close" id="win-close" type="button" aria-label="閉じる" title="閉じる">
+      <svg viewBox="0 0 10 10" aria-hidden="true"><path d="M1.5 1.5l7 7M8.5 1.5l-7 7"/></svg></button>
+  </div>
+</header>
+
+<div class="app">
+
+  <!-- ── 左: ChatとTools ───────────────────────────────────────── -->
+  <aside class="side">
+    <nav class="side__nav" aria-label="画面">
+      <button class="slink" data-view="chat" type="button" title="チャット">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 3.5h11v7h-6l-3 2.5v-2.5h-2z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
+        <span>チャット</span>
+      </button>
+      <button class="slink" data-view="models" type="button" title="推論サーバー">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="2.5" y="2.5" width="11" height="11" rx="1.6" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M5.6 5.6h4.8v4.8H5.6z" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>
+        <span>推論サーバー</span>
+      </button>
+      <button class="slink" data-view="memory" type="button" title="メモリ">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 4.5h10M3 8h10M3 11.5h6" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><circle cx="12" cy="11.5" r="1.6" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>
+        <span>メモリ</span>
+      </button>
+      <button class="slink" data-view="rig" type="button" title="接続">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 11.5a5 5 0 0 1 10 0" fill="none" stroke="currentColor" stroke-width="1.2"/><circle cx="8" cy="11.5" r="1.1" fill="currentColor"/><path d="M5.2 8.4a4 4 0 0 1 5.6 0" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>
+        <span>接続</span>
+      </button>
+      <button class="slink" data-view="account" type="button" title="設定">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="5.5" r="2.6" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M3 13.5c.6-2.6 2.6-4 5-4s4.4 1.4 5 4" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+        <span>設定</span>
+      </button>
+    </nav>
+
+    <div class="side__head" data-tauri-drag-region>
+      <span class="mark" aria-hidden="true"></span>
+      <span class="side__name" data-tauri-drag-region>L.A.P.S</span>
+      <button class="new" id="new-chat" type="button" title="新しいチャット（Ctrl+N）"><span class="new__t">新しいチャット</span><kbd class="new__k">Ctrl+N</kbd></button>
+    </div>
+
+    <!-- ★会話の検索（2026-09-21）。出典 cline HistoryView。
+         ★ラベルは常に見せる（placeholder をラベル代わりにしない・skill §9）が、
+           ここは幅が狭いので**読み上げ用のラベル**＋見える説明は placeholder に留める。 -->
+    <label class="sr-only" for="convo-q">チャットを検索</label>
+    <input class="convo-q" id="convo-q" type="search" placeholder="検索   Ctrl+K"
+           autocomplete="off" spellcheck="false">
+    <!-- ★会話はワークスペースごとの見出しつきで全部出す（2026-10-08）。「このフォルダ／すべて」の切り替えは
+         オーナー「すべてだけでいい・表記はどっちも消していい」でやめた。 -->
+    <nav class="peers" id="peers" aria-label="ほかのデバイス" hidden></nav>
+    <nav class="convos" id="convos" aria-label="Chat"></nav>
+
+    <div class="side__foot">
+      <!-- ★サーバーのリソース（2026-10-06）。値は設定 metrics_url（自前の計測の口）から読む。中身は app.js の srv*。
+           手元で推論しているときや metrics_url が未設定のときは出さない。GPU 1 枚ごとに 1 本。 -->
+      <!-- ★2026-10-30 オーナー「無駄を省きつつ全面レビュー」: モデルの札は入力欄の右（会話ごと）と Models の画面に同じ物があるので隠す。
+           中の #chip-name は入力欄の「いつもの宛先」の名前に使うので要素は残す。 -->
+      <button class="chip" id="model-chip" type="button" hidden>
+        <span class="chip__name" id="chip-name">No model</span>
+        <span class="chip__meta num" id="chip-meta">—</span>
+      </button>
+      <!-- ★2026-09-21 意匠の作り直し: 移動はアイコン＋文字にする。
+           文字だけの並びは「押せる物」に見えない（Claude Code / cline / goose とも
+           左の移動にはアイコンを置いている）。 -->
+      <!-- ★状態は**色だけで伝えない**（skill §6）。○ 未接続 / ● 接続 / × 不通 を
+           形でも分ける。色覚多様性と、暗い画面での視認性の両方に効く。 -->
+      <!-- ★状態のランプと版は 1 行に（2026-10-30）。「本体・道具 N」は版の説明に入れ、内蔵の控えで動いているときだけ行に出す。 -->
+    </div>
+  </aside>
+
+  <!-- ── 中央: スレッド ───────────────────────────────────────── -->
+  <main class="main">
+
+    <!-- Chat -->
+    <section class="view is-active" id="view-chat">
+      <!-- ★分割表示（2026-11-11 オーナー「Claudeを参考にして分割表示とか取り入れましょうかね」）。中身は panes.js。
+           枠ごとに会話の欄を持ち、選んでいる枠の欄が id="thread"。入力欄とシェルは選んでいる枠の下へ動く。 -->
+      <div class="panes" id="panes" data-n="1">
+      <div class="cpane is-focus">
+      <div class="cpane__head"><button class="cpane__title" type="button"></button>
+        <button class="cpane__x" type="button" aria-label="このペインを閉じる" title="ペインを閉じる（チャットは停止しない）">×</button></div>
+      <div class="thread" id="thread">
+        <div class="hello" id="hello">
+          <!-- ★Blackwall の波（アプリのアイコンと同じ形・2026-10-08 オーナー「でかでかとした字はいらない。代わりに Blackwall の波のアイコンを」）。
+               PNG ではなく線で描く（どの大きさでもくっきり・色は画面の赤）。表示したときに一度だけ左から描かれる。 -->
+          <h1 class="hello__h">新しいチャット</h1>
+          <div class="hello__cards">
+          </div>
+          <!-- ★使えるキーを最初の画面に 4 つだけ（2026-11-14 UI/UX: 何も無い画面で次の一手が分かるように）。全部の一覧は ? で開く。 -->
+        </div>
+      </div>
+
+      <!-- 会話のシェル（shell.js）。会話と入力欄の間に開く。 -->
+      <div class="cshell" id="cshell" hidden>
+        <div class="cshell__grip" role="separator" aria-orientation="horizontal" aria-label="ターミナルの高さ" tabindex="0"></div>
+        <div class="cshell__bar">
+          <span class="cshell__name">シェル</span>
+          <span class="cshell__cwd num"></span>
+          <button class="cshell__btn cshell__pop" type="button" title="新しいウィンドウで開く（新しいシェル）">ポップアウト</button>
+          <button class="cshell__btn cshell__clear" type="button" title="画面をクリア">クリア</button>
+          <button class="cshell__btn cshell__hide" type="button" title="非表示（シェルは実行したまま・Ctrl+J）">非表示</button>
+          <button class="cshell__btn cshell__close" type="button" aria-label="ターミナルを終了" title="終了（シェルも停止）">×</button>
+        </div>
+        <p class="cshell__note" hidden></p>
+        <div class="cshell__stage"></div>
+      </div>
+      <form class="composer" id="ask">
+        <!-- ★上を読んでいる間だけ出る「最新へ」（2026-11-15・app.js の to-latest）。 -->
+        <button class="tolatest" id="to-latest" type="button" hidden title="最新へ移動">↓ Latest</button>
+        <!-- ★会話（セッション）ごとのフォルダ（2026-10-08 オーナー「Claude Code とかのアプリはここからセッションごとに
+             ワークスペースを指定できるので、Blackwall も同様にしたい。現在は左側に一つだけ」）。左の Workspace の欄はやめた。
+             やり取りのある会話で別のフォルダを選ぶと、そのフォルダで新しい会話を始める（会話とフォルダは 1 対 1）。 -->
+        <div class="ctx">
+          <span class="ctx__chip ctx__chip--info" id="ws-branch" hidden title="いまのブランチ">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="4.5" cy="3.5" r="1.5"/><circle cx="4.5" cy="12.5" r="1.5"/><circle cx="11.5" cy="5.5" r="1.5"/><path d="M4.5 5v6M11.5 7c0 3-7 1.5-7 4"/></svg>
+            <span id="ws-branch-name"></span>
+          </span>
+          <!-- ★推論中の波（2026-10-08 オーナー「上過ぎ。この作業フォルダの表記の横あたりにある想定」）。
+               フォルダの札の横に、細い線の波（描き方は同じ・幅は狭く）と状態の 1 行。
+               旧: 窓の帯の中央（0.1.314・「窓の帯」を窓の題の帯と読み違えた）／入力欄の真上・中央（2026-09-21）。 -->
+          <div class="runbar" id="runbar" hidden aria-live="polite">
+            <!-- ★ClaudeCode の `✻ Nebulizing… (3m 53s · ↓ 10.7k tokens)` に倣う 1 行
+                 （設計: src/REPORTS/uiux-redesign-20260906.md §B）。左から
+                 印（脈動）・主ラベル（道具名／Writing／純推論なら Gerund）・経過・↓トークン・注記。
+                 印と数値は読み上げない（120ms／1 秒ごとに変わるので aria-live で流すと騒がしい）。 -->
+            <div class="runbar__meta">
+              <span class="runbar__mark" id="runbar-mark" aria-hidden="true">·</span>
+              <span class="runbar__what" id="runbar-what">Starting</span>
+              <span class="runbar__time num" id="runbar-time" aria-live="off"></span>
+              <span class="runbar__tokens num" id="runbar-tokens" aria-live="off"></span>
+              <span class="runbar__hint" id="runbar-hint"></span>
+            </div>
+          </div>
+        </div>
+        <div class="composer__box">
+          <!-- ★添付（2026-10-09 オーナー「チャット欄に直接ファイルを送れるような仕組みが欲しい」）。送るまでここに札で並ぶ。 -->
+          <div class="att" id="att" hidden aria-label="添付"></div>
+          <textarea id="q" rows="1" aria-label="メッセージ" placeholder="メッセージを入力" spellcheck="false" autocomplete="off"></textarea>
+          <div class="composer__bar">
+            <!-- ★添付は欄の左端に「＋」で（2026-11-15・手本: Claude Code の入力欄＝左に＋・右に声と送る）。 -->
+            <button class="iconbtn composer__add" id="att-pick" type="button" aria-label="ファイルを添付"
+                    title="ファイルを添付（Ctrl+V で貼り付け、ドラッグ＆ドロップも可）">
+              <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 3v10M3 8h10" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+            </button>
+            <!-- ★2026-09-21 意匠の作り直し（オーナー: 商用に出せる水準／AI っぽい解説を消す／
+                 技術用語は英語）。3 つの切替を**同じ形の小さな札**に揃え、説明はアイコンの
+                 title に寄せた。散文を並べない。 -->
+            <!-- ★2026-09-21 オーナー指示「ウェブ検索だけを使う通常会話モードも追加してほしい」。
+                 ★**左端に置く**。これは細かな切替ではなく「いま何をする道具か」で、
+                 他の札（Think/Tools）の意味もここで変わる。順序が意味を表す。
+                 ★2 択なので segmented（押し分け）。checkbox にすると「Agent を切る＝？」になる。
+                 ★表示名は Ask（2026-10-05）。「Chat」は左の移動（会話画面）と見出しにも使っていて、
+                   同じ語が 2 つの意味になっていた。Cursor が同じ機能（編集しない会話）に使う語。
+                   内部の値（data-mode="chat"・保存した設定）は変えない。 -->
+            <!-- ★Chat（2026-11-23 オーナー「チャットモードがほしい（作業フォルダとかいらないやつ）」）。ワークスペースを持たない会話。
+                 内部の値は "talk"（"chat" は歴史的に Ask の値）。Chat と作業（Agent・Plan・Ask）は別の種類の会話＝中身のある会話で
+                 またぐと新しいチャットになる（app.js の pickMode）。 -->
+            <div class="seg" role="radiogroup" aria-label="Mode">
+              <button type="button" class="seg__b" id="mode-talk" role="radio"
+                      aria-checked="false" data-mode="talk"
+                      title="チャット（ワークスペースを使わない）">Chat</button>
+              <button type="button" class="seg__b is-on" id="mode-agent" role="radio"
+                      aria-checked="true" data-mode="agent"
+                      title="ワークスペースを読み書きする">Agent</button>
+              <button type="button" class="seg__b" id="mode-plan" role="radio"
+                      aria-checked="false" data-mode="plan"
+                      title="調べて計画を出す（ワークスペースは変更しない・承認すると Agent で実行）">Plan</button>
+              <button type="button" class="seg__b" id="mode-chat" role="radio"
+                      aria-checked="false" data-mode="chat"
+                      title="質問のみ（ワークスペースは変更しない）">Ask</button>
+            </div>
+            <div class="composer__actions">
+              <!-- ★文脈の残量（2026-11-10 オーナー「コンテキスト残量がわかるようなやつが欲しい」）。手番ごとに本体が送る使用量を、
+                   自動の要約が始まる所までの割合で輪にする。数字は title（触れると出る）。使用量を知らない会話では出さない。 -->
+              <span class="ctxring" id="ctx-ring" role="img" hidden>
+                <svg viewBox="0 0 16 16" aria-hidden="true"><circle class="ctxring__bg" cx="8" cy="8" r="6"/><circle class="ctxring__fg" cx="8" cy="8" r="6" pathLength="100" stroke-dasharray="0 100" transform="rotate(-90 8 8)"/></svg>
+              </span>
+              <!-- ★音声入力（2026-10-09 オーナー「音声入力の仕組みも欲しい」）。押して話し、もう一度押すと文字になって入力欄に入る。 -->
+              <span class="mic__time num" id="mic-time" hidden></span>
+              <button class="iconbtn mic" id="mic" type="button" aria-label="Voice input" aria-pressed="false"
+                      title="音声入力（Esc でキャンセル）">
+                <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="5.6" y="1.8" width="4.8" height="8.2" rx="2.4" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M3.4 7.6a4.6 4.6 0 0 0 9.2 0M8 12.2v2.2M5.8 14.4h4.4" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+              </button>
+              <!-- ★ログ送信（画面の写しをサーバーへ）のボタンは外した（2026-10-09 オーナー「ログ送信ボタンはいらないかな」）。 -->
+              <!-- ★強制割り込み（2026-10-09 オーナー「プロンプトの割り込み機能で、強制割り込み可能にしたい」）。
+                   走行中に文字があるときだけ出す。Inject は区切り（道具の後）で渡す・Interrupt はいまの生成と Bash を止めてすぐ渡す。 -->
+              <button class="send send--now" id="ask-now" type="button" hidden
+                      title="割り込み（Ctrl+Enter）">割り込み</button>
+              <button class="send" id="ask-send" type="submit">送信</button>
+            </div>
+          </div>
+        <p class="composer__note" id="composer-note"></p>
+        </div><!-- ★composer__box の閉じ（2026-11-11 まで欠けていて、後ろの要素が箱の中へ入っていた） -->
+      <!-- ★この会話の設定は欄の下に小さな字で（2026-11-15・オーナーが手本に挙げた Claude Code の入力欄＝モデルや思考の強さは欄の下）。
+           欄の中は「打つ・添付・声・送る」だけにした。id と動きはそのまま（場所だけ移した）。 -->
+      <div class="composer__meta" role="group" aria-label="このチャットの設定">
+            <!-- ★ワークスペース（フォルダー）は欄の下の並びの先頭（2026-11-17 オーナー「作業フォルダの表示は下のモデルとかの場所に並べていいのでは」）。
+                 メニューは上へ開く。欄の上の行は実行中の 1 行（runbar）だけになり、実行していないときは出さない。 -->
+            <div class="wspick">
+              <button class="ctx__chip is-unset" id="ws-chip" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="ws-menu">
+                <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 4.5V12a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1H7.5L6 3.5H2.5a1 1 0 0 0-1 1z"/></svg>
+                <span id="ws-path">フォルダーを選択</span>
+                <svg class="ctx__caret" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>
+              </button>
+              <div class="ctx__menu" id="ws-menu" role="menu" aria-label="フォルダ" hidden></div>
+            </div>
+            <!-- ★エディターの今（開いているファイル・選んでいる範囲）を依頼に添える札（2026-11-17・Claude Code の IDE 連携と同じ）。押すと添えない。 -->
+            <button class="ctx__chip edctx" id="edctx" type="button" aria-pressed="true" hidden>
+              <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 1.5h5.5L13 5v9.5H4z"/><path d="M9.5 1.5V5H13M6 8.5h5M6 11h3.5"/></svg>
+              <span id="edctx-t"></span>
+            </button>
+            <!-- ★会話ごとのモデル（2026-10-30 オーナー「会話ごとにグレード含めモデルか API か切り替えれるように」）。Claude のアプリと同じく入力欄の中。 -->
+            <div class="mpick">
+              <button class="mpick__btn" id="conv-model" type="button" aria-haspopup="menu" aria-expanded="false" title="このチャットのモデル">
+                <span class="mpick__name" id="conv-model-name">—</span><span class="mpick__caret" aria-hidden="true">▾</span>
+              </button>
+              <div class="mpick__menu" id="conv-model-menu" role="menu" hidden></div>
+            </div>
+        <div class="toggles" role="group" aria-label="Context">
+              <!-- ★2026-10-11 オーナー「Think の見直し」→「深さを選べるように」: オン／オフの札を 3 段（Off / Low / High）にした。
+                   押すたびに Off → Low → High と回る。Low がこれまでの既定（短く考える）、High は書式の xhigh と深い上限（手番 4,096 トークン）。 -->
+              <button type="button" class="tg tg--think" id="think-level" data-level="low" aria-live="polite"
+                      title="思考レベル（Off・Low・High）">
+                <svg class="tg__i" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="7" r="4.2" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M6.4 12.2h3.2M7 14h2" stroke="currentColor" stroke-width="1.2"/></svg>
+                <span>Think</span><span class="tg__lv" id="think-level-text">Low</span>
+              </button>
+              <label class="tg tg--fixed" id="use-tools-label"
+                     title="使えるツール">
+                <input type="checkbox" id="use-tools" checked disabled>
+                <svg class="tg__i" viewBox="0 0 16 16" aria-hidden="true"><path d="M10.5 2.5a3 3 0 0 0-3.9 3.7L2.5 10.3l1.7 1.7 4.1-4.1a3 3 0 0 0 3.7-3.9L10.6 5.4 9 5.1 8.7 3.5z" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>
+                <span>Tools</span>
+              </label>
+        </div>
+      </div>
+      </form>
+      <button class="cpane__ghost" type="button" hidden>返信を入力</button>
+      </div>
+      </div>
+    </section>
+
+    <!-- Models -->
+    <section class="view" id="view-models" hidden>
+      <div class="pane">
+        <h2 class="h2">推論サーバー</h2>
+        <section class="srv" id="srv" aria-label="サーバーのリソース" hidden>
+          <button class="srv__toggle" id="srv-toggle" type="button" aria-expanded="true" aria-controls="srv-body">
+            <span class="srv__title">GPU</span>
+            <span class="srv__host num" id="srv-host"></span>
+            <span class="srv__caret" aria-hidden="true"></span>
+          </button>
+          <div class="srv__body" id="srv-body">
+            <div id="srv-charts"></div>
+            <div class="srv__axis num" id="srv-axis" aria-hidden="true"><span></span><span></span><span></span></div>
+            <p class="srv__msg" id="srv-msg" role="status"></p>
+          </div>
+        </section>
+
+        <!-- ★推論の場所（2026-10-07）。接続画面の奥にしか無かったため、手元のモデルを選んでもサーバーで動いていた
+             （宛先が別のサーバーのまま・モデル名は手元のモデル＝サーバーは名前を無視して自分のモデルで答えた）。
+             モデルを選ぶ場所に置く。接続画面のものと同じ処理（app.js の .where-seg）。 -->
+        <div class="where-bar">
+          <span class="lbl" id="where-lbl-m">推論の場所</span>
+          <div class="row">
+            <div class="seg where-seg" role="radiogroup" aria-labelledby="where-lbl-m">
+              <button type="button" class="seg__b" role="radio" aria-checked="false" data-where="lan"
+                      title="別の推論サーバー（llama.cpp・Ollama・vLLM など）">サーバー</button>
+              <button type="button" class="seg__b" role="radio" aria-checked="false" data-where="local"
+                      title="この PC の GPU で実行">この PC の GPU</button>
+            </div>
+            <button class="btn local-prep" type="button" hidden>ローカル実行の準備</button>
+          </div>
+          <p class="note local-note"></p>
+        </div>
+
+        <div class="import">
+          <div class="drop" id="drop" tabindex="0" role="button" aria-label=".gguf を選択、またはドロップ">
+            <b>Drop a .gguf here</b><span>or click to browse</span>
+          </div>
+          <div class="folder">
+            <button class="btn" id="open-dir" type="button">Open folder</button>
+            <code class="folder__path" id="models-path">（「開く」で場所を表示します）</code>
+            <p class="note"></p>
+            <button class="btn" id="rescan" type="button">Rescan</button>
+          </div>
+          <form class="hf" id="hf-form">
+            <label class="lbl" for="hf-q">Hugging Face</label>
+            <div class="row">
+              <input id="hf-q" class="input" placeholder="例: unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF" spellcheck="false">
+              <button class="btn" type="submit">Search</button>
+            </div>
+            <p class="note" id="hf-note"></p>
+          </form>
+        </div>
+
+        <div id="hf-results" hidden>
+          <h3 class="h3">Candidates</h3>
+          <div class="list" id="hf-list"></div>
+        </div>
+
+        <p class="err" id="model-error" hidden></p>
+        <h3 class="h3">Installed <span class="h3__aside num" id="gpu-line">—</span></h3>
+        <div class="list" id="local-list" hidden></div>
+        <p class="empty" id="models-empty">モデルがありません。.gguf を置くか、Hugging Face からダウンロードします。</p>
+      </div>
+    </section>
+
+    <!-- Memory（2026-10-06 オーナー「過去のメモリを削除できるように。チャットが存在している場合と
+         存在していない場合の二パターンを想定してわかりやすく」）。
+         ★画面の会話一覧と、本体が会話ごとに書く記録（agent/sessions）は別物で、一覧に無い記録も残りうる
+           （実機: 一覧 1 件・記録 77 件）。だから状態は 3 つ: 会話あり／会話も記録も無し／会話は無いが記録が残る。
+         ★中身は app.js の renderMemory() が状態ごとに描く。 -->
+    <section class="view" id="view-memory" hidden>
+      <div class="pane">
+        <h2 class="h2">Memory</h2>
+        <p class="mem-lead">チャットの記録は<strong>この PC だけ</strong>に置きます。消したチャットはモデルに渡りません。</p>
+        <dl class="kv mem-kv" id="mem-kv"></dl>
+        <h3 class="h3">メモリの項目</h3>
+        <ul class="rem-list" id="rem-list"></ul>
+        <form class="rem-add" id="rem-add" autocomplete="off">
+          <input class="rem-add__in" id="rem-text" maxlength="300" placeholder="例: 返事は日本語で" aria-label="追加する内容">
+          <button class="btn" type="submit">追加</button>
+        </form>
+        <p class="note" id="rem-msg" role="status"></p>
+        <h3 class="h3">保持されるもの</h3>
+        <ul class="mem-keep">
+          <li>ワークスペースのファイル・設定・モデル</li>
+          <li>メモリの項目（上の一覧の × で削除）</li>
+          <li>作業ログ（ワークスペースの <code>.laps\WORKLOG.md</code>。以前からのワークスペースでは <code>.blackwall\WORKLOG.md</code>）</li>
+          <li>LAN のログサーバーへ送信した実行ログ（停止するには <code>config.toml</code> に <code>telemetry = "off"</code>）</li>
+        </ul>
+        <h3 class="h3">削除</h3>
+        <div class="mem-state" id="mem-state" aria-live="polite"></div>
+        <div class="mem-confirm" id="mem-confirm" role="alertdialog" aria-labelledby="mem-confirm-title" hidden></div>
+        <p class="note mem-result" id="mem-result" role="status"></p>
+      </div>
+    </section>
+
+    <!-- Account（2026-10-31 オーナー「自分のアカウントでログインしているデバイスならどこからでも見れるように」）。
+         ★中身は app.js の refreshAccount()。認証情報そのものは画面へ来ない（blackwall/relayauth.py が持つ）。 -->
+    <section class="view" id="view-account" hidden>
+      <div class="pane">
+        <h2 class="h2">設定</h2>
+        <h3 class="h3">外観</h3>
+        <div class="row theme-row">
+          <label class="lbl" for="theme-sel">テーマ</label>
+          <select class="input" id="theme-sel">
+            <option value="system">システム設定に従う</option>
+            <option value="dark">ダーク</option>
+            <option value="light">ライト</option>
+          </select>
+        </div>
+        <h3 class="h3">アカウント</h3>
+        <dl class="kv" id="acct-kv"></dl>
+        <p class="acct-actions"><button class="btn" id="acct-signout" type="button">サインアウト</button></p>
+        <p class="note" id="acct-msg" role="status"></p>
+        <h3 class="h3">サインイン中のデバイス</h3>
+        <ul class="acct-list" id="acct-sessions"></ul>
+        <h3 class="h3">マシン</h3>
+        <ul class="acct-list" id="acct-machines"></ul>
+        <h3 class="h3">ヘッドレスのマシンを追加</h3>
+        <form class="rem-add" id="acct-pair" autocomplete="off">
+          <input class="rem-add__in" id="acct-pair-code" maxlength="20" placeholder="そのマシンで laps login を実行して表示されたコード" aria-label="コード" spellcheck="false">
+          <button class="btn" type="submit">承認</button>
+        </form>
+        <label class="acct-check"><input type="checkbox" id="acct-pair-full"> このマシンからほかのマシンも操作可能にする</label>
+        <h3 class="h3">パスワードを変更</h3>
+        <form class="rem-add" id="acct-pass" autocomplete="off">
+          <input class="rem-add__in" id="acct-pass-old" type="password" placeholder="現在のパスワード" aria-label="現在のパスワード" autocomplete="current-password">
+          <input class="rem-add__in" id="acct-pass-new" type="password" minlength="8" placeholder="新しいパスワード（8 文字以上）" aria-label="新しいパスワード" autocomplete="new-password">
+          <button class="btn" type="submit">変更</button>
+        </form>
+      </div>
+    </section>
+
+    <!-- Connection -->
+    <section class="view" id="view-rig" hidden>
+      <div class="pane">
+        <h2 class="h2">Connection</h2>
+        <div class="two">
+          <div hidden><h3 class="h3">Local</h3><dl class="kv" id="kv-local"></dl></div>
+          <div><h3 class="h3">状態</h3><dl class="kv" id="kv-remote"></dl></div>
+        </div>
+        <div class="diag" id="diag" hidden></div>
+
+        <!-- ★LAN の推論機の設定（2026-08-21 オーナー要望）。
+             それまで config.toml を手で書くしかなく、**画面からは変えられなかった**。
+             手元 GPU に載らないモデルを使う唯一の道なので、画面に無いのは実質「無い」。
+             保存したら**その場で確かめる**——「設定が有効」を「繋がっている」と
+             読ませないため（同じ誤読を RIG の表示で一度作っている）。 -->
+        <form class="hf" id="lan-form">
+          <!-- ★推論の場所（2026-10-07 オーナー「クライアントの GPU に LLM を載せる方式を」「アップデート入れて」）。
+               9/6 の「サーバー固定」で外した切り替えを戻した。この PC を選ぶと、同じ手順（推論機を起動 → モデルを載せる）で動く。
+               推論機（CUDA 版）と推奨モデルはアプリが取り寄せる（localgpu.rs）。 -->
+          <span class="lbl" id="where-lbl">推論の場所</span>
+          <div class="row">
+            <div class="seg where-seg" role="radiogroup" aria-labelledby="where-lbl" id="infer-where">
+              <button type="button" class="seg__b" role="radio" aria-checked="false" data-where="lan"
+                      title="別の推論サーバー（llama.cpp・Ollama・vLLM など）">サーバー</button>
+              <button type="button" class="seg__b" role="radio" aria-checked="false" data-where="local"
+                      title="この PC の GPU で実行">この PC の GPU</button>
+            </div>
+            <button class="btn local-prep" type="button" id="local-prep" hidden>ローカル実行の準備</button>
+          </div>
+          <p class="note local-note" id="local-note"></p>
+          <label class="lbl" for="lan-url">サーバー URL</label>
+          <div class="row">
+            <input id="lan-url" class="input" placeholder="http://127.0.0.1:8080" spellcheck="false">
+            <button class="btn" type="submit">保存して接続テスト</button>
+          </div>
+          <label class="lbl" for="lan-model">モデル</label>
+          <div class="row">
+            <input id="lan-model" class="input" placeholder="モデル名（llama-server -a）" spellcheck="false">
+          </div>
+          <!-- ★いまの決まり（on / off / auto）と、実際の宛先。2026-09-06 追加。
+               チェックは2値だが設定は3値（既定は auto＝この機械で推論できるときだけ手元）。
+               書かないと「チェックが外れているのに LAN で動いている」に見える。
+               #lan-note は**保存の結果**専用なので、混ぜない（混ぜると結果が消える）。 -->
+          <p class="note" id="lan-mode"></p>
+          <p class="note" id="lan-note"></p>
+        </form>
+
+        <!-- 何が使えるのかを書く場所。★推測で埋めない（app.js の refreshTools を参照）。 -->
+        <h3 class="h3">ツール</h3>
+        <p class="note" id="tool-note"></p>
+        <div class="list" id="tool-list"></div>
+
+        <!-- ★API キー（2026-10-08 オーナー「他のプラットフォームの API を Blackwall から扱えるようにしたい」）。
+             名前を付けて暗号化して保存（Windows は DPAPI）。エージェントには {{NAME}} だけが見え、Api 道具が送る瞬間に値を差し込む。
+             登録したドメイン以外へは送らない。中身は src-tauri/src/apikeys.rs と blackwall/apikeys.py。 -->
+        <h3 class="h3">API keys</h3>
+        <p class="note" id="apikey-note">値はエージェントに見せず、登録したドメインへ送るときだけ差し込みます。</p>
+        <div class="list" id="apikey-list" hidden></div>
+        <form class="hf apikey-form" id="apikey-form" autocomplete="off">
+          <div class="row">
+            <input id="apikey-name" class="input" placeholder="名前（例: OPENWEATHER_KEY）" spellcheck="false" aria-label="名前">
+            <input id="apikey-hosts" class="input" placeholder="許可するドメイン（例: api.openweathermap.org）" spellcheck="false" aria-label="許可するドメイン">
+          </div>
+          <div class="row">
+            <input id="apikey-value" class="input" type="password" placeholder="Key" spellcheck="false" aria-label="値">
+            <input id="apikey-memo" class="input" placeholder="Note (optional)" spellcheck="false" aria-label="メモ">
+            <button class="btn" type="submit">Save</button>
+          </div>
+        </form>
+
+        <!-- ★MCP（2026-10-08 オーナー「API や MCP、コネクタ対応させたい」）。Claude Desktop と同じ形の mcp.json を
+             ここで書き、つないで道具の一覧か失敗の理由を出す。鍵は {{NAME}}（上の API keys）で書ける。
+             中身は src-tauri/src/mcp.rs と blackwall/oc/mcp.py。 -->
+        <h3 class="h3">MCP</h3>
+        <p class="note" id="mcp-note">書き方は Claude Desktop の mcp.json と同じ。トークンは API keys に入れて <code>{{NAME}}</code> と書きます。</p>
+        <div class="row mcp-add">
+          <select id="mcp-preset" class="input" aria-label="テンプレート">
+            <option value="">Add a connector…</option>
+            <option value="github">GitHub（リモート・個人用トークン）</option>
+            <option value="notion">Notion（npx・統合のトークン）</option>
+            <option value="files">Files（npx・フォルダを指定）</option>
+            <option value="chrome">Chrome（いまのタブ・Playwright 拡張機能）</option>
+            <option value="playwright">Browser（Playwright・新しいブラウザ）</option>
+          </select>
+          <button class="btn" id="mcp-add" type="button">Add</button>
+        </div>
+        <textarea id="mcp-json" class="input mcp-json" spellcheck="false" rows="10" aria-label="mcp.json"></textarea>
+        <div class="folder">
+          <button class="btn" id="mcp-save" type="button">Save &amp; connect</button>
+          <button class="btn" id="mcp-check" type="button">Check</button>
+        </div>
+        <div class="integ" id="mcp-list" hidden></div>
+
+        <!-- ★ふだんの Chrome とつなぐ（2026-11-18 オーナー「L.A.P.S の Chrome 連携を強化したい」）。
+             L.A.P.S の Chrome 拡張機能（app/chrome-ext・アプリと一緒に入る）が、この PC の 127.0.0.1 の口（chromebridge.rs）へつなぐ。
+             ここでは、つながっているか・合言葉（拡張機能のポップアップに入れる）・拡張機能のフォルダを見せる。 -->
+        <h3 class="h3">Chrome とつなぐ</h3>
+        <div class="folder chromelink">
+          <p class="note" id="chrome-status">確かめています…</p>
+          <div class="chromelink__row">
+            <span class="chromelink__k">合言葉</span>
+            <code class="num chromelink__token" id="chrome-token">—</code>
+            <button class="btn" id="chrome-token-copy" type="button">コピー</button>
+          </div>
+          <div class="chromelink__row">
+            <span class="chromelink__k">拡張機能</span>
+            <code class="num chromelink__path" id="chrome-ext-dir">—</code>
+            <button class="btn" id="chrome-ext-open" type="button">フォルダを開く</button>
+          </div>
+          <ol class="note chromelink__steps">
+            <li>Chrome で <code>chrome://extensions</code> を開き、右上の「デベロッパー モード」をオンにする。</li>
+            <li>「パッケージ化されていない拡張機能を読み込む」で、上の拡張機能のフォルダを選ぶ。</li>
+            <li>ツールバーの L.A.P.S のボタンを押し、合言葉を貼って「保存してつなぐ」。</li>
+          </ol>
+          <p class="note">L.A.P.S がふだんの Chrome を使うと、タブは「L.A.P.S」のタブグループにまとまり、ページに操作中の表示が出ます。初めてのサイトは毎回たずねます。Chrome の「デバッグ中」の帯の × でいつでも止められます。</p>
+        </div>
+
+        <!-- ★整合性の確認（2026-10-08 オーナー「Windows 版に整合性のチェック機能を追加してほしい」）。
+             アプリの中身（同梱の Python を照合値と突き合わせる）・道具の部品・設定と推論機・スマホからの操作・保存データ。
+             確かめるだけでは何も変えない。直すのは「直す」を押したときだけ。中身は src-tauri/src/integrity.rs と blackwall/integrity.py。 -->
+        <h3 class="h3">Integrity</h3>
+        <div class="folder">
+          <button class="btn" id="run-integrity" type="button">Check</button>
+          <button class="btn" id="fix-integrity" type="button" hidden>Fix all</button>
+          <p class="note" id="integrity-note">アプリの部品と設定が揃っているかを確認します。</p>
+        </div>
+        <div class="integ" id="integrity-list"></div>
+
+        <h3 class="h3">Self-test</h3>
+        <div class="folder">
+          <button class="btn" id="run-selftest" type="button">Run</button>
+          <button class="btn" id="run-selftest-full" type="button">Include engine start</button>
+          <p class="note" id="selftest-note"></p>
+        </div>
+        <div class="list" id="selftest-list"></div>
+
+        <h3 class="h3">Version</h3>
+        <div class="folder">
+          <span class="folder__path num" id="app-version">—</span>
+          <p class="note" id="convos-note">Chats: <span class="num" id="convos-path">—</span></p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ── 右: Sources（Claude のサイドパネルと同じ位置） ─────────── -->
+  <!-- ★2026-10-18 オーナー「Blackwall が作成した MD ファイルや画像ファイルなどをアプリから見れるように」→ Files の切り替えを足した
+       （Sources は答えの根拠に番号を振る場所なので混ぜない）。「画面分離にも対応させたい」→「両方」:
+       左の縁をつまんで幅を変える（.drawer__grip）＋ Files の「別の窓」で切り離す（viewer.html）。中身は app.js の files*。 -->
+  <aside class="drawer" id="drawer" aria-label="ソース">
+    <div class="drawer__grip" id="drawer-grip" role="separator" aria-orientation="vertical" aria-label="Resize the panel" tabindex="0"></div>
+    <div class="drawer__head">
+      <div class="drawer__tabs" role="tablist">
+        <button class="drawer__tab is-active" id="tab-sources" type="button" role="tab" aria-selected="true" data-tab="sources">ソース</button>
+        <button class="drawer__tab" id="tab-files" type="button" role="tab" aria-selected="false" data-tab="files">エクスプローラー <span class="drawer__count num" id="files-count"></span></button>
+        <button class="drawer__tab" id="tab-browser" type="button" role="tab" aria-selected="false" data-tab="browser">ブラウザ</button>
+      </div>
+      <button class="drawer__pop" id="drawer-pop" type="button" hidden title="新しいウィンドウで開く" aria-label="エクスプローラーを新しいウィンドウで開く">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M9 2.5h4.5V7M13.5 2.5 8 8M12 9.5v4H2.5V4h4"/></svg>
+      </button>
+      <button class="ghost" id="drawer-close" type="button" aria-label="閉じる">×</button>
+    </div>
+    <div class="drawer__body" id="files" hidden></div>
+    <!-- ★エディター（2026-11-17・VS Code のエディター＝Monaco・中身は explorer.js）。エクスプローラーのタブで、ファイルを開いたときだけ出す。 -->
+    <section class="drawer__body drawer__body--editor xe" id="editor" hidden aria-label="エディター"></section>
+    <!-- ★Browser（2026-10-18・見るためのブラウザ）: 下の置き場所（#bz-host）の上に、Rust が子の webview を重ねる（browser.rs）。
+         置き場所の位置と大きさが変わるたびに送り直す（app.js の bz*）。「Pop out」で別の窓へ。 -->
+    <div class="drawer__body drawer__body--bz" id="browser" hidden>
+      <form class="bz__bar" id="bz-form" autocomplete="off">
+        <button class="bz__btn" id="bz-back" type="button" title="Back" aria-label="Back">←</button>
+        <button class="bz__btn" id="bz-fwd" type="button" title="Forward" aria-label="Forward">→</button>
+        <button class="bz__btn" id="bz-reload" type="button" title="Reload" aria-label="Reload">↻</button>
+        <input class="bz__url" id="bz-url" type="text" spellcheck="false" placeholder="検索または URL" aria-label="Address">
+        <button class="bz__btn" id="bz-pop" type="button" title="新しいウィンドウで開く">Pop out</button>
+      </form>
+      <div class="bz__host" id="bz-host"><p class="empty bz__hint" id="bz-hint">URL または検索語を入力</p>
+        <!-- ★診断（2026-10-18）: 子の webview の裏に書く＝読めたら子がこの場所を覆っていない（ページが出ていない理由の手掛かり）。 -->
+        <p class="bz__diag num" id="bz-diag" aria-hidden="true"></p></div>
+    </div>
+    <div class="drawer__body" id="evidence">
+      <!-- ★空状態は「何が無いか＋なぜ＋次の一手」（skill ui-ux-design §2）。
+           ★ここは利用者が押して埋める場所ではないので、**偽のボタンは置かない**。
+             代わりに「いつ出るか」を書く——それがこの画面での「次の一手」にあたる。 -->
+      <p class="empty">
+        ソースはありません
+      </p>
+    </div>
+  </aside>
+
+</div>
+
+<!-- サインイン（2026-10-31）。中継に届かないときだけ「サインインせずに使う」を出す（手元の作業を止めない）。 -->
+<div class="auth" id="auth-gate" role="dialog" aria-modal="true" aria-labelledby="auth-title" hidden>
+  <form class="auth__card" id="auth-form">
+    <h1 class="auth__brand" id="auth-title">L.A.P.S</h1>
+    <label class="auth__field"><span>メールアドレス</span>
+      <input class="input" id="auth-email" type="email" autocomplete="username" spellcheck="false" required></label>
+    <label class="auth__field"><span>パスワード</span>
+      <input class="input" id="auth-pw" type="password" autocomplete="current-password" required></label>
+    <label class="auth__field" id="auth-pw2-row" hidden><span>パスワード（確認のためもう一度）</span>
+      <input class="input" id="auth-pw2" type="password" autocomplete="new-password"></label>
+    <p class="auth__err" id="auth-err" role="alert" hidden></p>
+    <button class="btn btn--primary auth__go" id="auth-go" type="submit">サインイン</button>
+    <button class="auth__link" id="auth-switch" type="button">アカウントを作成</button>
+    <button class="auth__link" id="auth-skip" type="button" hidden>サインインせずに続行</button>
+  </form>
+</div>
+
+
+<!-- ── 状態バー（2026-11-17 VS Code の作法: 窓の下の 1 行。左にブランチと走行の様子、右に文脈・モデル・GPU・接続の灯・版）──
+     中身は app.js の sbSync が 1 秒ごとに写す（元の値は入力欄の札・サーバーの欄・文脈の輪）。押すとそれぞれの所へ行く。 -->
+<footer class="statusbar" id="statusbar" aria-label="状態">
+  <button class="sb__item" id="sb-branch" type="button" hidden title="ブランチの切り替え">
+    <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="4.5" cy="3.5" r="1.5"/><circle cx="4.5" cy="12.5" r="1.5"/><circle cx="11.5" cy="5.5" r="1.5"/><path d="M4.5 5v6M11.5 7c0 3-7 1.5-7 4"/></svg>
+    <span class="sb__t"></span>
+  </button>
+  <button class="sb__item" id="sb-scm" type="button" hidden title="ソース管理">
+    <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2.5v6M5 5.5h6M5 12.5h6"/></svg>
+    <span class="sb__t num"></span>
+  </button>
+  <span class="sb__item sb__msg" id="sb-msg" role="status" aria-live="polite" hidden></span>
+  <span class="sb__gap"></span>
+  <span class="sb__item sb__editor" id="sb-editor" hidden><span class="sb__t num"></span></span>
+  <button class="sb__item" id="sb-gpu" type="button" hidden title="推論サーバーを表示"></button>
+  <div class="lamps" id="lamps" role="group" aria-label="接続">
+    <span class="lamp" data-key="local"><i></i>Local</span>
+    <span class="lamp" data-key="lan"><i></i>LAN</span>
+    <button type="button" class="lamp lamp--btn" data-key="remote" id="lamp-remote" title="Remote Control（/rc）"><i></i>Remote</button>
+    <span class="side__ver num" id="side-version">—</span>
+  </div>
+  <div class="side__engine" id="side-engine" title="実行中のエンジン"></div>
+</footer>
+
+<!-- ── コマンドパレット（2026-11-17 VS Code の作法: Ctrl+Shift+P か F1）。中身は app.js の qpOpen。 -->
+<div class="qp" id="qp" hidden>
+  <div class="qp__box" role="dialog" aria-modal="true" aria-label="コマンド">
+    <input class="qp__in" id="qp-in" type="text" placeholder="チャットを検索" autocomplete="off" spellcheck="false" aria-controls="qp-list">
+    <div class="qp__list" id="qp-list" role="listbox" aria-label="コマンド"></div>
+  </div>
+</div>
+
+<script src="vendor/html2canvas.min.js" defer></script>
+<script src="synapse.js"></script>
+<script src="bgfield.js"></script>
+<script src="app.js"></script>
+<script src="explorer.js"></script>
+<script src="vendor/xterm.js"></script>
+<script src="vendor/addon-fit.js"></script>
+<script src="vendor/addon-unicode11.js"></script>
+<script src="vendor/addon-webgl.js"></script>
+<script src="panes.js"></script>
+<script src="shell.js"></script>
+</body>
+</html>

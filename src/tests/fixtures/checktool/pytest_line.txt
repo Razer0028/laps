@@ -1,0 +1,8 @@
+F.                                                                       [100%]
+=================================== FAILURES ===================================
+E   assert 3 == 4
+     +  where 3 = add(1, 2)
+/tmp/claude-0/-root-blackwall/339824da-e85a-4db9-a1a1-66223def9802/scratchpad/devcheck/pysample/tests/test_app.py:5: assert 3 == 4
+=========================== short test summary info ============================
+FAILED tests/test_app.py::test_add - assert 3 == 4
+1 failed, 1 passed in 0.00s

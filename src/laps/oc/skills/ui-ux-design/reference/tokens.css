@@ -1,0 +1,132 @@
+/* Design tokens and base styles - a finished, neutral starting point.
+   Change --accent* and the font stacks to fit the brief (see the frontend-design skill);
+   keep the structure: every color, size, space, radius and duration comes from a token.
+   Light/dark: follows the OS, or force with <html data-theme="light|dark">. */
+
+:root {
+  color-scheme: light;
+
+  /* Type */
+  --font-sans: system-ui, -apple-system, "Segoe UI", "Yu Gothic UI", "Hiragino Sans",
+               "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Meiryo", sans-serif;
+  --font-mono: ui-monospace, "Cascadia Code", "SFMono-Regular", "JetBrains Mono", Consolas,
+               "Liberation Mono", monospace;
+  --text-xs: 12px;  --text-sm: 13px;  --text-md: 14px;  --text-lg: 16px;
+  --text-xl: 20px;  --text-2xl: 28px; --text-3xl: 36px;
+  --leading-tight: 1.25; --leading: 1.5; --leading-ja: 1.75;
+  --weight-regular: 400; --weight-medium: 500; --weight-semibold: 600; --weight-bold: 700;
+
+  /* Space (4 px grid). Within group < between groups < between sections. */
+  --space-1: 4px;  --space-2: 8px;  --space-3: 12px; --space-4: 16px;
+  --space-5: 20px; --space-6: 24px; --space-8: 32px; --space-10: 40px;
+  --space-12: 48px; --space-16: 64px; --space-24: 96px;
+
+  /* Shape, motion, layers */
+  --radius-sm: 4px; --radius: 8px; --radius-lg: 12px; --radius-full: 999px;
+  --dur-fast: 120ms; --dur: 180ms;
+  --ease-out: cubic-bezier(.2, .8, .2, 1); --ease-in: cubic-bezier(.4, 0, 1, 1);
+  --z-dropdown: 100; --z-sticky: 200; --z-overlay: 1000; --z-toast: 1100;
+  --measure: 68ch;
+
+  /* Color - light */
+  --bg: #f6f7f9;         --surface: #ffffff;    --surface-2: #f1f3f6;  --surface-3: #e8ebf0;
+  --border: #e1e4ea;     --border-strong: #cbd1da;
+  --text: #14171c;       --text-2: #4a525e;     --text-3: #687180;
+  --accent: #2f5bea;     --accent-hover: #2449c7; --accent-press: #1c3aa3;
+  --accent-soft: #e9eefd; --on-accent: #ffffff;
+  --danger: #c2302b;     --danger-soft: #fdeceb;
+  --warning: #915c00;    --warning-soft: #fdf3dc;
+  --success: #1b7543;    --success-soft: #e5f4eb;
+  --info: #1d68a8;       --info-soft: #e6f0fa;
+  --focus: #2f5bea;
+  --shadow-1: 0 1px 2px rgba(16, 24, 40, .06), 0 1px 1px rgba(16, 24, 40, .04);
+  --shadow-2: 0 4px 12px rgba(16, 24, 40, .08), 0 1px 3px rgba(16, 24, 40, .06);
+  --shadow-3: 0 16px 40px rgba(16, 24, 40, .16), 0 2px 8px rgba(16, 24, 40, .08);
+}
+
+/* Dark is its own palette: lighter surfaces show elevation; dark text on the accent. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #0d1015;       --surface: #141920;   --surface-2: #1a2029;  --surface-3: #222a35;
+    --border: #252d39;   --border-strong: #354050;
+    --text: #e6e9ee;     --text-2: #a9b1bd;    --text-3: #8b94a2;
+    --accent: #7090ff;   --accent-hover: #8ca6ff; --accent-press: #5a7bf0;
+    --accent-soft: rgba(112, 144, 255, .14); --on-accent: #0a0f1f;
+    --danger: #ff6b64;   --danger-soft: rgba(255, 107, 100, .12);
+    --warning: #f2b54d;  --warning-soft: rgba(242, 181, 77, .12);
+    --success: #4cc489;  --success-soft: rgba(76, 196, 137, .12);
+    --info: #63aef2;     --info-soft: rgba(99, 174, 242, .12);
+    --focus: #8ca6ff;
+    --shadow-1: 0 1px 2px rgba(0, 0, 0, .4);
+    --shadow-2: 0 4px 14px rgba(0, 0, 0, .45), 0 1px 3px rgba(0, 0, 0, .35);
+    --shadow-3: 0 18px 44px rgba(0, 0, 0, .55), 0 2px 8px rgba(0, 0, 0, .4);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0d1015;       --surface: #141920;   --surface-2: #1a2029;  --surface-3: #222a35;
+  --border: #252d39;   --border-strong: #354050;
+  --text: #e6e9ee;     --text-2: #a9b1bd;    --text-3: #8b94a2;
+  --accent: #7090ff;   --accent-hover: #8ca6ff; --accent-press: #5a7bf0;
+  --accent-soft: rgba(112, 144, 255, .14); --on-accent: #0a0f1f;
+  --danger: #ff6b64;   --danger-soft: rgba(255, 107, 100, .12);
+  --warning: #f2b54d;  --warning-soft: rgba(242, 181, 77, .12);
+  --success: #4cc489;  --success-soft: rgba(76, 196, 137, .12);
+  --info: #63aef2;     --info-soft: rgba(99, 174, 242, .12);
+  --focus: #8ca6ff;
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, .4);
+  --shadow-2: 0 4px 14px rgba(0, 0, 0, .45), 0 1px 3px rgba(0, 0, 0, .35);
+  --shadow-3: 0 18px 44px rgba(0, 0, 0, .55), 0 2px 8px rgba(0, 0, 0, .4);
+}
+
+/* Base */
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--text);
+  font: var(--weight-regular) var(--text-md) / var(--leading) var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+:lang(ja) body, body:lang(ja) { line-height: var(--leading-ja); }
+h1, h2, h3, h4 { margin: 0; line-height: var(--leading-tight); text-wrap: balance; }
+h1 { font-size: var(--text-2xl); font-weight: var(--weight-semibold); }
+h2 { font-size: var(--text-xl);  font-weight: var(--weight-semibold); }
+h3 { font-size: var(--text-lg);  font-weight: var(--weight-semibold); }
+p  { margin: 0; text-wrap: pretty; }
+p + p { margin-top: var(--space-3); }
+a { color: var(--accent); text-underline-offset: 2px; }
+a:hover { color: var(--accent-hover); }
+code, kbd, pre, samp { font-family: var(--font-mono); font-size: .92em; }
+img, svg, video { display: block; max-width: 100%; }
+img, video { height: auto; }
+button, input, select, textarea { font: inherit; color: inherit; }
+.num, td.num, th.num { font-variant-numeric: tabular-nums; }
+.muted { color: var(--text-2); }
+.subtle { color: var(--text-3); }
+.prose { max-width: var(--measure); }
+
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--radius-sm); }
+::selection { background: var(--accent-soft); color: var(--text); }
+
+/* Quiet scrollbars that still show position */
+* { scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 8px; border: 2px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-track { background: transparent; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important; animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important; scroll-behavior: auto !important;
+  }
+}
+
+.visually-hidden {
+  position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}

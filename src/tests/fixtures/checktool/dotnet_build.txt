@@ -1,0 +1,3 @@
+/work/bw-devcheck-20261017/samples/cs/Program.cs(1,9): error CS0029: 型 'string' を 'int' に暗黙的に変換できません [/work/bw-devcheck-20261017/samples/cs/cs.csproj]
+/work/bw-devcheck-20261017/samples/cs/Program.cs(2,1): error CS0103: 現在のコンテキストに 'Console' という名前は存在しません [/work/bw-devcheck-20261017/samples/cs/cs.csproj]
+/work/bw-devcheck-20261017/samples/cs/Program.cs(2,19): error CS0103: 現在のコンテキストに 'y' という名前は存在しません [/work/bw-devcheck-20261017/samples/cs/cs.csproj]

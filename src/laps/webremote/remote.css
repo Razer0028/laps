@@ -1,0 +1,119 @@
+/* BLACKWALL Remote — ウェブだけの物（2026-10-10）。見た目の土台は app/ui/styles.css（デスクトップと同じ物を配る）。
+ * ここに足すのは: 機械の切り替え・合言葉・接続の表示・小さい画面（スマホ）の割り付けだけ。
+ * ★色・字・高さはデスクトップのトークン（--bg・--red・--h-ctl…）だけを使う。第3の色を足さない。
+ * ★幅をアニメーションしない。小さい画面の袖は transform だけで出し入れする。 */
+
+/* 帯: デスクトップの窓の操作（最小化・閉じる）の代わりに接続の状態。 */
+.titlebar{ padding-right:var(--s4); }
+.tb__conn{ flex:none; font:400 11.5px/1 var(--f-mono); color:var(--text-3); white-space:nowrap; }
+.tb__conn.is-bad{ color:var(--red-text); }
+.tb__menu{
+  display:none; flex:none; width:var(--h-ctl); height:var(--h-ctl); margin-left:var(--s2);
+  border:1px solid var(--line-2); border-radius:var(--r); background:transparent; cursor:pointer;
+  flex-direction:column; justify-content:center; gap:4px; padding:0 9px;
+}
+.tb__menu span{ display:block; height:1.5px; background:var(--text-2); border-radius:1px; }
+
+/* 機械（デスクトップのモデルの札 .chip と同じ形）。緑の点＝つながっている（Remote Control と同じ合図）。 */
+.devs{ display:flex; flex-direction:column; gap:var(--s2); }
+.dev{ position:relative; padding-left:calc(var(--s3) + 14px); }
+.dev::before{
+  content:""; position:absolute; left:var(--s3); top:calc(var(--s2) + 6px); width:7px; height:7px; border-radius:50%;
+  border:1px solid var(--text-3); background:transparent;
+}
+.dev.is-online::before{ background:var(--ok); border-color:var(--ok); }
+.dev.is-active{ border-color:var(--red); }
+.dev .chip__name{ display:flex; gap:var(--s2); align-items:baseline; width:100%; }
+.dev__kind{ margin-left:auto; flex:none; font:600 10px/1 var(--f-plate); letter-spacing:.1em; text-transform:uppercase; color:var(--text-3); }
+.dev__busy{ color:var(--red-text); font-weight:400; font-size:11px; }
+.side__forget{ margin:0 var(--s3); align-self:flex-start; }
+.side__forget[hidden]{ display:none; }
+
+/* 会話の一覧: 時刻を右に（デスクトップの .convo は 1 行。並びは変えず、時刻だけ薄く足す）。 */
+.convo{ display:flex; align-items:center; gap:var(--s2); }
+.convo__t{ flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.convo__m{ flex:none; font:400 11px/1 var(--f-mono); color:var(--text-3); }
+.convos__empty{ padding:var(--s3); color:var(--text-3); font-size:13px; }
+
+/* 出だし・入力欄 */
+.hello__p{ margin-top:var(--s3); color:var(--text-3); font-size:13px; }
+.composer__where{ font-size:12px; color:var(--text-3); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.composer__note.is-bad{ color:var(--red-text); }
+.live.is-empty{ color:var(--text-3); }
+.ctx__chip svg{ flex:none; }
+
+/* サインイン */
+.gate{ max-width:26rem; margin:16vh auto 0; padding:0 var(--s4); }
+.gate[hidden]{ display:none; }
+.gate__h{ font:700 26px/1.2 var(--f-plate); letter-spacing:.04em; }
+.gate__p{ margin:var(--s3) 0 var(--s4); color:var(--text-2); font-size:13px; }
+.gate__form{ display:flex; flex-direction:column; gap:var(--s2); margin-top:var(--s4); }
+.gate__form .input{ flex:none; width:100%; }
+.gate__form .input[hidden]{ display:none; }
+.gate__link{ margin-top:var(--s3); }
+.gate__err{ margin-top:var(--s3); color:var(--red-text); font-size:13px; }
+.app[hidden]{ display:none; }
+.rscrim{ display:none; }
+
+/* ── 小さい画面（スマホ）: 袖は引き出し・帯に開くボタン ───────────────── */
+@media (max-width:820px){
+  .tb__menu{ display:inline-flex; }
+  .tb__brand{ width:auto; border-right:0; padding:0 var(--s2); }
+  .tb__sub{ display:none; }
+  .tb__title{ padding-left:var(--s2); }
+  .tb__conn{ max-width:34vw; overflow:hidden; text-overflow:ellipsis; }
+  .app, .app.no-drawer{ grid-template-columns:minmax(0,1fr) 0; }
+  .side{
+    position:fixed; top:0; bottom:0; left:0; width:min(86vw, 330px); z-index:30; box-shadow:var(--shadow-pop);
+    transform:translateX(-102%); transition:transform 180ms ease;
+    padding-top:env(safe-area-inset-top); padding-bottom:env(safe-area-inset-bottom);
+  }
+  .main{ grid-column:1; }
+  .app.side-open .side{ transform:none; }
+  .rscrim{ position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:20; }
+  .app.side-open .rscrim{ display:block; }
+  .thread{ padding:var(--s4) var(--s3) var(--s3); }
+  .composer{ padding:0 var(--s2) calc(var(--s3) + env(safe-area-inset-bottom)); }
+  .ctx .runbar{ padding-left:0; padding-right:0; }
+  .composer textarea{ font-size:16px; }               /* iOS がフォーカス時に拡大しない大きさ */
+  .convo, .new, .dev, .hcard{ min-height:44px; }      /* 指で押せる高さ */
+  .hello{ margin-top:6vh; }
+  .hello__h{ font-size:26px; }
+  .msg--user .bubble{ max-width:88%; }
+}
+@media (prefers-reduced-motion:reduce){ .side{ transition:none; } }
+@media (max-width:420px){
+  .tb__name{ display:none; }                         /* 題を優先（銘は赤い一片だけ残す） */
+  .tb__conn{ max-width:24vw; }
+  /* ★走行の行は札の下の段へ（2026-10-13 見直し: 札 2 枚の横では幅が 340px を切り、経過の時間が隠れて「Distilling…」だけになっていた）。 */
+  .ctx{ flex-wrap:wrap; row-gap:6px; }
+  .ctx .runbar{ order:9; flex:1 1 100%; padding-left:0; }
+}
+
+/* 会話の行の削除（2026-10-31） */
+.convo-row{ display:flex; align-items:center; }
+.convo-row .convo{ flex:1 1 auto; min-width:0; }
+.convo__x{ flex:none; background:none; border:0; padding:0 var(--s2); color:var(--text-3); font-size:12px; cursor:pointer; opacity:0; }
+.convo-row:hover .convo__x,.convo__x:focus-visible,.convo__x[data-armed="1"]{ opacity:1; }
+.convo__x[data-armed="1"]{ color:var(--red); }
+@media (hover:none){ .convo__x{ opacity:1; } }
+
+/* 変更の欄（2026-10-31） */
+.tb__changes{ margin-left:auto; font-size:12px; }
+.tb__changes[hidden]{ display:none; }
+.changes{ position:fixed; inset:0; z-index:50; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,.4); padding:16px; }
+.changes[hidden]{ display:none; }
+.changes__card{ width:min(960px,100%); max-height:100%; display:flex; flex-direction:column; background:var(--bg-2,var(--bg)); border:1px solid var(--line,rgba(127,127,127,.3)); border-radius:8px; }
+.changes__head{ display:flex; align-items:center; justify-content:space-between; padding:var(--s2) var(--s3); }
+.changes__body{ margin:0; padding:var(--s2) var(--s3) var(--s3); overflow:auto; font:400 12px/1.5 var(--f-mono); }
+.changes__ln{ display:block; white-space:pre; color:var(--text-2); }
+.changes__ln.is-add{ color:var(--ok); }
+.changes__ln.is-del{ color:var(--red); }
+.changes__ln.is-hunk{ color:var(--text-3); }
+
+/* UI のレビュー（2026-10-31）: 機械の札が 1 枚 62px で、会話の一覧が 3 行しか見えなかった。選んでいる機械だけ 2 行にする（版は title で読める）。
+   一覧の最初の見出しが検索の欄に貼り付いていたので空ける。ウェブ版の説明の字は札に場所を譲る。 */
+.dev:not(.is-active) .chip__meta{ display:none; }
+.convos > .convo-group:first-child{ margin-top:var(--s2); }
+.composer__where{ flex:1 1 auto; }
+

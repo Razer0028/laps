@@ -1,0 +1,13 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "explorer",
+  "description": "別のウィンドウのエクスプローラー（ui/explorer.html・2026-11-17 オーナー「変更とファイルを統一して VSCode みたいにして、ポップアウトできるように」）に与える権限。git とファイルの読み書きは Rust の命令（scm.rs・filepreview.rs）が行い、相手はいまのワークスペースだけ。ここは core の既定（事象の受け渡し）と、自分を閉じる・前に出すだけ。",
+  "windows": [
+    "explorer"
+  ],
+  "permissions": [
+    "core:default",
+    "core:window:allow-close",
+    "core:window:allow-set-focus"
+  ]
+}

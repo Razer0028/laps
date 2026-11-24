@@ -1,0 +1,10 @@
+{
+  "manifest_version": 3,
+  "name": "L.A.P.S Browser Bridge",
+  "version": "0.1.0",
+  "description": "Lets the L.A.P.S agent on this PC open and operate tabs in this browser. Connects only to this PC (127.0.0.1).",
+  "minimum_chrome_version": "125",
+  "permissions": ["debugger", "tabs", "tabGroups", "storage", "alarms"],
+  "background": { "service_worker": "sw.js", "type": "module" },
+  "action": { "default_title": "L.A.P.S Browser Bridge", "default_popup": "popup.html" }
+}

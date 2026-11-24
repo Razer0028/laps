@@ -1,0 +1,10 @@
+src/A.java:3: エラー: 不適合な型: Stringをintに変換できません:
+    int x = "s";
+            ^
+src/A.java:4: エラー: シンボルを見つけられません
+    foo();
+    ^
+  シンボル:   メソッド foo()
+  場所: クラス A
+エラー2個
+exit code: 1

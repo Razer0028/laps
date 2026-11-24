@@ -1,0 +1,30 @@
+test_average (tests.test_calc.CalcTest.test_average) ... ERROR
+test_average_empty (tests.test_calc.CalcTest.test_average_empty) ... ok
+test_median_even (tests.test_calc.CalcTest.test_median_even) ... FAIL
+test_median_odd (tests.test_calc.CalcTest.test_median_odd) ... ok
+
+======================================================================
+ERROR: test_average (tests.test_calc.CalcTest.test_average)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/ut-fix/tests/test_calc.py", line 8, in test_average
+    self.assertEqual(average([1, 2, 3]), 2)
+                     ~~~~~~~^^^^^^^^^^^
+  File "/tmp/ut-fix/calc.py", line 5, in average
+    return total(values) / len(values)
+           ^^^^^
+NameError: name 'total' is not defined
+
+======================================================================
+FAIL: test_median_even (tests.test_calc.CalcTest.test_median_even)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/ut-fix/tests/test_calc.py", line 17, in test_median_even
+    self.assertEqual(median([1, 2, 3, 4]), 2.5)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 3 != 2.5
+
+----------------------------------------------------------------------
+Ran 4 tests in 0.001s
+
+FAILED (failures=1, errors=1)

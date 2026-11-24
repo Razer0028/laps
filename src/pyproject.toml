@@ -1,0 +1,68 @@
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "laps"
+version = "0.1.732"
+description = "L.A.P.S (Local Autonomous Persistent System) — a self-contained coding agent for local LLMs"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "AGPL-3.0-or-later"
+license-files = ["LICENSE"]
+authors = [{ name = "L.A.P.S contributors" }]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+]
+dependencies = [
+    "httpx>=0.27",
+    "rich>=13.7",
+    "click>=8.1",
+    "tomli>=2.0;python_version<'3.11'",
+    "prompt_toolkit>=3.0",
+    # ★全画面表示（laps.term.tui・2026-10-12）。Windows の同梱 Python は build_pyembed.sh の一覧で固定しているので
+    #   ここに足しても入らない（端末版だけが使う）。
+    "textual>=8.2,<9",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "pytest-timeout>=2.3", "ruff>=0.5", "mypy>=1.10", "websockets>=13", "pillow>=10"]
+# アプリ（Windows）とスマホの中継・ゲートウェイが使う部品
+remote = ["websockets>=13"]
+web = ["beautifulsoup4>=4.12"]
+pdf = ["pypdf>=4.0"]
+full = ["beautifulsoup4>=4.12", "pypdf>=4.0"]
+
+[project.scripts]
+laps = "laps.term.app:main"
+bw-undo = "laps.cli_checkpoint:main"
+# ★開発工程は「組み込んでおいてモデルが適宜判断する」（オーナー指示 2026-09-10）
+bw-flow = "laps.cli_flow:main"
+# ★Claude Code・Claude デスクトップに L.A.P.S の道具を渡す MCP サーバ（stdio・2026-10-10）
+laps-mcp = "laps.mcpserver:main"
+# ★モデルが書くスクリプトから Blackwall の道具を呼ぶ口（2026-10-23）。走行は道具の置き場にも起動の台本を置く（oc/bwtool）。
+bwtool = "laps.cli_bwtool:main"
+
+[tool.setuptools.packages.find]
+include = ["laps*"]
+
+# ★SKILL.md は Python ではないので、明示しないと出荷物から落ちる
+#   （＝実機だけスキルが 0 本になり、手元では緑のまま）。
+[tool.setuptools.package-data]
+# ★webui/ の 3 枚（HTML/CSS/JS）も Python ではない。ゲートウェイが `/web/` で配る物なので、
+#   ここに書かないと出荷物からは落ちる（＝実機だけ画面が 404）。
+#   **試験（run_smoke.js）は入れない**——出荷物に試験のコードを混ぜない。
+# ★oc/desktop_helper.cs は Desktop 道具の補助プログラムの元（Windows の csc.exe が利用者の機械で組み立てる）。
+# ★oc/skills/ は同梱の skills（SKILL.md・参考資料・台本。oc/skilltool.py が読む）。
+laps = ["skills/*/SKILL.md", "flows/*.md", "webui/index.html", "webui/app.js", "webui/styles.css",
+             "oc/desktop_helper.cs", "oc/skills/**/*", "webremote/*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"

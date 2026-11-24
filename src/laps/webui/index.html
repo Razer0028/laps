@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>L.A.P.S</title>
+<!-- ★外部の資源を一切引かない（CDN もフォントも無し）。この画面は LAN 内の 開発機 が出す
+     ものだけで成り立つ——外へ出る線が 1 本でもあると、外が落ちた日に画面が壊れる。 -->
+<link rel="stylesheet" href="styles.css">
+<!-- ★印を data URI で持つ（2026-09-07・本物の Chrome で見つけた）。これが無いと
+     ブラウザは /favicon.ico を取りに行き、合言葉の門に当たって **401** になる
+     ——画面は動くのにコンソールと gateway のログに毎回 401 が残り、本物の
+     「合言葉が違う」と見分けがつかなくなる。 -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='5' width='6' height='16' fill='%23D0342C'/%3E%3C/svg%3E">
+
+</head>
+<body>
+
+<header class="top">
+  <span class="mark" aria-hidden="true"></span>
+  <span class="brand">L.A.P.S</span>
+  <!-- いまの接続。切れているときだけ強く出す（＝ふだんは目に入らない）。 -->
+  <span class="top__conn" id="conn">つないでいます…</span>
+  <span class="top__meta num" id="meta"></span>
+  <button class="ghost" id="hist" type="button" hidden>履歴</button>
+  <button class="ghost" id="forget" type="button" hidden>合言葉を消す</button>
+</header>
+
+<!-- ── 合言葉の入り口 ─────────────────────────────────────────── -->
+<section class="gate" id="gate" hidden>
+  <h1 class="gate__h">合言葉</h1>
+  <p class="gate__p">
+    開発機 の <code>deploy/gateway.token</code> の中身を貼ってください。
+    このブラウザにだけ残ります（localStorage）。
+  </p>
+  <form class="gate__form" id="gate-form">
+    <input class="input" id="gate-token" type="password" autocomplete="off" spellcheck="false"
+           placeholder="合言葉" aria-label="合言葉">
+    <button class="btn" type="submit">つなぐ</button>
+  </form>
+  <p class="gate__err" id="gate-err" hidden></p>
+</section>
+
+<!-- ── 会話 ───────────────────────────────────────────────────── -->
+<section class="hist" id="hist-panel" hidden>
+  <div class="hist__head"><span>過去の走行（新しい順）</span><button class="ghost" id="hist-close" type="button">閉じる</button></div>
+  <div class="hist__list" id="hist-list"></div>
+</section>
+<main class="main" id="main" hidden>
+  <div class="thread" id="thread">
+    <div class="hello" id="hello">
+      <h1 class="hello__h">何をしましょうか</h1>
+      <p class="hello__p">
+        作業場は 開発機 側のフォルダです。読む・書く・実行するのは、そのフォルダの中で起きます。
+      </p>
+    </div>
+  </div>
+</main>
+
+<!-- 走行状態の 1 行。★入力欄のすぐ上に**1 本だけ**（会話の中に混ぜない）。 -->
+<div class="runbar" id="runbar" hidden aria-live="polite">
+  <span class="runbar__mark" id="runbar-mark" aria-hidden="true">·</span>
+  <span class="runbar__what" id="runbar-what">Starting</span>
+  <span class="runbar__time num" id="runbar-time" aria-live="off"></span>
+  <span class="runbar__tokens num" id="runbar-tokens" aria-live="off"></span>
+  <span class="runbar__hint" id="runbar-hint"></span>
+</div>
+
+<!-- 質問（AskUserQuestion）。選択肢を押すか、自由に書いて答える。 -->
+<section class="ask" id="ask" hidden>
+  <p class="ask__q" id="ask-q"></p>
+  <div class="ask__opts" id="ask-opts"></div>
+  <form class="ask__free" id="ask-form">
+    <input class="input" id="ask-free" autocomplete="off" spellcheck="false"
+           placeholder="自分の言葉で答える" aria-label="自分の言葉で答える">
+    <button class="btn" type="submit">答える</button>
+  </form>
+</section>
+
+<form class="composer" id="composer">
+  <div class="composer__box">
+    <textarea id="q" rows="1" spellcheck="false"
+              placeholder="やってほしいことを入力（Ctrl+Enter で送信）"></textarea>
+    <div class="composer__bar">
+      <span class="composer__note" id="note"></span>
+      <button class="stop" id="stop" type="button" hidden>Stop</button>
+      <button class="send" id="send" type="submit">Send</button>
+    </div>
+  </div>
+</form>
+
+<script src="app.js"></script>
+</body>
+</html>

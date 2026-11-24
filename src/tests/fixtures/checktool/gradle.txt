@@ -1,0 +1,21 @@
+/home/user/project/_scratch/devfix/w/gr/src/main/java/A.java:3: error: incompatible types: String cannot be converted to int
+    int x = "s";
+            ^
+1 error
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':compileJava' (registered by plugin class 'org.gradle.api.plugins.JavaBasePlugin').
+> Compilation failed; see the compiler output below.
+  /home/user/project/_scratch/devfix/w/gr/src/main/java/A.java:3: error: incompatible types: String cannot be converted to int
+      int x = "s";
+              ^
+  1 error
+
+* Try:
+> Check your code and dependencies to fix the compilation error(s)
+> Run with --scan to get full insights from a Build Scan (powered by Develocity).
+
+BUILD FAILED in 2s
+exit code: 1

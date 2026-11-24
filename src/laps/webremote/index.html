@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#131011">
+<title>L.A.P.S Remote</title>
+<!-- ★デスクトップアプリと同じ画面（2026-10-10 オーナー「デスクトップアプリの方のUIです。ウェブもこれに合わせて」）。
+     骨組みと部品の名前は app/ui/index.html と同じ・見た目は app/ui/styles.css をそのまま配る（deploy_webremote.sh）。
+     ウェブだけの物（機械の切り替え・小さい画面の引き出し・合言葉）は remote.css。
+     ★外部の資源を引かない（CDN も外のフォントも無し）。中継（LAN の 推論機）が配る物だけで成り立つ。 -->
+<link rel="stylesheet" href="fonts.css">
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="remote.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='5' width='6' height='16' fill='%23D0342C'/%3E%3C/svg%3E">
+</head>
+<body>
+
+<header class="titlebar">
+  <button class="tb__menu" id="menu" type="button" aria-label="会話の一覧" aria-expanded="false" aria-controls="side">
+    <span></span><span></span><span></span>
+  </button>
+  <div class="tb__brand">
+    <span class="mark" aria-hidden="true"></span>
+    <span class="tb__name">L.A.P.S</span>
+    <span class="tb__sub">// REMOTE</span>
+  </div>
+  <div class="tb__title" id="top-title">Chat</div>
+  <button class="ghost tb__changes" id="changes" type="button" hidden>変更</button>
+  <span class="tb__conn" id="conn" role="status">接続しています…</span>
+</header>
+
+<!-- ── サインイン（2026-10-31）──────────────────────────────────── -->
+<section class="gate" id="gate" hidden>
+  <h1 class="gate__h">L.A.P.S</h1>
+  <form class="gate__form" id="gate-form">
+    <input class="input" id="gate-email" type="email" autocomplete="username" spellcheck="false" placeholder="メールアドレス" aria-label="メールアドレス" required>
+    <input class="input" id="gate-pw" type="password" autocomplete="current-password" placeholder="パスワード" aria-label="パスワード" required>
+    <input class="input" id="gate-pw2" type="password" autocomplete="new-password" placeholder="もう一度" aria-label="もう一度" hidden>
+    <button class="btn btn--primary" id="gate-go" type="submit">サインイン</button>
+  </form>
+  <p class="gate__err" id="gate-err" hidden></p>
+  <button class="ghost gate__link" id="gate-switch" type="button">アカウントを作る</button>
+</section>
+
+<div class="app no-drawer" id="app" hidden>
+
+  <!-- ── 左: 会話と機械 ─────────────────────────────────────────── -->
+  <aside class="side" id="side" aria-label="会話と機械">
+    <button class="new" id="new-chat" type="button">New chat</button>
+    <label class="sr-only" for="convo-q">会話を検索</label>
+    <input class="convo-q" id="convo-q" type="search" placeholder="Search chats" autocomplete="off" spellcheck="false">
+    <nav class="convos has-groups" id="convos" aria-label="Chat"></nav>
+
+    <div class="side__foot">
+      <!-- ★推論機の機械の GPU（2026-10-18 オーナー「各アプリの UI に 2080super の使用率を表示する必要がありますね」）。
+           デスクトップ版の Server の欄と同じ形（GPU 1 枚に 1 本）。値は中継の /server/metrics（推論機 の bw-metrics）。中身は remote.js の rmSrv*。 -->
+      <section class="srv" id="srv" aria-label="Server" hidden>
+        <button class="srv__toggle" id="srv-toggle" type="button" aria-expanded="true" aria-controls="srv-body">
+          <span class="srv__title">Server</span>
+          <span class="srv__host num" id="srv-host"></span>
+          <span class="srv__caret" aria-hidden="true"></span>
+        </button>
+        <div class="srv__body" id="srv-body">
+          <div id="srv-charts"></div>
+          <div class="srv__axis num" id="srv-axis" aria-hidden="true"><span></span><span></span><span></span></div>
+          <p class="srv__msg" id="srv-msg" role="status"></p>
+        </div>
+      </section>
+      <!-- 機械の切り替え。デスクトップのモデルの札（.chip）と同じ形で並べる。緑の点＝つながっている。 -->
+      <div class="devs" id="devs" role="tablist" aria-label="Devices"></div>
+      <div class="lamps" id="lamps" role="group" aria-label="Status">
+        <span class="lamp" data-key="relay"><i></i>Relay</span>
+        <span class="lamp" data-key="device"><i></i>Device</span>
+        <span class="lamp" data-key="app"><i></i>App</span>
+      </div>
+      <div class="side__engine" id="side-engine"></div>
+      <div class="side__ver num" id="side-version">—</div>
+      <button class="ghost side__forget" id="forget" type="button" hidden>サインアウト</button>
+    </div>
+  </aside>
+  <div class="rscrim" id="scrim" hidden></div>
+
+  <!-- ── 中央: スレッド ───────────────────────────────────────── -->
+  <main class="main" id="main">
+    <section class="view is-active" id="view-chat">
+      <div class="thread" id="thread">
+        <div class="hello" id="hello">
+          <svg class="hello__wave" viewBox="0 0 240 80" aria-hidden="true">
+            <path d="M0 48 C12 36 22 22 34 22 C52 22 70 66 102 68 C130 70 145 54 170 53 C195 52 215 57 240 56"/>
+          </svg>
+          <h1 class="hello__h">What should I do?</h1>
+          <p class="hello__p" id="hello-where"></p>
+          <div class="hello__cards">
+            <button class="hcard" type="button">このフォルダには何がある？</button>
+            <button class="hcard" type="button">README を読んで、足りないものを挙げて</button>
+            <button class="hcard" type="button">いま走っている作業の進み具合を教えて</button>
+          </div>
+        </div>
+      </div>
+
+      <form class="composer" id="ask">
+        <div class="ctx">
+          <!-- 送り先の機械（押すと一覧を開く）と、その機械の作業フォルダ。 -->
+          <button class="ctx__chip" id="dev-chip" type="button" aria-controls="side">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="8.5" rx="1"/><path d="M5.5 13.5h5M8 11v2.5"/></svg>
+            <span id="dev-name">機械を選ぶ</span>
+            <svg class="ctx__caret" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>
+          </button>
+          <span class="ctx__chip ctx__chip--info" id="ws-chip" hidden title="作業フォルダ">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 4.5V12a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1H7.5L6 3.5H2.5a1 1 0 0 0-1 1z"/></svg>
+            <span id="ws-path"></span>
+          </span>
+          <div class="runbar" id="runbar" hidden aria-live="polite">
+            <div class="runbar__meta">
+              <span class="runbar__mark" id="runbar-mark" aria-hidden="true">·</span>
+              <span class="runbar__what" id="runbar-what">Starting</span>
+              <span class="runbar__time num" id="runbar-time" aria-live="off"></span>
+              <span class="runbar__tokens num" id="runbar-tokens" aria-live="off"></span>
+              <span class="runbar__hint" id="runbar-hint"></span>
+            </div>
+          </div>
+        </div>
+        <div class="composer__box">
+          <textarea id="q" rows="1" aria-label="メッセージ" placeholder="例: このフォルダのテストを直して…" spellcheck="false" autocomplete="off"></textarea>
+          <div class="composer__bar">
+            <span class="composer__where" id="where"></span>
+            <!-- ★Think の深さ（Off / Low / High・2026-10-11）。アプリと同じ札。押すたびに回る。この画面から送る依頼だけに効く。 -->
+            <button type="button" class="tg tg--think" id="think-level" data-level="low" aria-live="polite"
+                    title="Thinking depth. Off: answer without thinking (fastest). Low: short thinking (default). High: think carefully, up to 4,096 tokens a turn (slower). Click to change.">
+              <svg class="tg__i" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="7" r="4.2" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M6.4 12.2h3.2M7 14h2" stroke="currentColor" stroke-width="1.2"/></svg>
+              <span>Think</span><span class="tg__lv" id="think-level-text">Low</span>
+            </button>
+            <div class="composer__actions">
+              <button class="send send--now" id="ask-now" type="button" hidden
+                      title="いまの生成や実行中のコマンドを止めて、すぐにこの指示を渡します（Ctrl+Enter）。作業は捨てません。">Interrupt</button>
+              <button class="send" id="ask-send" type="submit">Send</button>
+            </div>
+          </div>
+        </div>
+        <p class="composer__note" id="composer-note"></p>
+      </form>
+    </section>
+  </main>
+</div>
+
+<script src="synapse.js"></script>
+<script src="desk.js"></script>
+<script src="core.js"></script>
+<script src="view.js"></script>
+<script src="remote.js"></script>
+</body>
+</html>

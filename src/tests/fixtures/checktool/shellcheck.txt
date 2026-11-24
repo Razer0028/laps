@@ -1,0 +1,5 @@
+a.sh:2:8: warning: Use "${var:?}" to ensure this never expands to /* . [SC2115]
+a.sh:2:8: note: Double quote to prevent globbing and word splitting. [SC2086]
+a.sh:3:6: warning: x is referenced but not assigned. [SC2154]
+a.sh:3:6: note: Double quote to prevent globbing and word splitting. [SC2086]
+exit code: 1

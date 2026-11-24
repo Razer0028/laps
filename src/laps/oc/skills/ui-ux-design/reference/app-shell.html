@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Deployments - Example app shell</title>
+<!-- A finished app shell built only from tokens.css + components.css.
+     Copy it as a starting point; replace the content, keep the structure and states. -->
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+  .shell { display: grid; grid-template-columns: 240px 1fr; min-height: 100dvh; }
+  .side { border-right: 1px solid var(--border); background: var(--surface); padding: var(--space-4) var(--space-3);
+          display: flex; flex-direction: column; gap: var(--space-1); position: sticky; top: 0; height: 100dvh; }
+  .brand { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-3) var(--space-4);
+           font-weight: var(--weight-semibold); }
+  .brand__mark { width: 22px; height: 22px; border-radius: 6px; background: var(--accent); }
+  .side__label { padding: var(--space-4) var(--space-3) var(--space-1); font-size: var(--text-xs); color: var(--text-3); }
+  .main { min-width: 0; }
+  .top { display: flex; align-items: center; gap: var(--space-3); height: 56px; padding: 0 var(--space-8);
+         border-bottom: 1px solid var(--border); background: var(--surface); position: sticky; top: 0; z-index: var(--z-sticky); }
+  .crumbs { color: var(--text-3); font-size: var(--text-sm); }
+  .crumbs b { color: var(--text); font-weight: var(--weight-medium); }
+  .search { width: 260px; }
+  .content { padding: var(--space-8); max-width: 1280px; display: grid; gap: var(--space-8); }
+  .content > * { min-width: 0; }   /* grid items default to min-width:auto and would grow with wide tables */
+  .head { display: flex; align-items: flex-end; gap: var(--space-4); flex-wrap: wrap; }
+  .head p { color: var(--text-2); margin-top: var(--space-1); }
+  .kpis { display: grid; gap: var(--space-4); grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); }
+  .kpi__label { color: var(--text-2); font-size: var(--text-sm); }
+  .kpi__value { font-size: var(--text-2xl); font-weight: var(--weight-semibold); margin-top: var(--space-1);
+                font-variant-numeric: tabular-nums; }
+  .kpi__delta { font-size: var(--text-sm); color: var(--text-3); margin-top: var(--space-1); }
+  .kpi__delta .up { color: var(--success); } .kpi__delta .down { color: var(--danger); }
+  .section-head { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-3); }
+  @media (max-width: 860px) {
+    .shell { grid-template-columns: 1fr; }
+    .side { display: none; }
+    .top { padding: 0 var(--space-4); }
+    .search { display: none; }
+    .content { padding: var(--space-5) var(--space-4); }
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+  <nav class="side" aria-label="Main">
+    <div class="brand"><span class="brand__mark" aria-hidden="true"></span>Northwind</div>
+    <a class="nav-item" href="#">Overview</a>
+    <a class="nav-item" href="#" aria-current="page">Deployments</a>
+    <a class="nav-item" href="#">Services</a>
+    <a class="nav-item" href="#">Logs</a>
+    <div class="side__label">Settings</div>
+    <a class="nav-item" href="#">Environments</a>
+    <a class="nav-item" href="#">Access</a>
+  </nav>
+
+  <div class="main">
+    <header class="top">
+      <div class="crumbs">Production / <b>Deployments</b></div>
+      <div class="spacer"></div>
+      <label class="visually-hidden" for="q">Search deployments</label>
+      <input id="q" class="input search" type="search" placeholder="Search deployments">
+      <button class="btn btn--primary">New deployment</button>
+    </header>
+
+    <main class="content">
+      <div class="head">
+        <div>
+          <h1>Deployments</h1>
+          <p>Releases to production in the last 7 days.</p>
+        </div>
+      </div>
+
+      <section class="kpis" aria-label="Summary">
+        <div class="card"><div class="kpi__label">Deployments</div><div class="kpi__value">42</div>
+          <div class="kpi__delta"><span class="up">+8</span> vs previous week</div></div>
+        <div class="card"><div class="kpi__label">Success rate</div><div class="kpi__value">97.6%</div>
+          <div class="kpi__delta"><span class="down">-1.2 pt</span> vs previous week</div></div>
+        <div class="card"><div class="kpi__label">Median duration</div><div class="kpi__value">4m 12s</div>
+          <div class="kpi__delta">Target under 5m</div></div>
+      </section>
+
+      <section>
+        <div class="section-head">
+          <h2>Recent</h2>
+          <div class="spacer"></div>
+          <div class="tabs" role="tablist" aria-label="Filter">
+            <button class="tab" role="tab" aria-selected="true">All</button>
+            <button class="tab" role="tab" aria-selected="false">Failed</button>
+            <button class="tab" role="tab" aria-selected="false">Running</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="table">
+            <thead><tr><th>Service</th><th>Commit</th><th>Status</th><th class="num">Duration</th><th>Started</th><th><span class="visually-hidden">Actions</span></th></tr></thead>
+            <tbody>
+              <tr><td>api-gateway</td><td><code>3f9c1e2</code> Add rate limit headers</td><td><span class="badge badge--success">Live</span></td><td class="num">3m 58s</td><td class="subtle">10:42</td><td><button class="btn btn--ghost btn--sm">View</button></td></tr>
+              <tr><td>billing</td><td><code>a71b0d4</code> Retry webhook delivery</td><td><span class="badge badge--danger">Failed</span></td><td class="num">1m 07s</td><td class="subtle">09:15</td><td><button class="btn btn--ghost btn--sm">View</button></td></tr>
+              <tr><td>search</td><td><code>c02e8aa</code> Rebuild index in batches</td><td><span class="badge badge--accent">Running</span></td><td class="num">-</td><td class="subtle">09:02</td><td><button class="btn btn--ghost btn--sm">View</button></td></tr>
+              <tr><td>web</td><td><code>9be44f1</code> Fix checkout focus order</td><td><span class="badge badge--success">Live</span></td><td class="num">5m 31s</td><td class="subtle">Yesterday</td><td><button class="btn btn--ghost btn--sm">View</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="empty">
+          <p class="empty__title">No scheduled deployments</p>
+          <p class="empty__body">Schedule a release to run outside business hours. It will appear here with its window.</p>
+          <button class="btn">Schedule a deployment</button>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+</body>
+</html>

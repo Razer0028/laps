@@ -1,0 +1,30 @@
+{
+  "productName": "L.A.P.S Console",
+  "bundle": {
+    "targets": [
+      "deb"
+    ],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/256x256.png",
+      "icons/512x512.png"
+    ],
+    "resources": null,
+    "linux": {
+      "deb": {
+        "depends": [
+          "python3 (>= 3.10)",
+          "python3-venv"
+        ],
+        "section": "devel",
+        "files": {
+          "/opt/blackwall-console/wheels": "target/linux-gui/wheels"
+        },
+        "desktopTemplate": "linux/console.desktop",
+        "postInstallScript": "linux/postinst",
+        "preRemoveScript": "linux/prerm"
+      }
+    }
+  }
+}

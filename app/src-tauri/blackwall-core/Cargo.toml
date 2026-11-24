@@ -1,0 +1,50 @@
+# ★純粋な論理だけを集めた検査用のクレート（2026-09-02）。
+#   なぜ要るか: 本体 `blackwall` は Tauri のクレートで、ホスト（Linux）で
+#   `cargo test` すると GTK 依存（pango/libsoup/webkit）が無くて**ビルドできない**。
+#   そのため **Rust の試験 195 本は一度も実行されたことがない**（preflight は
+#   `cargo check --tests`＝コンパイルするだけ）。Windows 製品の心臓部が無検証だった。
+#   ★ファイルは動かさない。`#[path]` で本体の実物を参照するだけなので、
+#     本体は無改造・いつでも捨てられる。二重管理も起きない。
+[package]
+name = "blackwall-core"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+# ★`#[tauri::command]` だけが壁のモジュール（fit/catalog 等）を Tauri 抜きで
+#   コンパイルするための切替。共有ソース側は
+#   `#[cfg_attr(not(feature = "no_tauri"), tauri::command)]` と書く。
+#   本体 `blackwall` は no_tauri を宣言しない → 属性はそのまま適用される（＝本番は無改造）。
+#   ここでは既定で no_tauri を立て、属性を外してコンパイルする。
+[features]
+default = ["no_tauri"]
+no_tauri = []
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# fit.rs の fit_local が tokio::task::spawn_blocking を、catalog.rs が
+# tokio::spawn / reqwest を本体で使う（試験は純粋だが、モジュールの
+# コンパイルには実体が要る）。本体 Cargo.toml と同じ版・同じ features に合わせる。
+tokio = { version = "1", features = [
+    "rt-multi-thread",
+    "process",
+    "fs",
+    "io-util",
+    "time",
+    "macros",
+] }
+reqwest = { version = "0.12", default-features = false, features = [
+    "json",
+    "stream",
+    "charset",
+    "http2",
+    "rustls-tls",
+] }
+# journal_format.rs（2026-09-05・r4/tests-never-run）が host_id のハッシュと
+# 送信データの gzip 圧縮に使う。本体 Cargo.toml と同じ版に合わせる。
+sha2 = "0.10"
+flate2 = "1"
+
+[lib]
+path = "src/lib.rs"

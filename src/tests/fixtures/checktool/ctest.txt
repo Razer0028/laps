@@ -1,0 +1,17 @@
+Internal ctest changing into directory: /home/user/project/_scratch/devfix/w/ct/build
+Test project /home/user/project/_scratch/devfix/w/ct/build
+    Start 1: passes
+1/2 Test #1: passes ...........................   Passed    0.00 sec
+    Start 2: breaks
+2/2 Test #2: breaks ...........................***Failed    0.00 sec
+expected 2 got 3
+
+
+50% tests passed, 1 tests failed out of 2
+
+Total Test time (real) =   0.01 sec
+
+The following tests FAILED:
+	  2 - breaks (Failed)
+Errors while running CTest
+exit code: 8

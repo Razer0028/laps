@@ -1,0 +1,99 @@
+#!/bin/sh
+# L.A.P.S Console（Linux の GUI 版・2026-11-11 オーナー「Linux版もGUIアプリ導入しますか」）の postinst。
+# 端末版（packaging/deb/postinst）と同じ考え方: 同梱の wheel だけから自分専用の venv を作る（ネットを使わない）。
+# ★端末版の venv（/opt/blackwall/venv）は使わない。GUI だけ更新されたときに本体の版がずれる（画面と本体の約束が食い違う）。
+set -e
+
+BASE=/opt/blackwall-console
+VENV="$BASE/venv"
+WHEELS="$BASE/wheels"
+
+# configure と abort-*（upgrade の unpack が失敗して旧版へ戻るとき）で venv を作り直す。
+# ★abort-* で何もしないと、旧版が「installed」のまま venv だけ無い状態になりうる（2026-08-23 レビュー）。
+case "${1:-}" in
+  configure|abort-upgrade|abort-remove|abort-deconfigure) ;;
+  *) exit 0 ;;
+esac
+
+# ★umask を固定する（2026-08-23 レビュー）: `sudo dpkg-reconfigure` を umask 077 で打つと
+#   venv が 0700 になり一般ユーザが使えなくなる。dpkg 経由でも同じ値にしておく。
+umask 022
+
+fail() {
+  echo "blackwall-console: postinst が失敗しました: $*" >&2
+  echo "blackwall-console: 同梱 wheel（$WHEELS）:" >&2
+  ls -1 "$WHEELS" 2>/dev/null | sed 's/^/    /' >&2 || echo "    (無い)" >&2
+  echo "blackwall-console: 使った python = ${PY:-未決定} $([ -n "$PY" ] && "$PY" --version 2>&1 || true)" >&2
+  echo "blackwall-console: PATH の python3 = $(command -v python3 || echo '無い') $(python3 --version 2>&1 || true)" >&2
+  echo "blackwall-console: 直すには: sudo apt install --reinstall blackwall-console  または  sudo dpkg-reconfigure blackwall-console" >&2
+  exit 1
+}
+
+# ★2026-09-13: **「このマシンの python3」では足りなかった。**
+#   実機で踏んだ形（Terminal-Bench の課題 fix-pandas-version のコンテナ）:
+#     python3 = /usr/local/bin/python3 → **Python 3.8.20**（課題が古い python を前に置いている）
+#   本体の wheel は `requires-python >= 3.10` なので pip が
+#   「No matching distribution found」で落ち、**導入そのものが失敗**していた。
+#   `Depends: python3 (>= 3.10)` は **Debian パッケージの版**しか見ないので、
+#   `/usr/local/bin` や conda/pyenv が前に居るマシンでは素通りする。
+#   ＝これはベンチ固有の話ではなく、**利用者の機械でも起きる**（PATH の前に古い python がある形）。
+#   → 3.10 以上を満たす interpreter を**探して選ぶ**。見つからなければ、何を見つけたかを名指しで言う。
+PY=""
+_try_py() {
+  [ -n "$1" ] || return 1
+  command -v "$1" >/dev/null 2>&1 || return 1
+  "$1" -c 'import sys; raise SystemExit(0 if sys.version_info[:2] >= (3,10) else 1)' 2>/dev/null || return 1
+  "$1" -c 'import ensurepip' 2>/dev/null || return 1
+  PY="$(command -v "$1")"
+  return 0
+}
+# 利用者が明示した物を最優先（逃げ道）。次に新しい版から順に。最後に素の python3。
+for _c in "${LAPS_PYTHON:-$BLACKWALL_PYTHON}" python3.13 python3.12 python3.11 python3.10           /usr/bin/python3.13 /usr/bin/python3.12 /usr/bin/python3.11 /usr/bin/python3.10           /usr/bin/python3 python3; do
+  _try_py "$_c" && break
+done
+
+fail_py() {
+  echo "blackwall-console: postinst が失敗しました: 3.10 以上で ensurepip を持つ python が見つかりません" >&2
+  echo "blackwall-console: 見つかったもの:" >&2
+  for _c in python3 /usr/bin/python3 python3.13 python3.12 python3.11 python3.10; do
+    if command -v "$_c" >/dev/null 2>&1; then
+      echo "    $(command -v "$_c") → $("$_c" --version 2>&1)$("$_c" -c 'import ensurepip' 2>/dev/null && echo ' (ensurepip あり)' || echo ' (ensurepip なし)')" >&2
+    fi
+  done
+  echo "blackwall-console: 直すには: sudo apt install python3-venv  か、LAPS_PYTHON=/path/to/python3.12 を指定して入れ直す" >&2
+  exit 1
+}
+[ -n "$PY" ] || fail_py
+
+[ -d "$WHEELS" ] || fail "wheel の置き場 $WHEELS がありません"
+ls "$WHEELS"/blackwall-*.whl >/dev/null 2>&1 || fail "本体の wheel (blackwall-*.whl) が $WHEELS にありません"
+# ★上の探索で ensurepip まで確かめてある（$PY はその条件を満たした物）。
+
+# -I: apt を叩く人の PYTHONPATH / PYTHONHOME / user site を venv の中へ持ち込まない。
+# 既にあれば --upgrade で中の python を今のものへ付け替える（ホストの python3 が上がったとき用）。
+if [ -x "$VENV/bin/python" ]; then
+  "$PY" -I -m venv --upgrade "$VENV" || fail "既存 venv の更新（$PY -m venv --upgrade）"
+else
+  rm -rf "$VENV"
+  "$PY" -I -m venv "$VENV" || fail "venv の作成（$PY -m venv $VENV）"
+fi
+"$VENV/bin/python" -I -c 'import pip' 2>/dev/null || fail "venv に pip がありません（ensurepip が失敗）"
+
+# ★ネットに出ない。wheels に無いものは pip が「No matching distribution found for X」と名指しする。
+export PIP_DISABLE_PIP_VERSION_CHECK=1 PIP_NO_INPUT=1
+# ★2026-11-11 実機（オーナー）: 「読み込めない部品: websockets」。本体の wheel は websockets を依存に書いていない
+#   （端末版は使わない・Windows 版は同梱の Python に別に入れている）ので、blackwall だけを入れると venv に入らなかった。
+#   組み立ての確かめ（build_linux_gui.sh）は自分で「blackwall websockets」と打っていたので通っていた。
+#   → 入れる物はこの 1 行だけに書き、組み立ての確かめはこの行を読んで同じ物を入れる。
+PKGS="blackwall websockets"
+"$VENV/bin/python" -I -m pip install -q --no-index --find-links "$WHEELS" --upgrade $PKGS \
+  || fail "pip install（上の 'No matching distribution found for …' が無い wheel）"
+
+# 画面の「整合性」の検査（integrity.check_app）と同じ部品を読み込めるか。ここで落ちれば導入が失敗として見える。
+"$VENV/bin/python" -I -c 'import blackwall.engine, blackwall.engine.server, blackwall.serve, blackwall.oc.tools, blackwall.remotehost, httpx, websockets' \
+  || fail "入れたはずの部品を import できません（上の行が理由）"
+
+echo "blackwall-console: $VENV を用意しました（$("$VENV/bin/python" -I -m pip show blackwall 2>/dev/null | sed -n 's/^Version: //p')）"
+
+
+exit 0

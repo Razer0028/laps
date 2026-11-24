@@ -1,0 +1,13 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "shell",
+  "description": "別の窓のシェル（ui/shellwin.html・2026-11-17 オーナー「シェル機能はアプリと分離して表示できるようにしておくといいかもしれませんね」）に与える権限。殻の起動・入出力・大きさ・停止は Rust の命令（localshell.rs）が行い、動かすプログラムは画面から選べない。ここは core の既定（事象の受け渡し）と、自分を閉じる・前に出すだけ。",
+  "windows": [
+    "shell-*"
+  ],
+  "permissions": [
+    "core:default",
+    "core:window:allow-close",
+    "core:window:allow-set-focus"
+  ]
+}

@@ -1,0 +1,9 @@
+test_average (tests.test_calc.CalcTest.test_average) ... ok
+test_average_empty (tests.test_calc.CalcTest.test_average_empty) ... ok
+test_median_even (tests.test_calc.CalcTest.test_median_even) ... ok
+test_median_odd (tests.test_calc.CalcTest.test_median_odd) ... ok
+
+----------------------------------------------------------------------
+Ran 4 tests in 0.000s
+
+OK

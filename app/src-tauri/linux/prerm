@@ -1,0 +1,8 @@
+#!/bin/sh
+# venv は postinst が作る生成物で dpkg の台帳に無い。remove / purge のときだけ消す（upgrade では postinst が入れ替える）。
+set -e
+case "${1:-}" in
+  remove|purge) rm -rf /opt/blackwall-console/venv ;;
+  *) ;;
+esac
+exit 0

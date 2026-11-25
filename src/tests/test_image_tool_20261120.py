@@ -22,7 +22,9 @@ def test_local_image_is_copied_into_shots(ctx, tmp_path):
     PIL.new("RGB", (64, 64), (0, 90, 200)).save(tmp_path / "small.jpg")
     r = image.show({"path": "small.jpg", "caption": "青"}, ctx)
     assert r.ok and r.shot and os.path.dirname(r.shot).endswith("shots") and r.head == "青"
-    assert f"![青]({r.shot})" in r.output                      # 本文に出す書き方を返す
+    assert f"![青]({r.shot})" in r.output                      # 本文の決まった場所に置くときの書き方も返す
+    # ★2026-11-25: 見せる画像として名乗る（画面は答えの下に大きく並べる・モデルが ![]() を書かなくても出る）
+    assert r.show == [{"path": r.shot, "caption": "青"}]
 
 
 def test_big_image_is_shrunk(ctx, tmp_path):

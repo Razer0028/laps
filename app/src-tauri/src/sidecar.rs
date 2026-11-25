@@ -667,6 +667,15 @@ fn resolve_python() -> Result<PathBuf, String> {
 /// ★`~/.blackwall` ではなくアプリのデータ根に置く。利用者のフォルダは消されることがあり（実際に消えた例がある）、
 ///   インストール先（%LOCALAPPDATA%\BLACKWALL Console）は利用者名の全角空白で csc がつまずいた前例がある。
 /// ★0.1.308: Blackwall が取り寄せる道具の置き場（tools・ffmpeg など）も同じ理由でデータ根へ。
+/// 子のエージェントの推論機（OpenAI 互換の口）。設定 `child_backend`（空なら子も親と同じ推論機・`off` で使わない）。
+/// 利用者が環境変数 LAPS_CHILD_BACKEND で指定していればそちらが勝つ。本体は /health を短く聞き、止まっていれば親と同じ推論機で子を動かす。
+pub fn child_backend() -> String {
+    if let Some(v) = crate::envcompat::var_os("LAPS_CHILD_BACKEND") {
+        return v.to_string_lossy().into_owned();
+    }
+    crate::config_value("child_backend").unwrap_or_default()
+}
+
 pub fn parts_env() -> [(&'static str, PathBuf); 4] {
     let r = crate::app_root();
     [
@@ -821,6 +830,7 @@ pub fn start_remote_host_in_background() {
                 .env("LAPS_POLICY", crate::policy_mode())
                 .env("LAPS_ETHICS", crate::ethics_level())
                 .env("LAPS_SSH_HOSTS", crate::config_value("ssh_hosts").unwrap_or_default())
+                .env("LAPS_CHILD_BACKEND", child_backend())
                 .env("PYTHONIOENCODING", "utf-8")
                 .env("PYTHONUTF8", "1")
                 .env("PYTHONUNBUFFERED", "1")
@@ -1078,7 +1088,7 @@ fn log_tail(path: &Path, max: usize) -> String {
 ///   **前のフォルダに書く**という最悪の壊れ方をする（それを chdir 頼みにしない）。
 /// ★推論器のポートも入れる。llama.rs はポートが塞がっていると上へずらすので、
 ///   再起動後に古いポートへ話し続けるのを防ぐ。
-/// URL の userinfo（user:pass@）を伏せる。record は telemetry として .9 へ送られるので、値を残さない。
+/// URL の userinfo（user:pass@）を伏せる。record は telemetry として 開発機 へ送られるので、値を残さない。
 fn redact_userinfo(url: &str) -> String {
     match url.find('@') {
         Some(at) if url[..at].contains("://") => {
@@ -1654,6 +1664,8 @@ fn build_command(py: &Path, cwd: &Path, key: &SpawnKey, model: &str, extra: &[&s
             crate::config_value("ssh_hosts").unwrap_or_default(),
         )
         .env("LAPS_WORKSPACE", &key.workspace)
+        // ★子のエージェントの推論機（2026-11-25・engine/childengine.py）。止まっていれば本体は親と同じ推論機で子を動かす。
+        .env("LAPS_CHILD_BACKEND", child_backend())
         // ★Windows の既定コードページ(cp932)だと、日本語を含む出力で UnicodeEncodeError を出して
         //   途中で死ぬ。ここは必ず UTF-8 に固定する。
         .env("PYTHONIOENCODING", "utf-8")

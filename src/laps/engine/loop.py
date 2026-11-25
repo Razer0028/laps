@@ -193,6 +193,17 @@ PLAN_REFUSED = ("Not run in Plan mode: {name} changes things, and nothing is cha
                 "WebSearch, WebFetch or Bash commands that only look, then write the plan; it will be run in Agent mode after the user approves it.")
 
 
+# ★2026-11-25 オーナー「タスクを連続して頼んでもコンテキストの読み直しが発生する」: Agent の前置きで始めた会話をチャットに
+#   切り替えると、前置きと道具の一覧が 1 文字目から変わって会話を頭から読み直していた（偽の推論機で再現）。Ask と同じく、前置きと道具は
+#   そのまま見せて、モードの決まりはこの一言で渡し、使えない道具は走らせるときに断る（server._ask_keeps_prefix）。
+TALK_NOTE = ("[Harness] Chat mode, for the message above only: talk with the user — answer, explain, draft and think things through. "
+             "Do not read, change or run anything on the user's files or machines. Only WebSearch, WebFetch and showing a web "
+             "image (Tools with name Image and a url) are available for this message; every other tool is refused. Do not continue "
+             "earlier work.")
+TALK_REFUSED = ("Not run in Chat mode: {name} is not available for this message. Answer from what you know, or look it up with "
+                "WebSearch or WebFetch. If the user wants files read or changed, tell them to switch to Agent mode.")
+
+
 STOPPED_NOTE = ("[Harness] The user stopped the previous request on purpose. A command or edit that was running may have "
                 "stopped part-way, and servers started in the background may still be running. Check the state you depend on "
                 "before you go on, and do not resume the stopped work unless the user asks.")
@@ -339,6 +350,8 @@ class Agent:
         self.outcome = ""
         self._stop_hooks = 0                # Stop のフックで続けさせた回数（hooks.MAX_STOP_BLOCKS まで）
         self.plan_mode = False              # 計画モード（ask_allowed と一緒に使う・2026-11-19）
+        self.keep_mode = ""                 # 前の前置きのまま走らせるモード: "" (Ask/Plan) / "talk"（2026-11-25）
+        self.start_notes: list[str] = []    # 依頼の直後に足す一言（覚え書きが変わった等・前置きを作り直さずに渡す・2026-11-25）
         self.finish_reason = ""
         self.stage = "推論機"
         self.iters = 0
@@ -358,6 +371,7 @@ class Agent:
         self._schemas: list[dict] | None = None
         self._slot_park = ""               # 子を起こす前に保存した親の席（engine/slots.py）
         self._slot_restore = ""            # 次の手番の前に戻す席のファイル
+        self._other_llms: list[LLM] = []   # 別の推論機で動いている子の線（止めるときに一緒に切る・engine/childengine.py）
         self._ctx_nudges = 0               # 子の文脈の目安を越えて促した回数
         self.children: list[dict] = []     # 起こした子の記録（done の children）
         self._call_n = _max_call_id(transcript.raw)
@@ -422,6 +436,8 @@ class Agent:
     def cancel(self) -> None:
         self.ctx.cancel.set()
         self.llm.abort()
+        for other in list(self._other_llms):     # 別の推論機で動いている子も切る
+            other.abort()
 
     # ── 小物 ──────────────────────────────
     def _count(self, key: str, n: int = 1) -> None:
@@ -776,10 +792,36 @@ class Agent:
         return self.llm.payload(msgs, self._tool_schemas(), mode=self.ctx.mode, think=self.think, effort=self.effort,
                                 max_tokens=compact.SUMMARY_TOKENS + compact.SUMMARY_THINK, budget=compact.SUMMARY_THINK)
 
-    def _compact(self, *, forced: bool = False) -> None:
+    def _boundary_compact(self) -> None:
+        """新しい依頼の頭で、長くなった会話を 1 回だけ要約する（2026-11-25 オーナー「会話が続くとどんどん蓄積されていって
+        しまうので Claude アプリみたいな感じの仕組みにしたい」）。作業の途中ではやらない（前を書き換えるとそこから全部読み直す）。
+        古い道具の出力の片付けは飛ばして要約へ直行する: 片付けは一番古い片付けた所から後ろを全部読み直すが、続きの形の要約なら
+        読み込み済みの分をそのまま使い、読み直すのは要約と残した最近の分（約 2 万）だけ。"""
+        if self.child or not any(m.get("role") == "assistant" for m in self.t.raw[:self._run_from]):
+            return
+        n_ctx = self.n_ctx()
+        if not compact.early_at(n_ctx):
+            return
+        # ★長さは、席にこの会話が入っていれば推論機が数えた本物の数（日本語・コード・道具の出力で文字からの見積もりはずれる）。
+        #   分からない時（Strata でない・席が別の会話）だけ見積もる。
+        real = 0
+        try:
+            from . import slots
+            real = slots.held_for(self.llm, self.t.id)
+        except Exception:  # noqa: BLE001
+            real = 0
+        est = real or sum(compact._size(m) for m in self.t.view()) + estimate_tokens(self.system)
+        if not compact.boundary_due(est, n_ctx, self.llm):
+            return
+        self.last_tokens = est
+        self._count("compaction_boundary")
+        self._count("compaction_boundary_measured" if real else "compaction_boundary_estimated")
+        self._compact(boundary=True)
+
+    def _compact(self, *, forced: bool = False, boundary: bool = False) -> None:
         n_ctx = self.n_ctx()
         continued = self._continued_summary_body() if compact.continued_enabled(self.llm, forced) else None
-        if not forced:
+        if not forced and not boundary:
             saved = compact.prune(self.t)
             if saved:
                 self._count("compaction_pruned")
@@ -976,7 +1018,9 @@ class Agent:
             if hk.context:
                 self._note("[Hook] " + hk.context)
         if self.ask_allowed is not None:
-            self._note(PLAN_NOTE if self.plan_mode else ASK_NOTE)
+            self._note({"talk": TALK_NOTE}.get(self.keep_mode) or (PLAN_NOTE if self.plan_mode else ASK_NOTE))
+        for note in self.start_notes:
+            self._note(note)
         if self.memory:
             block = self.memory.begin(request, new_conversation=new_conversation, last_action=last_action)
             if block:                      # 作業ログと帳面は新しい会話だけ・当たる記憶は毎回（依頼の後ろに足す＝前置きは変えない）
@@ -987,6 +1031,7 @@ class Agent:
                 self.t.append({"role": "user", "content": block, "bw_note": True})
         text = ""
         try:
+            self._boundary_compact()
             self._first_look(request, new_conversation)
             text = self._loop()
         except Cancelled:
@@ -1136,7 +1181,7 @@ class Agent:
                         return ""
                     continue
             self.iters += 1
-            fields: dict[str, Any] = {"n_ctx": n_ctx, "compact_at": compact.usable(n_ctx)} if n_ctx else {}
+            fields: dict[str, Any] = {"n_ctx": n_ctx, "compact_at": compact.ring_at(n_ctx, self.llm)} if n_ctx else {}
             if self.last_tokens:
                 fields["ctx"] = self.last_tokens
             self.ctx.tokens = self.last_tokens
@@ -1549,14 +1594,22 @@ class Agent:
         return fail(f"You have made exactly this call {self._last_call_n} times in a row, so it was not run. It will not give a "
                     "different result. Change the approach, or say what is blocking you.", head=job["name"])
 
+    def _via_tools_ok(self, job: dict) -> bool:
+        """Agent の道具の一覧では Image は Tools の奥にある。チャット・画像のモードで、それを使ってよい道具として通す。"""
+        if job["name"] != "Tools" or not self.ask_allowed:
+            return False
+        inner = str((job.get("inp") or {}).get("name") or "")
+        return bool(inner) and inner in self.ask_allowed
+
     def _run_one(self, job: dict) -> Result:
         if job["error"] is not None:
             return job["error"]
         if self.ctx.stopped():
             return fail("Not run: the user stopped this or sent a new instruction.", kind="denied", head=job["name"])
-        if self.ask_allowed is not None and job["name"] not in self.ask_allowed:
+        if self.ask_allowed is not None and job["name"] not in self.ask_allowed and not self._via_tools_ok(job):
             self._count("ask_refused")
-            return fail((PLAN_REFUSED if self.plan_mode else ASK_REFUSED).format(name=job["name"]), kind="denied", head=job["name"])
+            msg = {"talk": TALK_REFUSED}.get(self.keep_mode) or (PLAN_REFUSED if self.plan_mode else ASK_REFUSED)
+            return fail(msg.format(name=job["name"]), kind="denied", head=job["name"])
         blocked = self._doom(job)
         if blocked is not None:
             return blocked
@@ -1660,7 +1713,7 @@ class Agent:
         self.out.emit("tool_result", self.rid, call=job["id"], name=name, result=_clean(r.output[:UI_RESULT_MAX]),
                       chars=len(r.output), truncated=r.truncated, ok=r.ok, kind=r.kind,
                       summary={"head": r.head or name, "tail": r.tail, "n": lines, "status": "ok" if r.ok else "error", "lines": lines,
-                               **({"shot": r.shot} if r.shot else {})})
+                               **({"shot": r.shot} if r.shot else {}), **({"show": r.show} if r.show else {})})
         self.t.append({"role": "tool", "tool_call_id": job["id"], "name": name, "content": r.output})
 
     def _execute(self, tcs: list[dict]) -> None:
@@ -1704,9 +1757,10 @@ class Agent:
             self.t.append({"role": "user", "content": f"[image] {p}", "bw_image": p, "bw_note": True})
 
     # ── 子エージェント ─────────────────────
-    def spawn(self, prompt: str, kind: str, label: str) -> str:
+    def spawn(self, prompt: str, kind: str, label: str, _try_other: bool = True) -> str:
         import dataclasses
 
+        from . import childengine
         from . import prompt as _prompt
         from .tools.shell import resolve_shell
         keep = ("Bash", "BashOutput", "Read", "Glob", "Grep", "WebFetch", "WebSearch")
@@ -1715,8 +1769,12 @@ class Agent:
         tools = {k: v for k, v in self.tools.items() if k in keep}
         ctx = dataclasses.replace(self.ctx, todos=[], spawn=None, ask=None, read_files=set(self.ctx.read_files), seen=dict(self.ctx.seen),
                                   written=[], created=[], ran=[], child=True, started_jobs=[])
-        child = Agent(llm=self.llm, out=ChildOut(self.out, self.rid, label), rid=self.rid, transcript=MemoryTranscript(),
-                      ctx=ctx, tools=tools, system=_prompt.child_system(self.ctx.workspace, self.llm.model, resolve_shell()[0]),
+        # ★子の推論機が別にあれば、子はそこで動く（2026-11-25 オーナー「Gyro-M が子に命令を送って作業をさせて結果を受け取れるように」）。
+        #   親の席を触らないので、席の保存と戻し（3〜15 秒）も、その食い違いによる親の読み直しも無い。無い・止まっていれば今までどおり。
+        other = childengine.open_for(self.llm) if (_try_other and not self.child) else None
+        llm = other or self.llm
+        child = Agent(llm=llm, out=ChildOut(self.out, self.rid, label), rid=self.rid, transcript=MemoryTranscript(),
+                      ctx=ctx, tools=tools, system=_prompt.child_system(self.ctx.workspace, llm.model, resolve_shell()[0]),
                       think=self.think, effort=self.effort, limits=self._next_child_limits or Limits(max_iters=_limit("LAPS_CHILD_MAX_ITERS")), child=True)
         child.child_kind = kind
         child.parent = self
@@ -1726,7 +1784,7 @@ class Agent:
         #   親は戻した後に会話を頭から読み直していた（2026-11-18・子 1 が 15 万トークンまで育ち、親の 15.8 万を約 7 分読み直した）。
         #   まだ戻していない控えがあれば、それが親の物なので保存し直さない。
         first = False
-        if not self.child:
+        if not self.child and other is None:
             with self._lock:
                 first = not self._slot_park and not self._slot_restore
                 if first:
@@ -1734,17 +1792,36 @@ class Agent:
                 elif self._slot_restore:
                     self._count("slot_park_kept")
         parked = ""
+        retry_same = False
         try:
             if first:
                 from . import slots
                 parked = slots.park(self.llm, self.t.id, self.last_tokens, self._count)
             t_child = time.monotonic()
+            if other is not None:
+                with self._lock:
+                    self._other_llms.append(other)
+                self._count("child_other_engine")
             text = child.run(prompt)
+            if other is not None and child.outcome == "backend_error" and child.iters <= 1 and not child.tool_calls:
+                # 子の推論機が最初の要求から応えなかった（GPU の貸し出しで止まった・落ちた）。何もしていないので、親と同じ推論機でやり直す。
+                childengine.forget(other.base_url)
+                self._count("child_other_engine_fallback")
+                retry_same = True
         finally:
             if first:
                 self._slot_park = ""
                 if parked:
                     self._slot_restore = parked
+            if other is not None:
+                with self._lock:
+                    if other in self._other_llms:
+                        self._other_llms.remove(other)
+                if child.outcome == "backend_error":
+                    childengine.forget(other.base_url)
+                other.close()
+        if retry_same:
+            return self.spawn(prompt, kind, label, _try_other=False)
         for job in ctx.started_jobs:       # 子が背景に起こした仕事を残さない（知らせを受ける相手がいない）
             if ctx.jobs is not None and not job.done.is_set():
                 ctx.jobs.kill(job)
@@ -1758,7 +1835,8 @@ class Agent:
         self.effects += child.effects
         for k, n in child.tool_counts.items():
             self._count(f"child_tool_calls:{k}", n)
-        rec = {"label": label[:80], "kind": kind, "iters": child.iters, "tool_calls": child.tool_calls,
+        rec = {"label": label[:80], "kind": kind, "engine": "other" if other is not None else "same",
+               "iters": child.iters, "tool_calls": child.tool_calls,
                "ctx_max": child.last_tokens, "secs": round(time.monotonic() - t_child, 1), "result_chars": len(text),
                "outcome": child.outcome or "ok", "nudged": child._ctx_nudges, "compactions": child.compactions}
         self.children.append(rec)

@@ -57,7 +57,7 @@ Rules: keep every section. Use terse bullets. Keep exact file paths, commands, e
 UPDATE = """The <prior-summary> covers everything before the <conversation>. Write a new summary that combines both. Carry forward objectives, constraints and decisions; where they conflict, the conversation wins. Move finished work to Completed."""
 
 #: 会話の続きとして要約を頼むときの一言（文字にまとめ直さない＝読み込み済みの分をそのまま使える）。
-CONTINUE_ASK = """[Harness] The context window is nearly full, so this turn is a summary. Do not call any tool and do not continue the work now. Summarize the whole conversation above, including any earlier summary at its start, so that you can continue from the summary alone. The most recent messages will stay available as they are.
+CONTINUE_ASK = """[Harness] The conversation has grown long, so this turn is a summary. Do not call any tool and do not continue the work now. Summarize the whole conversation above, including any earlier summary at its start, so that you can continue from the summary alone. The most recent messages will stay available as they are.
 
 """
 
@@ -71,11 +71,46 @@ def usable(n_ctx: int) -> int:
         at = 0
     if at >= 8192:                     # 窓の手前で要約を始める（読み込みが遅い機械で手前に置くとき）
         return min(at, n_ctx) if n_ctx else at
-    return max(0, n_ctx - RESERVE)
+    # ★小さい窓（子の推論機の 3.2 万など）では空ける量を窓の 4 分の 1 までにする（2026-11-25・2 万を空けると 1.3 万で要約が始まる）。
+    #   8 万以上の窓は今までどおり 2 万。
+    return max(0, n_ctx - min(RESERVE, n_ctx // 4))
 
 
 def overflowing(tokens: int, n_ctx: int) -> bool:
     return bool(n_ctx) and tokens >= usable(n_ctx)
+
+
+#: タスクの境目で要約を始める量（2026-11-25 オーナー「会話が続くとどんどん蓄積されていってしまうので Claude アプリみたいな感じの仕組みに」）。
+#: ★それまでは窓の手前（約 24 万）まで何もせず、道具の出入りと思考がたまり続けていた（開発機 の 190 万字の会話で道具の結果 42%・引数 29%・
+#:   思考 22%・本文 1.4%）。手元の推論機は前を書き換えるとそこから後ろを全部読み直すので、作業の途中ではやらず、新しい依頼を受けた時に
+#:   1 回だけ要約して約 2 万に戻す（続きの形の要約は読み込み済みの分をそのまま使う＝要約を書く時間と残した分の読み直しだけ）。
+EARLY_AT = 100_000
+
+
+def early_at(n_ctx: int) -> int:
+    """境目の要約を始める量。0 は使わない（LAPS_COMPACT_EARLY=0・窓が小さくて非常用の要約より後になる時）。"""
+    raw = os.environ.get("LAPS_COMPACT_EARLY")
+    try:
+        at = int(raw) if raw not in (None, "") else EARLY_AT
+    except ValueError:
+        at = EARLY_AT
+    if at <= 0:
+        return 0
+    at = max(at, 16_000)
+    u = usable(n_ctx) if n_ctx else 0
+    return at if not u or at < u else 0
+
+
+def boundary_due(tokens: int, n_ctx: int, llm) -> bool:
+    """新しい依頼の頭で要約するか。手元の推論機だけ（Claude などは控えの仕組みが違い、窓の手前の要約のまま）。"""
+    at = early_at(n_ctx)
+    return bool(at) and tokens >= at and bool(getattr(llm.info(), "llama", False))
+
+
+def ring_at(n_ctx: int, llm) -> int:
+    """画面の輪の「自動圧縮まで」の分母。境目の要約が効く推論機ならその量、ほかは窓の手前。"""
+    at = early_at(n_ctx) if getattr(llm.info(), "llama", False) else 0
+    return at or usable(n_ctx)
 
 
 def _size(m: dict) -> int:

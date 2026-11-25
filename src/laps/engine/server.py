@@ -179,6 +179,7 @@ def _env_float(name: str) -> float:
 
 class Server:
     def __init__(self, out: Out) -> None:
+        self._rem_note = ""              # 覚え書きが変わったことを、次の依頼で渡す一言（_system が作る）
         self.out = out
         self.jobs = Jobs()
         self.pending: "queue.Queue[Spec | None]" = queue.Queue()
@@ -441,7 +442,20 @@ class Server:
           前置きで始めた会話だけは、そのまま続ける（LAPS_ASK_KEEP_PREFIX=0 で止める）。"""
         if spec.toolset == "plan":             # 計画モードは必ず Agent の前置き（計画の後に Agent で実行するときに読み直さない）
             return True
-        if spec.toolset != "chat" or os.environ.get("LAPS_ASK_KEEP_PREFIX", "1").strip() == "0":
+        if os.environ.get("LAPS_ASK_KEEP_PREFIX", "1").strip() == "0":
+            return False
+        if spec.toolset == "talk":
+            # ★2026-11-25 オーナー「タスクを連続して頼んでもコンテキストの読み直しが発生する」: Agent（Ask・Plan も同じ前置き）で始めた
+            #   会話をチャットに切り替えると、前置きと道具の一覧が 1 文字目から変わって頭から読み直していた。前の前置きのまま走らせる。
+            #   新しい会話・チャットで始めた会話は、軽い前置きのまま（チャットから Agent へ移るときは道具が要るので作り直す）。
+            try:
+                stored = self._key_fields((t.root / "system.key").read_text(encoding="utf-8"))
+            except OSError:
+                return False
+            if not stored or stored[1] not in ("full", "chat", "plan"):
+                return False
+            return True
+        if spec.toolset != "chat":
             return False
         try:
             stored = self._key_fields((t.root / "system.key").read_text(encoding="utf-8"))
@@ -454,11 +468,20 @@ class Server:
         toolset = toolset or spec.toolset
         key, lang = self._system_key(t, spec, toolset)
         kp, sp = t.root / "system.key", t.root / "system.txt"
+        self._rem_note = ""
         # ★アプリの指示（guidance）の違いでは作り直さない（2026-11-14 実機: アプリは追加の行を Agent にだけ足すので、Ask と Agent
         #   を切り替えるたびに鍵が変わり、20 万トークンの会話を頭から読み直していた）。会話の途中で変わるのは、作業のモード・道具の組・
-        #   言語・覚えた事が変わったときだけ。
+        #   言語が変わったときだけ。
+        # ★覚え書き（Remember）が変わっても作り直さない（2026-11-25 オーナー「タスクを連続して頼んでもコンテキストの読み直しが発生する」:
+        #   覚え書きは前置きに入るので、1 行足すと次の依頼で会話を頭から読み直していた。覚え書きは全部の会話で共通なので、ほかの会話も
+        #   次の依頼で読み直していた）。変わったことは、この依頼の直後の一言で渡し（_run が agent.start_notes に足す）、鍵の印だけを今に揃える。
         try:
-            if self._key_fields(kp.read_text(encoding="utf-8")) == self._key_fields(key):
+            stored = self._key_fields(kp.read_text(encoding="utf-8"))
+            now = self._key_fields(key)
+            if stored and now and stored[:3] == now[:3] and sp.exists():
+                if stored[3] != now[3]:
+                    self._rem_note = _prompt.remembered_note()
+                    kp.write_text(key, encoding="utf-8")
                 return sp.read_text(encoding="utf-8")
         except OSError:
             pass
@@ -579,9 +602,13 @@ class Server:
                         max_tool_calls=int(_env_float("LAPS_MAX_TOOL_CALLS")))
         agent = Agent(llm=llm, out=self.out, rid=spec.id, transcript=t, ctx=ctx, tools=tools, system=system, think=spec.think,
                       effort=spec.effort, limits=limits)
-        if keep_prefix:                        # 道具の一覧は Agent のまま見せ、見る道具だけを走らせる
-            agent.ask_allowed = frozenset(base_tools("chat"))
+        if keep_prefix:                        # 道具の一覧は Agent のまま見せ、そのモードの道具だけを走らせる
+            agent.ask_allowed = frozenset(base_tools(spec.toolset if spec.toolset == "talk" else "chat"))
             agent.plan_mode = spec.toolset == "plan"
+            agent.keep_mode = spec.toolset if spec.toolset == "talk" else ""
+        if self._rem_note:                     # 覚え書きが変わった（前置きは作り直さずに、この依頼で渡す）
+            agent.start_notes.append(self._rem_note)
+            self._rem_note = ""
         ctx.spawn = agent.spawn
         ctx.has_message = lambda: bool(agent._inbox)
         if spec.toolset not in HANDS_OFF:   # 会話・計画のモードは作業場に触らない＝記憶も読み書きしない

@@ -161,6 +161,8 @@ class LLM:
         self.base_url = base_url.rstrip("/")
         self.model = model or "default"
         self.api_key = api_key or os.environ.get("LAPS_API_KEY") or "sk-no-key-required"
+        #: 一時的な失敗を待つ秒（None は LAPS_RECONNECT_SECS）。子の推論機は 0（待たずに親の推論機へ移る・engine/childengine.py）。
+        self.patience: float | None = None
         self._client = httpx.Client(trust_env=_trust_env(), timeout=httpx.Timeout(
             connect=15, read=_env_float("LAPS_READ_TIMEOUT", 600.0), write=60, pool=15))
         self._info: Info | None = None
@@ -318,7 +320,7 @@ class LLM:
                on_retry: Callable[[int, str, float], None] | None = None, leak_ja: bool = False) -> Turn:
         """1 回の生成。一時的な失敗は間を置いて再試行する（推論機の再起動を待てるよう LAPS_RECONNECT_SECS 秒まで）。"""
         attempt = 0
-        patience = _env_float("LAPS_RECONNECT_SECS", 90.0)
+        patience = self.patience if self.patience is not None else _env_float("LAPS_RECONNECT_SECS", 90.0)
         t_first = 0.0
         while True:
             try:

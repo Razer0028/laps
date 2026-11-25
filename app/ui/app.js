@@ -550,6 +550,7 @@ function setDrawerTab(tab) {
   $$(".drawer__tab").forEach((b) => {
     const on = b.dataset.tab === drawer.tab;
     b.classList.toggle("is-active", on); b.setAttribute("aria-selected", String(on));
+    if (on && drawer.open) b.scrollIntoView?.({ block: "nearest", inline: "nearest" });   // 狭いパネルでもいま選んだタブを見せる
   });
   for (const [k, [id]] of Object.entries(DRAWER_TABS)) { const el = $("#" + id); if (el) el.hidden = k !== drawer.tab; }
   const label = DRAWER_TABS[drawer.tab][1];
@@ -621,11 +622,7 @@ function addUser(text, record = true, saved = null) {
   if (att.files.length) {
     const box = document.createElement("div");
     box.className = "bubble__att";
-    att.files.forEach((f) => {
-      const c = document.createElement("span");
-      c.className = "bubble__file"; c.textContent = f.name; c.title = f.line;
-      box.appendChild(c);
-    });
+    attachThumbs(box, att.files, (state.cur && typeof convoWs === "function" ? convoWs(state.cur) : "") || wsPath());
     el.querySelector(".bubble").appendChild(box);
   }
   el.__text = text;
@@ -642,9 +639,85 @@ function splitAttachNote(text) {
   const files = m[1].split("\n").filter((l) => l.startsWith("- ")).map((l) => {
     const line = l.slice(2).trim();
     const path = line.replace(/（[^（）]*）$/, "");
-    return { line, name: path.split(/[\\/]/).pop() || path };
+    return { line, path, name: path.split(/[\\/]/).pop() || path };
   });
   return { body: text.slice(0, m.index).replace(/\s+$/, ""), files };
+}
+/* 添付の画像を小さく見せる（2026-11-25 オーナー「添付した画像は今こんな感じでファイル名で見えているので画像として小さく表示して
+ *   プレビューとかできるようにしておいて」）。読むのは Rust の file_preview（作業フォルダかホームの中・25MB まで・秘密らしい名前は
+ *   読まない）＝画面から勝手な場所は読めない。読めなければ今までどおり名前の札。押すと窓いっぱい（openLightbox）。 */
+const ATT_IMG = /\.(png|jpe?g|gif|webp|bmp)$/i;
+/* 元の画像（data URL）。窓いっぱいで見る時だけ読む・覚えるのは最近の数枚（大きい画像を会話の数だけ抱えない）。 */
+const attFullCache = new Map();
+function attFull(path, ws) {
+  const key = `${ws || ""}\u0000${path}`;
+  if (attFullCache.has(key)) return attFullCache.get(key);
+  const p = (TAURI && path ? invoke("file_preview", { path, workspace: ws || "" }) : Promise.reject(new Error("no app")))
+    .then((pv) => (pv?.kind === "image" && pv.data ? `data:${pv.mime || "image/png"};base64,${pv.data}` : Promise.reject(new Error("not an image"))));
+  p.catch(() => attFullCache.delete(key));
+  while (attFullCache.size >= 4) attFullCache.delete(attFullCache.keys().next().value);
+  attFullCache.set(key, p);
+  return p;
+}
+/* 小さな絵（長い辺 192px の JPEG）に縮める。縮められなければ元のまま。 */
+function shrinkPic(url, side = 192) {
+  return new Promise((ok) => {
+    const im = new Image();
+    im.onload = () => {
+      try {
+        const w = im.naturalWidth || side, h = im.naturalHeight || side, k = Math.min(1, side / Math.max(w, h));
+        if (k >= 1) { ok(url); return; }
+        const cv = document.createElement("canvas");
+        cv.width = Math.max(1, Math.round(w * k)); cv.height = Math.max(1, Math.round(h * k));
+        cv.getContext("2d").drawImage(im, 0, 0, cv.width, cv.height);
+        ok(cv.toDataURL("image/jpeg", 0.85));
+      } catch { ok(url); }
+    };
+    im.onerror = () => ok(url);
+    im.src = url;
+  });
+}
+const attThumbCache = new Map();
+function attThumbData(path, ws) {
+  const key = `${ws || ""}\u0000${path}`;
+  if (attThumbCache.has(key)) return attThumbCache.get(key);
+  const p = attFull(path, ws).then((u) => shrinkPic(u));
+  p.catch(() => attThumbCache.delete(key));
+  if (attThumbCache.size > 300) attThumbCache.delete(attThumbCache.keys().next().value);
+  attThumbCache.set(key, p);
+  return p;
+}
+/* files=[{name, path, line?, url?}] を host に並べる。画像は小さな絵（押すと大きく）、ほかと読めなかった物は名前の札。 */
+function attachThumbs(host, files, ws, cls = "bubble__file") {
+  const chip = (f) => {
+    const c = document.createElement("span");
+    c.className = cls; c.textContent = f.name; c.title = f.line || f.path || f.name;
+    return c;
+  };
+  const pics = [];
+  files.forEach((f) => {
+    if (!ATT_IMG.test(f.name || f.path || "")) { host.appendChild(chip(f)); return; }
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "att-thumb"; b.title = `${f.name}（押すと大きく）`;
+    b.setAttribute("aria-label", `${f.name} を大きく見る`);
+    const im = document.createElement("img"); im.alt = f.name; im.decoding = "async";
+    b.appendChild(im);
+    const it = { path: f.path || f.name, caption: f.name, ok: false };
+    pics.push(it);
+    const show = (url) => { it.ok = true; im.src = url; };
+    (f.url ? shrinkPic(f.url) : attThumbData(f.path, ws)).then(show).catch(() => { pics.splice(pics.indexOf(it), 1); b.replaceWith(chip(f)); });
+    b.addEventListener("click", async (ev) => {
+      ev.stopPropagation();
+      if (!it.ok) return;
+      // 窓いっぱいで見る時に元の画像を読む（小さな絵は縮めた物）
+      const ready = pics.filter((x) => x.ok);
+      const full = await Promise.all(ready.map((x) => (f.url && x === it ? Promise.resolve(f.url) : attFull(x.path, ws)).catch(() => "")));
+      const list = ready.map((x, k) => ({ path: x.path, caption: x.caption, url: full[k] })).filter((x) => x.url);
+      const at = list.findIndex((x) => x.path === it.path);
+      if (at >= 0) openLightbox(list, at, b);
+    });
+    host.appendChild(b);
+  });
 }
 function rewindWhen(ms) {
   const d = new Date(ms);
@@ -1161,13 +1234,152 @@ function mdImage(alt, src) {
   const img = document.createElement("img");
   img.alt = alt || ""; img.title = alt ? `${alt}（押すと大きく）` : "押すと大きく";
   img.dataset.path = src;
-  img.addEventListener("click", () => fig.classList.toggle("is-big"));
+  img.addEventListener("click", () => {
+    openLightbox([{ path: src, caption: alt || "" }], 0, img);       // 窓いっぱいで見る（2026-11-25・答えの下の画像と同じ見方）
+  });
   fig.appendChild(img);
   if (alt) { const c = document.createElement("span"); c.className = "md-img__cap"; c.textContent = alt; fig.appendChild(c); }
   const hit = shotCache.get(src);
   if (hit) img.src = hit;
   else invoke("shot_data", { path: src }).then((url) => { shotCache.set(src, url); img.src = url; }).catch(fallback);
   return fig;
+}
+
+/* ── 見せた画像（2026-11-25 オーナー「エージェントがチャット欄に画像を提示してくれる機能…今はなんかちっちゃく画像を
+ *   作業の途中に表示しているだけ」）──
+ * 道具が「利用者に見せる」と名乗った画像（summary.show・Image の道具と画像の生成）を、答えの下に大きく並べる。モデルが本文に
+ * ![]() を書かなくても出る（書いた物は本文の中に出るので、ここでは重ねない）。作業の途中に撮った写真（Browser・Desktop の
+ * look）は見本のまま（見せる物ではない）。押すと窓いっぱい（← → で前後・Esc で閉じる・保存）。読めるのは shots/ の中だけ（shot_data）。 */
+function shownList(records, text) {
+  const key = (v) => String(v || "").replace(/\\/g, "/").replace(/^file:\/+/i, "").toLowerCase();   // 区切りと大小の揺れを畳む
+  const inText = new Set([...String(text || "").matchAll(/!\[[^\]]*\]\(<?([^)>\s]+)>?\)/g)].map((m) => key(m[1])));
+  const seen = new Set(), out = [];
+  for (const e of records || []) {
+    const sm = e && e.summary && typeof e.summary === "object" ? e.summary : null;
+    if (!sm || e.ok === false) continue;
+    let list = Array.isArray(sm.show) ? sm.show : [];
+    // 0.1.712〜0.1.734 の記録: Image の道具は見本（shot）だけを持っていた。見せるための道具なので見せる。
+    const isImage = e.name === "Image" || (e.name === "Tools" && e.args && e.args.name === "Image");
+    if (!list.length && isImage && typeof sm.shot === "string" && sm.shot) list = [{ path: sm.shot, caption: "" }];
+    for (const it of list) {
+      const path = typeof it === "string" ? it : String((it && it.path) || "");
+      if (!path || seen.has(key(path)) || inText.has(key(path))) continue;
+      seen.add(key(path));
+      out.push({ path, caption: typeof it === "string" ? "" : String((it && it.caption) || "") });
+    }
+  }
+  return out;
+}
+const SHOWN_MAX = 12;
+function shownGallery(records, text) {
+  if (!TAURI) return null;                 // ウェブ版は shots/ を読めない
+  const list = shownList(records, text);
+  if (!list.length) return null;
+  const g = document.createElement("div");
+  g.className = "shown " + (list.length === 1 ? "shown--1" : list.length === 2 ? "shown--2" : "shown--n");
+  g.setAttribute("role", "group");
+  g.setAttribute("aria-label", `画像 ${list.length} 枚`);
+  list.slice(0, SHOWN_MAX).forEach((it, i) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "shown__item";
+    b.title = (it.caption ? it.caption + "（" : "") + "押すと大きく" + (it.caption ? "）" : "");
+    b.setAttribute("aria-label", it.caption ? `画像 ${it.caption} を大きく見る` : `画像 ${i + 1} を大きく見る`);
+    const img = document.createElement("img");
+    img.alt = it.caption || "";
+    img.decoding = "async";
+    img.dataset.path = it.path;
+    loadShot(img, it.path, () => { b.classList.add("is-missing"); b.disabled = true; b.title = "この画像は読めません（会話のフォルダから消えた・移した）"; });
+    b.appendChild(img);
+    if (it.caption) { const c = document.createElement("span"); c.className = "shown__cap"; c.textContent = it.caption; b.appendChild(c); }
+    b.addEventListener("click", () => {
+      openLightbox(list, i, b);
+    });
+    g.appendChild(b);
+  });
+  if (list.length > SHOWN_MAX) {
+    const more = document.createElement("button");
+    more.type = "button"; more.className = "shown__item shown__more";
+    more.textContent = `ほか ${list.length - SHOWN_MAX} 枚`;
+    more.addEventListener("click", () => openLightbox(list, SHOWN_MAX, more));
+    g.appendChild(more);
+  }
+  return g;
+}
+/* 窓いっぱいで見る（1 つだけ・開くたびに中身を入れ替える）。閉じたら押した所へ焦点を戻す。 */
+const lbox = { el: null, list: [], i: 0, from: null };
+function openLightbox(list, i, from) {
+  if (!lbox.el) {
+    const el = document.createElement("div");
+    el.className = "lbox";
+    el.setAttribute("role", "dialog");
+    el.setAttribute("aria-modal", "true");
+    el.setAttribute("aria-label", "画像");
+    el.hidden = true;
+    el.innerHTML = '<div class="lbox__bar"><button class="lbox__btn" type="button" data-k="prev" aria-label="前の画像">←</button>'
+      + '<span class="lbox__n num"></span><button class="lbox__btn" type="button" data-k="next" aria-label="次の画像">→</button>'
+      + '<span class="lbox__cap"></span><button class="lbox__btn" type="button" data-k="save">保存</button>'
+      + '<button class="lbox__btn" type="button" data-k="close" aria-label="閉じる">×</button></div><img class="lbox__img" alt="">';
+    el.addEventListener("click", (ev) => {
+      const k = ev.target.closest?.("[data-k]")?.dataset.k;
+      if (k === "prev") stepLightbox(-1);
+      else if (k === "next") stepLightbox(1);
+      else if (k === "save") saveLightbox();
+      else if (k === "close" || ev.target === el) closeLightbox();
+    });
+    el.addEventListener("keydown", (ev) => {
+      if (ev.key === "Tab") {              // 焦点を窓の中に閉じ込める（後ろの会話へ抜けない）
+        const bs = [...el.querySelectorAll(".lbox__btn")].filter((b) => !b.hidden);
+        const i = bs.indexOf(document.activeElement);
+        ev.preventDefault();
+        bs[(i + (ev.shiftKey ? -1 : 1) + bs.length) % bs.length]?.focus();
+        return;
+      }
+      if (ev.key === "Escape") { ev.preventDefault(); closeLightbox(); }
+      else if (ev.key === "ArrowLeft") { ev.preventDefault(); stepLightbox(-1); }
+      else if (ev.key === "ArrowRight") { ev.preventDefault(); stepLightbox(1); }
+    });
+    document.body.appendChild(el);
+    lbox.el = el;
+  }
+  lbox.list = list; lbox.i = Math.max(0, Math.min(list.length - 1, i)); lbox.from = from || document.activeElement;
+  lbox.el.hidden = false;
+  paintLightbox();
+  lbox.el.querySelector('[data-k="close"]').focus();
+}
+function paintLightbox() {
+  const it = lbox.list[lbox.i];
+  if (!it) return;
+  const img = lbox.el.querySelector(".lbox__img");
+  img.alt = it.caption || "";
+  img.dataset.path = it.path;
+  img.removeAttribute("src");
+  img.hidden = false;
+  if (it.url) img.src = it.url;          // 添付の画像（file_preview で読んだ物・2026-11-25）
+  else loadShot(img, it.path);
+  lbox.el.querySelector(".lbox__n").textContent = lbox.list.length > 1 ? `${lbox.i + 1} / ${lbox.list.length}` : "";
+  lbox.el.querySelector(".lbox__cap").textContent = it.caption || "";
+  for (const k of ["prev", "next"]) lbox.el.querySelector(`[data-k="${k}"]`).hidden = lbox.list.length < 2;
+}
+function stepLightbox(d) {
+  if (lbox.list.length < 2) return;
+  lbox.i = (lbox.i + d + lbox.list.length) % lbox.list.length;
+  paintLightbox();
+}
+function closeLightbox() {
+  if (!lbox.el || lbox.el.hidden) return;
+  lbox.el.hidden = true;
+  lbox.el.querySelector(".lbox__img").removeAttribute("src");
+  if (lbox.from && lbox.from.isConnected) lbox.from.focus();
+}
+function saveLightbox() {
+  const it = lbox.list[lbox.i];
+  const url = it && (it.url || shotCache.get(it.path));
+  if (!url) return;
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = String(it.path || it.caption || "").split(/[\\/]/).pop() || "image.png";
+  document.body.appendChild(a); a.click(); a.remove();
 }
 
 function inline(host, text) {
@@ -1773,6 +1985,12 @@ function beginLive(opts = {}) {
         pending.delete(key);
       }
       paintTool(slot.node, e);
+      // ★見せる画像が届いたら、走行の途中でもすぐ大きく出す（終わったら finish が本文の後ろへ並べ直す・2026-11-25）。
+      if (live && !restoring && e.done && e.summary && Array.isArray(e.summary.show) && e.summary.show.length) {
+        const g = shownGallery(records, "");
+        const old = el.querySelector(":scope > .shown");
+        if (g) { if (old) old.replaceWith(g); else insert(g); }
+      }
       // 予定の更新の中身は帯が見せる（開いた中に JSON を出さない）。失敗したときだけ出す。
       if (String(e.name || "") === "TodoWrite") { showPlan(planTodos(e)); slot.node.hidden = !toolIsBad(e); }
       if (e.done) noteErr(slot.turn, e);
@@ -1869,6 +2087,9 @@ function beginLive(opts = {}) {
     injected(text, force = false) {
       const t = String(text || "").trim();
       if (!t) return;
+      // ★添付の案内（「[添付ファイル — …]」と一覧）はモデルへの指示＝行には出さず、添付は小さな絵にする（2026-11-25 オーナー
+      //   「という文言は裏で流して表面上では見えないようにしてほしい」）。送る文と記録（parts）は変えない。
+      const att = splitAttachNote(t);
       // 動いている「Thinking」の行の手前に置く（話しかけた位置に固定する）。線の区間も切る＝開き直しで同じ順に出す。
       const idle = cur && !cur.entries.length && !cur.thought.trim();
       if (idle) { dropTurn(cur); cur = null; }
@@ -1877,9 +2098,16 @@ function beginLive(opts = {}) {
       const y = addTurn("you");
       // ★送った直後は「queued」（まだモデルに渡っていない）。本体が読んだら「read」（2026-11-15 UI/UX 計画 B2）。
       //   開き直しの行は、渡ったかを記録していないので今までどおりの札。
-      y.say = t; y.v = "You"; y.res = restoring ? (force ? "interrupted" : "interjected") : (force ? "interrupting" : "queued");
+      y.say = att.body || (att.files.length ? `添付 ${att.files.length} 件` : t); y.full = t;
+      y.v = "You"; y.res = restoring ? (force ? "interrupted" : "interjected") : (force ? "interrupting" : "queued");
       if (!restoring) youTurns.push(y);
       paintRailTurn(y);
+      if (att.files.length) {
+        const box = document.createElement("div");
+        box.className = "turn__att";
+        attachThumbs(box, att.files, wsPath());
+        y.btn.after(box);
+      }
       wf.closed = true;
       parts.push({ t: "inject", text: t });
       if (idle && !restoring && !halted) addTurn();
@@ -1890,7 +2118,7 @@ function beginLive(opts = {}) {
     /* 差し込みを本体へ送れなかった（2026-11-16 全体のレビュー: queued のまま終わり、後で interjected と出ていた）。 */
     injectFailed(m) {
       const head = String(m || "").trim().slice(0, 400);
-      const y = youTurns.find((x) => (x.res === "queued" || x.res === "interrupting") && String(x.say || "").trim().slice(0, 400) === head);
+      const y = youTurns.find((x) => (x.res === "queued" || x.res === "interrupting") && String(x.full || x.say || "").trim().slice(0, 400) === head);
       if (!y) return false;
       y.res = "not sent"; y.resBad = true;
       paintRailTurn(y);
@@ -1900,7 +2128,7 @@ function beginLive(opts = {}) {
     /* 本体が差し込みを読んだ（「受け取りました: 〇〇」）。まだ queued の同じ文の行を read に。当たれば true。 */
     injectTaken(m) {
       const head = String(m || "").trim().slice(0, 400);
-      const y = youTurns.find((x) => (x.res === "queued" || x.res === "interrupting") && String(x.say || "").trim().slice(0, 400) === head);
+      const y = youTurns.find((x) => (x.res === "queued" || x.res === "interrupting") && String(x.full || x.say || "").trim().slice(0, 400) === head);
       if (!y) return false;
       y.res = "read";
       paintRailTurn(y);
@@ -2226,6 +2454,15 @@ function beginLive(opts = {}) {
       //   「モデルがそう答えた」と読む**（エラー文をモデルの主張として受け取る）。
       //   印は1つだけ（クラス）。色や装飾は styles.css 側の責務にする。
       if (extra && extra.failed) el.classList.add("is-error");
+      // ★見せた画像を答えの下に大きく（2026-11-25）。本文の直後・Files の札の前（走行の途中に出した物は、ここで置き直す）。
+      el.querySelector(":scope > .shown")?.remove();
+      {
+        const g = shownGallery(records, text);
+        if (g) {
+          const at = el.querySelector(":scope > .made") || (meter.isConnected ? meter : null);
+          if (at) el.insertBefore(g, at); else el.appendChild(g);
+        }
+      }
       if (extra && extra.plan && !extra.failed && !el.querySelector(":scope > .msg__plan")) el.appendChild(planBar());
       if (!el.querySelector(":scope > .msg__acts")) el.appendChild(msgActs(extra && extra.failed ? "" : String(text || ""), false));
       paintLastAnswer(el.closest(".thread"));
@@ -2733,7 +2970,7 @@ function stepPhrase(name, args) {
 /* 撮った写真の見本（summary.shot・本体が会話のフォルダの shots/ に置いた物）を行に小さく出す。読むのは Rust の shot_data だけ
  * （アプリの根の下の shots/ しか読まない）。押すと行の幅いっぱいに広げ、もう一度で戻す。ウェブ版には無い（paintTool は有無を見る）。 */
 const shotCache = new Map();
-function loadShot(img, path) {
+function loadShot(img, path, onFail) {
   if (!TAURI || !path) return;
   const hit = shotCache.get(path);
   if (hit) { img.src = hit; return; }
@@ -2741,7 +2978,7 @@ function loadShot(img, path) {
     if (shotCache.size > 200) shotCache.delete(shotCache.keys().next().value);
     shotCache.set(path, url);
     if (img.dataset.path === path) img.src = url;
-  }).catch(() => { img.hidden = true; });
+  }).catch(() => { img.hidden = true; if (typeof onFail === "function") onFail(); });
 }
 
 function toolNode() {
@@ -3517,11 +3754,22 @@ function renderAttach() {
   box.innerHTML = "";
   state.attach.forEach((a, i) => {
     const c = document.createElement("span");
-    c.className = "att__chip";
+    const pic = ATT_IMG.test(a.name || "");
+    c.className = "att__chip" + (pic ? " att__chip--pic" : "");
     c.title = a.saved?.rel || a.src || a.name;
-    c.innerHTML = `<span class="att__name">${esc(a.name)}</span>`
+    c.innerHTML = (pic ? `<button class="att__pic" type="button" aria-label="${esc(a.name)} を大きく見る"><img alt=""></button>` : "")
+      + `<span class="att__name">${esc(a.name)}</span>`
       + (a.size != null ? `<span class="att__size num">${fmtSize(a.size)}</span>` : "")
       + '<button class="att__x" type="button" aria-label="外す">×</button>';
+    if (pic) {                                    // 2026-11-25 オーナー「画像として小さく表示してプレビューとかできるように」
+      const btn = c.querySelector(".att__pic"), im = btn.querySelector("img");
+      const src = a.small ? Promise.resolve(a.small) : a.thumb ? shrinkPic(a.thumb) : attThumbData(a.saved?.path || a.src, wsPath());
+      src.then((u) => { a.small = u; im.src = u; }).catch(() => { btn.remove(); c.classList.remove("att__chip--pic"); });
+      btn.addEventListener("click", async () => {
+        const url = a.thumb || await attFull(a.saved?.path || a.src, wsPath()).catch(() => "");
+        if (url) openLightbox([{ path: a.saved?.path || a.src, caption: a.name, url }], 0, btn);
+      });
+    }
     c.querySelector(".att__x").addEventListener("click", () => {
       state.attach.splice(i, 1); state.attachErr = ""; renderAttach(); if (state.busy) setSending(true);
     });
@@ -3567,7 +3815,11 @@ ta?.addEventListener("paste", (e) => {
     const name = f.name && f.name !== "image.png" ? f.name : `pasted-${new Date().toISOString().replace(/[-:]/g, "").slice(0, 15)}.${ext}`;
     const r = new FileReader();
     r.onload = () => invoke("attach_bytes", { workspace: wsPath(), name, data: String(r.result || "") })
-      .then((a) => { state.attach.push({ src: a.path, name: a.name, size: a.size, saved: a }); renderAttach(); if (state.busy) setSending(true); })
+      .then((a) => {
+        const url = String(r.result || "");
+        state.attach.push({ src: a.path, name: a.name, size: a.size, saved: a, thumb: url.startsWith("data:image/") ? url : "" });
+        renderAttach(); if (state.busy) setSending(true);
+      })
       .catch((err) => { state.attachErr = String(err?.message || err); renderAttach(); });
     r.readAsDataURL(f);
   }

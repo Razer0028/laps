@@ -27,8 +27,8 @@ EXTS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp"}
 _MAGIC = ((b"\x89PNG\r\n\x1a\n", ".png"), (b"\xff\xd8\xff", ".jpg"), (b"GIF87a", ".gif"), (b"GIF89a", ".gif"), (b"BM", ".bmp"))
 
 DESC = ("Show an image to the user in the app: a local file (path) or an image on the web (url). The picture is copied into "
-        "this conversation and appears in the chat; the user can click it to enlarge. To show it again inside your answer, "
-        "write ![caption](<the saved path>) on its own line.\n"
+        "this conversation and appears large under your answer (the user can open it full size). Call it once per picture you "
+        "want the user to see (a chart you made, a found photo, a result to check); you do not need to paste it again.\n"
         "- {\"path\":\"C:/work/chart.png\"}  - {\"url\":\"https://example.com/photo.jpg\",\"caption\":\"...\"}\n"
         "Only png, jpg, gif, webp and bmp (not svg). Find web images first (WebSearch / WebFetch / Browser), then pass the "
         "image's own URL (the file, not the page).")
@@ -136,13 +136,15 @@ def show(inp: dict, ctx: Ctx) -> Result:
     d.mkdir(parents=True, exist_ok=True)
     dst = d / f"img-{uuid.uuid4().hex[:12]}{ext}"
     dst.write_bytes(data)
-    lines = [f"Shown to the user in the chat: {src}", f"Saved copy: {dst}"]
+    lines = [f"Shown to the user: it appears large under your answer when you finish. Source: {src}", f"Saved copy: {dst}"]
     if note:
         lines.append(f"({note})")
-    lines.append(f"To show it again inside your answer, put this on its own line: ![{caption or 'image'}]({dst})")
+    lines.append("Do not paste it again with ![...](...) unless it must sit at a specific place in the text "
+                 f"(then: ![{caption or 'image'}]({dst}) on its own line).")
     head = caption or (os.path.basename(urllib.parse.urlsplit(url).path) if url else os.path.basename(path)) or "image"
     return Result("\n".join(lines), head=head[:120], tail=f"{len(data) // 1024} KB", effect=False, shot=str(dst),
-                  images=[str(dst)] if getattr(ctx, "vision", False) else [])
+                  images=[str(dst)] if getattr(ctx, "vision", False) else [],
+                  show=[{"path": str(dst), "caption": caption}])
 
 
 # ── チャットモード（talk）の Image（2026-11-24）────────────────────────────────────────────────

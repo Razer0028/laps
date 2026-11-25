@@ -187,6 +187,16 @@ def remembered_key() -> str:
     return hashlib.sha1("\n".join(notes).encode("utf-8")).hexdigest()[:12] if notes else ""
 
 
+def remembered_note() -> str:
+    """覚え書きが変わったことを、前置きを作り直さずに会話の中で渡す一言（2026-11-25・server._system）。"""
+    notes = _remembered()
+    if not notes:
+        return ("[Harness] The user's remembered notes changed: there are none now. Notes remembered earlier in this "
+                "conversation no longer apply.")
+    return ("[Harness] The user's remembered notes changed since this conversation started. From now on keep these in every "
+            "reply (this list replaces the earlier one):\n" + "\n".join(f"- {x}" for x in notes))
+
+
 def _host_facts() -> list[str]:
     """変わらない機械の事実（OS・インタプリタ・置き場の道具・SSH の別名）。探りが失敗しても前置きは作る。"""
     try:

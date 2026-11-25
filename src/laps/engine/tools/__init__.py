@@ -30,6 +30,10 @@ class Result:
     effect: bool | None = None     # 世界を変えたか（None は道具の既定）
     images: list[str] = field(default_factory=list)   # 添える画像のパス（見られるモデルにだけ渡す）
     shot: str = ""                 # 画面の行に出す写真（会話のフォルダの shots/）
+    # 利用者に「見せる」画像（2026-11-25 オーナー「エージェントがチャット欄に画像を提示してくれる機能…ちっちゃく画像を作業の途中に
+    #   表示しているだけ」）。画面はこの回答の終わりに、答えの下へ大きく並べる（モデルが ![]() を書かなくても出る）。
+    #   [{"path": shots/ の中, "caption": 一言}]。作業の途中に撮った写真（Browser・Desktop の look）は入れない＝見本の shot だけ。
+    show: list[dict] = field(default_factory=list)
 
 
 def fail(message: str, kind: str = "error", head: str = "") -> Result:

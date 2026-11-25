@@ -65,9 +65,14 @@ def test_a_slot_used_by_someone_else_is_not_saved_under_our_name(tmp_path, monke
     llm = FakeSlotLLM(held=120_000)
     seen, count = _count()
     slots.end(llm, "A")
+    slots._wait_saving(10)                       # ★2026-11-25〜 終わりの保存（A の本物の中身・使われる前）は正しい保存。それを待ってから数える
+    for t in __import__("threading").enumerate():
+        if t.name == "bw-slot-save":
+            t.join(10)
+    llm.calls.clear()
     llm.held = 90_000                            # 別の機械が席を使った
     slots.begin(llm, "B", count)
-    assert not any(a == "save" for a, _ in llm.calls)
+    assert not any(a == "save" for a, _ in llm.calls), "相手の中身を A の名前で保存しない"
 
 
 def test_a_file_that_cannot_be_restored_is_forgotten(tmp_path, monkeypatch):

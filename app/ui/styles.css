@@ -720,10 +720,38 @@ body.is-resizing iframe{ pointer-events:none; }      /* つまんでいる間に
 
 /* 本文の画像（`![説明](パス)`・2026-11-20 道具 Image）。ふだんは高さを抑え、押すと幅いっぱい。 */
 .md-img{ display:inline-flex; flex-direction:column; gap:4px; max-width:100%; margin:6px 0; vertical-align:top; }
-.md-img img{ display:block; max-width:100%; max-height:320px; object-fit:contain; border-radius:8px;
+.md-img img{ display:block; max-width:100%; max-height:480px; object-fit:contain; border-radius:8px;
   border:1px solid var(--line-2); cursor:zoom-in; }
-.md-img.is-big{ display:flex; width:100%; }
-.md-img.is-big img{ max-height:80vh; cursor:zoom-out; }
+
+/* ── 見せた画像（2026-11-25・答えの下に大きく）。1 枚は大きく、2 枚は 2 列、3 枚以上は幅に合わせて並べる。 ── */
+.shown{ display:grid; gap:8px; margin:12px 0 6px; }
+.shown--1{ grid-template-columns:minmax(0, 640px); }
+.shown--2{ grid-template-columns:repeat(2, minmax(0, 1fr)); max-width:800px; }
+.shown--n{ grid-template-columns:repeat(auto-fill, minmax(180px, 1fr)); max-width:900px; }
+.shown__item{ position:relative; display:block; min-width:0; padding:0; border:1px solid var(--line-2); border-radius:8px;
+  overflow:hidden; background:var(--bg-3); color:var(--text); cursor:zoom-in; }
+.shown__item:hover{ border-color:var(--line-3); }
+.shown__item:focus-visible{ outline:2px solid var(--line-focus); outline-offset:2px; }
+.shown__item img{ display:block; width:100%; aspect-ratio:1; object-fit:cover; background:var(--bg-4); }
+.shown--1 .shown__item img{ aspect-ratio:auto; height:auto; max-height:560px; object-fit:contain; }
+.shown__cap{ position:absolute; left:6px; bottom:6px; max-width:calc(100% - 12px); padding:2px 6px; border-radius:4px;
+  background:rgba(0,0,0,.62); color:#fff; font:400 11px/1.4 var(--f-body); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.shown__item.is-missing{ min-height:80px; cursor:default; }
+.shown__item.is-missing::after{ content:"読めない画像"; position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+  font-size:12px; color:var(--text-2); }
+.shown__more{ display:flex; align-items:center; justify-content:center; min-height:120px; font-size:13px; color:var(--text-2); }
+/* 窓いっぱいで見る（.lbox・1 つだけ） */
+.lbox{ position:fixed; inset:0; z-index:1000; display:flex; flex-direction:column; background:rgba(0,0,0,.88); }
+.lbox[hidden]{ display:none; }
+.lbox__bar{ display:flex; align-items:center; gap:8px; padding:10px 14px; color:#fff; }
+.lbox__n{ font-size:12px; color:rgba(255,255,255,.8); min-width:40px; text-align:center; }
+.lbox__cap{ flex:1 1 auto; min-width:0; font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.lbox__btn{ min-width:32px; height:32px; padding:0 12px; border:1px solid rgba(255,255,255,.28); border-radius:6px;
+  background:rgba(255,255,255,.08); color:#fff; font:400 13px/1 var(--f-body); cursor:pointer; }
+.lbox__btn[hidden]{ display:none; }
+.lbox__btn:hover{ background:rgba(255,255,255,.16); }
+.lbox__btn:focus-visible{ outline:2px solid #fff; outline-offset:1px; }
+.lbox__img{ flex:1 1 auto; min-height:0; width:100%; object-fit:contain; padding:0 16px 16px; }
 .md-img__cap{ font-size:12px; color:var(--text-2); }
 .md-img__alt{ font-size:13px; color:var(--text-2); }
 
@@ -1604,6 +1632,17 @@ body.is-resizing iframe{ pointer-events:none; }      /* つまんでいる間に
 .att__x{ flex:none; border:0; background:none; color:var(--text-3); cursor:pointer; padding:0 4px; font-size:14px; line-height:1; }
 .att__x:hover{ color:var(--text); }
 .att__err{ width:100%; font-size:12px; color:var(--red-text); }
+/* 添付の画像は小さな絵（2026-11-25 オーナー「画像として小さく表示してプレビューとかできるように」）。押すと窓いっぱい。 */
+.att__chip--pic{ padding-left:3px; }
+.att__pic{ flex:none; display:block; padding:0; border:0; border-radius:2px; background:var(--bg-2); cursor:zoom-in; overflow:hidden; }
+.att__pic img{ display:block; width:40px; height:40px; object-fit:cover; }
+.att__pic:focus-visible{ outline:2px solid var(--red); outline-offset:1px; }
+.att-thumb{ display:block; flex:none; padding:0; border:1px solid var(--line-2); border-radius:var(--r); background:var(--bg-2); cursor:zoom-in; overflow:hidden; }
+.att-thumb img{ display:block; width:96px; height:96px; object-fit:cover; }
+.att-thumb:hover{ border-color:var(--text-3); }
+.att-thumb:focus-visible{ outline:2px solid var(--red); outline-offset:2px; }
+.turn__att{ display:flex; flex-wrap:wrap; align-items:flex-start; gap:6px; padding:2px 0 6px; }
+.turn__att .att-thumb img{ width:72px; height:72px; }
 .composer.is-drop .composer__box{ border-color:var(--red); box-shadow:inset 0 0 0 1px var(--red); }
 
 /* ── 音声入力（2026-10-09 オーナー「音声入力の仕組みも欲しい」）──
@@ -1996,7 +2035,7 @@ html.is-linux .where-seg [data-where="local"], html.is-linux #local-prep, html.i
 .tolatest.is-live::after{ content:""; width:6px; height:6px; border-radius:50%; background:var(--red); }
 /* ④ 作った物: この回答で書いた・変えたファイルの札（押すと横の窓で開く）。名前はコードなので等幅。 */
 .made{ display:flex; flex-wrap:wrap; align-items:center; gap:var(--s1); margin-top:var(--s3); }
-.bubble__att{ display:flex; flex-wrap:wrap; gap:4px; margin-top:6px; }   /* 発言の添付（2026-11-21・旧: 案内の文が吹き出しに出ていた） */
+.bubble__att{ display:flex; flex-wrap:wrap; align-items:flex-start; gap:4px; margin-top:6px; }   /* 発言の添付（2026-11-21・旧: 案内の文が吹き出しに出ていた） */
 .bubble__file{ font-size:12px; padding:1px 8px; border-radius:var(--r); background:var(--bg-2); color:var(--text-2); max-width:16rem;
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .made__h{ margin-right:var(--s1); font-size:12px; color:var(--text-3); }
@@ -2783,6 +2822,11 @@ body[data-view] .convo__more{ border-radius:4px; }
   font:400 12.5px/1 var(--f-body); }
 .drawer__tab:hover{ color:var(--text); background:transparent; }
 .drawer__tab.is-active{ background:transparent; color:var(--text); box-shadow:inset 0 -2px 0 var(--text); }
+/* 狭いサイドパネルでもタブと閉じる × が押し出されないよう、タブの列だけを縮めて横に送れるようにする（線は出さない・2026-11-25）。 */
+.drawer__tabs{ flex:1 1 auto; min-width:0; overflow-x:auto; scrollbar-width:none; }
+.drawer__tabs::-webkit-scrollbar{ display:none; }
+.drawer__tab{ padding:0 8px; }
+.drawer__head > .ghost, .drawer__head > .drawer__pop{ flex:none; }
 .drawer__pop, .drawer__close{ width:28px; height:28px; border-radius:4px; }
 #files.drawer__body{ padding:0 4px 12px; }
 .xs + .xs{ margin-top:0; border-top:1px solid var(--chrome-line); }

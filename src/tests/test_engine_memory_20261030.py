@@ -81,7 +81,9 @@ def test_compaction_keeps_facts_plan_and_full_text(run):
     ledger = (ws / ".laps" / "FINDINGS.md").read_text(encoding="utf-8")
     assert "3.12" in ledger and "python は無い" in ledger
     after = sent(fake, 2)
-    assert "<findings " in after and "calc を作る" in after and ".laps" in after and "history" in after
+    # ★2026-11-26 要約の後は、要約に既にある事実を帳面から付け直さない（LAPS_COMPACT_LEAN）。事実は要約の本文で届き、帳面は場所で示す。
+    assert "3.12" in after and "python は無い" in after and "FINDINGS.md" in after
+    assert "calc を作る" in after and ".laps" in after and "history" in after
     assert a.counters.get("findings_added", 0) >= 2 and a.counters.get("todos_after_compaction") == 1
 
 

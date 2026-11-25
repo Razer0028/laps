@@ -45,6 +45,7 @@ HEAD = ("# 分かったこと（Blackwall の帳面）\n"
 MAX_ITEMS = 600
 #: 要約の後・新しい会話の最初に添える量（字）。超えたら新しい行から入れ、残りはファイルを読むよう書く。
 CTX_CHARS_COMPACT = 12000
+CTX_CHARS_LEAN = 6000             # 要約の後（要約に無い行だけ・この会話の行だけ・2026-11-26）
 CTX_CHARS_START = 6000
 #: 同じ事実の言い換えとみなす近さ（文字の 3 つ組の重なり）。★識別子・数値（ファイル名・オフセット・"SAV1"・LZ4 など）が
 #: 1 つでも違えば別の事実（文の近さが 0.84 でも「LZ4 圧縮」と「LZMA 圧縮」は別物・2026-10-15 に試して確かめた）。
@@ -227,13 +228,16 @@ def counts(cwd: str) -> tuple[int, int]:
     return len(secs[H_FACTS]), len(secs[H_DEAD])
 
 
-def context_block(cwd: str, max_chars: int = CTX_CHARS_COMPACT, session_id: str = "") -> str:
+def context_block(cwd: str, max_chars: int = CTX_CHARS_COMPACT, session_id: str = "", others: bool = True,
+                  skip: str = "") -> str:
     """帳面を会話に添える塊（帳面が無い・空なら ""）。長ければ新しい行から入れる。
 
     ★2026-10-16 の点検: 帳面はフォルダの全部の会話で 1 つなのに、新しい会話（別の依頼・更新された後のファイル）にも
       「確かめなくてよい事実」として渡していた。session_id を渡すと、この会話が書いた行（頭の #会話 が同じ）だけを
       今までどおり渡し、ほかの会話の行（印の無い古い行も）は「前の会話の記録・使う前に確かめ直す」として分けて渡す。
-      session_id を渡さなければ従来どおり（全部をこの会話の行として扱う）。"""
+      session_id を渡さなければ従来どおり（全部をこの会話の行として扱う）。
+    others=False はほかの会話の行を付けない。skip（要約の本文）の Verified Facts・Dead Ends と同じ事実の行は付けない
+    （2026-11-26 要約の後: 要約に入っている行を毎回付け直し、要約が重なるほど増えていた）。"""
     if not enabled():
         return ""
     p = ledger_path(cwd)
@@ -244,17 +248,30 @@ def context_block(cwd: str, max_chars: int = CTX_CHARS_COMPACT, session_id: str 
 
     def mine(x: str) -> bool:
         return not sid or line_session(x) == sid
+    have = parse_summary(skip) if skip else {H_FACTS: [], H_DEAD: []}
+    have_keys = [_key(x) for h in (H_FACTS, H_DEAD) for x in have[h]]
+
+    def in_summary(x: str) -> bool:
+        if not have_keys:
+            return False
+        k = _key(x)
+        return any(_similar(k, o) for o in have_keys)
     budget = max_chars
     shown: dict[tuple[str, bool], list[str]] = {(h, m): [] for h in (H_FACTS, H_DEAD) for m in (True, False)}
     # この会話の行を先に、行き止まりは短く数も少ない＝先に取り、残りを事実に（どれも新しい行から）
-    for own in (True, False):
+    for own in ((True, False) if others else (True,)):
         for h in (H_DEAD, H_FACTS):
-            for x in reversed([x for x in secs[h] if mine(x) == own]):
+            for x in reversed([x for x in secs[h] if mine(x) == own and not (own and in_summary(x))]):
                 if len(x) + 3 > budget:
                     break
                 shown[(h, own)].insert(0, x)
                 budget -= len(x) + 3
     n_shown = sum(len(v) for v in shown.values())
+    if not n_shown and (skip or not others):
+        tag0 = f"[#{sid}] " if sid else ""
+        return (f"Your ledger of verified facts and dead ends is {p} ({len(secs[H_FACTS])} facts, {len(secs[H_DEAD])} dead ends; "
+                "this conversation's lines are already in the summary above). When you verify something important, add "
+                f"one line \"- {tag0}<the fact>\" under 「{H_FACTS}」 (or 「{H_DEAD}」 for an approach that failed).")
     left = len(secs[H_FACTS]) + len(secs[H_DEAD]) - n_shown
     body = []
     if shown[(H_FACTS, True)]:

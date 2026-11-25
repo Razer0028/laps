@@ -86,6 +86,17 @@ def overflowing(tokens: int, n_ctx: int) -> bool:
 #:   1 回だけ要約して約 2 万に戻す（続きの形の要約は読み込み済みの分をそのまま使う＝要約を書く時間と残した分の読み直しだけ）。
 EARLY_AT = 100_000
 
+#: 要約の後に残す量を絞る（2026-11-26 オーナー「会話が長くなるとコンテキスト圧縮率が落ちるけどどうにかなります？」）。
+#: ★推論機の記録では、10 万で要約しても後に 3.7 万〜4.6 万が残り、会話が長いほど増えていた。中身（実際の会話の記録）は
+#:   前置きと道具 約 1 万・要約 3.5K・作業ログ 2.4K（会話の始めに付けた物と同じ）・この会話の帳面 0.8→2.2K（要約の Verified Facts・
+#:   Dead Ends と同じ行が積み増し）・ほかの会話の帳面 2〜3K・そのまま残す最近の分 1.5 万。
+#:   LAPS_COMPACT_LEAN=0 で前の形（全部付ける・最近の分 1.5 万）に戻る。
+BOUNDARY_TAIL = 6_000            # 新しい依頼の頭の要約で、そのまま残す最近の分（前の作業の終わりの答えと新しい依頼が入る量）
+
+
+def lean() -> bool:
+    return os.environ.get("LAPS_COMPACT_LEAN", "1") != "0"
+
 
 def early_at(n_ctx: int) -> int:
     """境目の要約を始める量。0 は使わない（LAPS_COMPACT_EARLY=0・窓が小さくて非常用の要約より後になる時）。"""
@@ -286,7 +297,8 @@ def _continued(body: dict, llm: LLM, tick: Callable[[str], None]) -> tuple[str, 
 
 
 def summarize(transcript, llm: LLM, request: str, n_ctx: int, on_chars: Callable[[int], None] | None = None,
-              after: Callable[[str, list[dict]], str] | None = None, continued: dict | None = None) -> dict:
+              after: Callable[[str, list[dict]], str] | None = None, continued: dict | None = None,
+              boundary: bool = False) -> dict:
     """要約して記録に印を付ける。戻り値は {"chars","failed","kept","continued"}。
     after(要約, 要約した発言) は要約の後に添える物を返す（記憶の口・「Verified Facts」「Dead Ends」は帳面に積まれる）。
     continued は会話の続きとして作った要求。★文字にまとめ直すと先頭から一致せず、毎回ゼロから読む
@@ -296,6 +308,10 @@ def summarize(transcript, llm: LLM, request: str, n_ctx: int, on_chars: Callable
     floor = int(last[1]["bw_compaction"].get("keep_from") or 0) if last else 0
     prior = str(last[1].get("content") or "") if last else ""
     budget = min(15_000, max(2_000, usable(n_ctx) // 4)) if n_ctx else 8_000
+    if boundary and lean():
+        # ★新しい依頼の頭（前の作業は終わっている）では、前の作業の道具の出入りまで 1.5 万残さない。残すのは終わりの答えと新しい依頼の
+        #   あたりまで。前の作業の細部は要約と、要約の前の全文のファイル（history）にある。
+        budget = min(budget, BOUNDARY_TAIL)
     keep = _tail_start(raw, floor, budget)
     head = [m for m in raw[floor:keep] if m.get("role") != "system"]
     words = _user_words(raw, keep, request)

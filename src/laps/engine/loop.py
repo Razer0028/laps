@@ -844,7 +844,7 @@ class Agent:
                 text = self.memory.compacted(summary, head, self.compactions + 1, self.ctx.todos, self.iters)
                 return "\n\n".join(x for x in (text, self.aids.resources() if self.aids else "") if x)
         mark_before = (self.t.last_compaction() or (-1,))[0]
-        info = compact.summarize(self.t, self.llm, self._goal(), n_ctx, tick, after, continued)
+        info = compact.summarize(self.t, self.llm, self._goal(), n_ctx, tick, after, continued, boundary=boundary)
         if (self.t.last_compaction() or (-1,))[0] != mark_before:
             self._settle_images(all_old=True)    # 要約で頭から読み直すので、残した遠い画像もここで文字に替える
             if self.tools and not self.child:     # 頭から読み直すついでに、道具の説明も今の版の物へ

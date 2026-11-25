@@ -517,6 +517,7 @@ function showView(v) {
                                  : (state.cur?.title || "新しいチャット");
   // ★Sources は会話の出典。ほかの画面では畳む（開閉の状態 drawer.open は触らない＝戻れば元どおり）。
   $(".app")?.classList.toggle("no-drawer", v !== "chat");
+  document.body.classList.toggle("no-drawer", v !== "chat");   // ★帯のボタンと球の薄さはこの札で（:has() は会話全体を計算し直す・2026-11-26）
   if (typeof bzSync === "function") bzSync();          // ほかの画面では Browser の子の webview を隠す
   if (v === "models") refreshModels();
   if (v === "rig") refreshRig();
@@ -8076,26 +8077,36 @@ document.addEventListener("keydown", (ev) => {
 /* ── チャット背景のシナプス（2026-10-09・synapse.js）。.main の背面に 1 枚。 ── */
 globalThis.BWSynapse?.mount($(".main"));
 
-/* ── マウスに反応する背景（2026-10-08 オーナー「マウスに反応してチャット背景に変化を」）──
- * 位置は 1 フレームに 1 回だけ渡す（requestAnimationFrame）。本文の外では消す。動きを減らす設定では何もしない。 */
+/* ── 最初の画面の札（2026-11-26 オーナー「長く続いている会話を開いているとアプリが重い」）──
+ * 最初の画面（.hello）が出ている枠に .cpane.is-hello、どこかの枠に出ていれば .main.has-hello を付ける。入力欄を真ん中に寄せる・
+ * 背景の球を薄くする規則がこの札を見る。★以前は CSS の :has(#hello) で決めていたが、会話の祖先を対象にした :has() は、答えが
+ *   1 片届くたびに会話全体のスタイルを計算し直させていた（6.5 万要素で 1 片 約 8.5ms）。
+ * 枠の会話の欄（.thread）の直下だけを見る（childList・subtree なし）＝答えの中身が増えても呼ばれない。枠が増えたら見張りを足す。
+ * ★マウスの位置を .main の CSS 変数（--mx/--my）へ渡していた処理（2026-10-08）は外した: 使っていた .main::before は 2026-11-14 から
+ *   表示していないのに、変数が継承されるので、マウスが動くたびに会話全体を計算し直していた（60 回で 541ms）。 */
 (() => {
-  const main = $(".main");
-  if (!main || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-  let raf = 0, x = 0, y = 0, rect = null;
-  const measure = () => { rect = main.getBoundingClientRect(); };
-  window.addEventListener("resize", () => { rect = null; });
-  main.addEventListener("pointerenter", measure);
-  main.addEventListener("pointermove", (e) => {
-    if (!rect) measure();
-    x = e.clientX - rect.left; y = e.clientY - rect.top;
-    if (!raf) raf = requestAnimationFrame(() => {
-      raf = 0;
-      main.style.setProperty("--mx", x + "px");
-      main.style.setProperty("--my", y + "px");
-      main.classList.add("is-lit");
-    });
-  }, { passive: true });
-  main.addEventListener("pointerleave", () => main.classList.remove("is-lit"));
+  const main = $(".main"), box = $("#panes");
+  if (!main || !box) return;
+  const paint = () => {
+    let any = false;
+    for (const p of box.children) {
+      if (!p.classList?.contains("cpane")) continue;
+      const th = p.querySelector(":scope > .thread");
+      const on = !!th?.querySelector(":scope > .hello");
+      if (p.classList.contains("is-hello") !== on) p.classList.toggle("is-hello", on);
+      any ||= on;
+    }
+    if (main.classList.contains("has-hello") !== any) main.classList.toggle("has-hello", any);
+  };
+  if (typeof MutationObserver !== "function") { paint(); return; }
+  const seen = new WeakSet();
+  const per = new MutationObserver(paint);
+  const watch = () => {
+    for (const th of box.querySelectorAll(":scope > .cpane > .thread")) if (!seen.has(th)) { seen.add(th); per.observe(th, { childList: true }); }
+  };
+  new MutationObserver(() => { watch(); paint(); }).observe(box, { childList: true });
+  watch(); paint();
+  window.bwPaintHello = paint;
 })();
 
 /* オンライン更新。★勝手に入れ替えない。確認 → 承諾 → 適用 の順で、各段を画面に出す。 */

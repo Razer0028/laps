@@ -1,4 +1,8 @@
 /* Hallmark · shape: app screen · posture: restrained · nav: left list · footer: none · theme: by request (owner: charcoal and white glass, spectrum red and blue, 2026-11-17) */
+/* ★祖先を対象にした :has() は使わない（2026-11-26 オーナー「長く続いている会話を開いているとアプリが重い」）。
+ *   body・.main・.cpane を対象に :has() を書くと、会話の中の 1 か所が変わるたびに（答えが 1 片届くたび）会話全体の
+ *   スタイルを計算し直す。6.5 万要素の会話で 1 片 約 8.5ms・マウス 1 回 約 9ms だった（scripts/ui_audit/scenes_perf_long.py）。
+ *   代わりに JS が札を付ける: body.no-drawer（会話以外の画面・showView）・.cpane.is-hello と .main.has-hello（最初の画面・app.js）。 */
 /* BLACKWALL Console — 赤と黒・チャット型
  *
  * 色は2つしか使わない: 黒（面）と赤（注意）。赤は「いま効いているもの」と
@@ -110,7 +114,7 @@ button,input,textarea{ font:inherit; color:inherit; }
    開閉の状態は保ったまま、その画面のあいだだけ畳む（チャットへ戻れば元どおり）。 */
 .app.no-drawer{ grid-template-columns:var(--side) minmax(0,1fr) 0; }
 .app.no-drawer .drawer{ display:none; }
-body:has(.app.no-drawer) #drawer-toggle{ visibility:hidden; }
+body.no-drawer #drawer-toggle{ visibility:hidden; }
 
 /* ── 左 ───────────────────────────────────────────────────────── */
 .side{ background:var(--bg-2); border-right:1px solid var(--line); display:flex; flex-direction:column; min-height:0; }
@@ -180,7 +184,6 @@ body:has(.app.no-drawer) #drawer-toggle{ visibility:hidden; }
 
 /* ── 中央 ─────────────────────────────────────────────────────── */
 .main{ display:flex; flex-direction:column; min-width:0; min-height:0; grid-row:1; position:relative; isolation:isolate;
-  --mx:50%; --my:50%;                        /* マウスの位置（app.js が渡す・既定は中央） */
   /* ★防壁の気配（2026-10-08）: 赤い格子・上からの赤い滲み。静止画なので描き直しは起きない。
    * ★2026-11-11 走査線（3px ごとの 1px の白）を外した。Linux 版の「白いもや」の正体。125%・150% の表示倍率では
    *   線が画素に揃わず、2 行続けて光る所が周期的に出て、縞のうなりが画面全体にかかって見えた（WebKitGTK を
@@ -247,7 +250,7 @@ body.is-busy .titlebar::before{            /* 推論中: 線の上を光が流�
 .tb__icon:hover{ color:var(--text); background:var(--bg-3); }
 .tb__icon[aria-pressed="true"]{ color:var(--text); background:var(--bg-3); border-color:var(--line-2); }
 .tb__icon:focus-visible{ outline:2px solid var(--red); outline-offset:1px; }
-body:has(.app.no-drawer) #shell-toggle{ visibility:hidden; }
+body.no-drawer #shell-toggle{ visibility:hidden; }
 .cshell{ flex:none; display:flex; flex-direction:column; min-height:120px; height:260px;
          margin:0 var(--s5) var(--s3); border:1px solid var(--line-2); border-radius:var(--r); background:var(--bg);
          position:relative; overflow:hidden; }
@@ -298,7 +301,7 @@ body:has(.app.no-drawer) #shell-toggle{ visibility:hidden; }
 .cpane__ghost[hidden]{ display:none; }
 .tb__icon:disabled{ opacity:.4; color:var(--text-3); cursor:not-allowed; }
 .tb__icon:disabled:hover{ background:transparent; color:var(--text-2); }
-body:has(.app.no-drawer) #split-add{ visibility:hidden; }
+body.no-drawer #split-add{ visibility:hidden; }
 /* 小さな枠では最初の画面の波と見出しを縮める（例の一覧がはみ出していた）。 */
 .panes:not([data-n="1"]) .hello__wave{ width:120px; height:auto; }
 .panes:not([data-n="1"]) .hello__h{ font-size:22px; }
@@ -1595,21 +1598,6 @@ body.is-resizing iframe{ pointer-events:none; }      /* つまんでいる間に
   .hello__wave path{ animation:none; stroke-dashoffset:0; }
 }
 
-/* ── マウスに反応する背景（2026-10-08 オーナー「マウスに反応してチャット背景に変化を加えるとかいいかも」）──
- * 防壁を照らす: マウスの周り（半径 260px）だけ、赤い格子が濃く浮かび上がる。.main の背面に 1 枚（z-index:-1・isolation で本文の下）。
- * 位置は app.js が 1 フレームに 1 回だけ変数（--mx/--my）で渡す。本文から外れたら消える。動きを減らす設定では出さない。 */
-.main::before{
-  content:""; position:absolute; inset:0; z-index:-1; pointer-events:none; opacity:0; transition:opacity .3s ease;
-  background:
-    linear-gradient(rgba(208,52,44,.26) 1px, transparent 1px) 0 0/100% 56px,
-    linear-gradient(90deg, rgba(208,52,44,.22) 1px, transparent 1px) 0 0/56px 100%,
-    radial-gradient(circle 260px at var(--mx) var(--my), rgba(208,52,44,.10), transparent 72%);
-  -webkit-mask-image:radial-gradient(circle 260px at var(--mx) var(--my), #000, transparent 72%);
-          mask-image:radial-gradient(circle 260px at var(--mx) var(--my), #000, transparent 72%);
-}
-.main.is-lit::before{ opacity:1; }
-@media (prefers-reduced-motion: reduce){ .main::before{ display:none; } }
-
 /* ── チャット背景のシナプス（2026-10-09 オーナー「入力欄の上の波をなくして、チャット画面の背景にオーディオスペクトラムの
  * ようなものを。モデルの思考に合わせて動かす。赤・黒を基調のアメーバ型シナプス」・描くのは synapse.js）──
  * .main の背面に 1 枚（z-index:-1・isolation で本文の下）。会話の列（中央）は mask で薄くして本文を読みやすく保つ。
@@ -1867,7 +1855,7 @@ body.viewer{ background:var(--bg); color:var(--text); margin:0; min-height:100vh
 #tool-list .item__name{ flex:0 0 11rem; font-size:13px; word-break:normal; }
 #tool-list .item > div:first-child .item__meta{ font-family:var(--f-body); }
 /* 背景の動きは会話のもの。設定を読むときは下げる。 */
-.main:has(#view-chat[hidden]) .synapse{ opacity:.35; }
+body.no-drawer .synapse{ opacity:.35; }
 #view-models[data-where="lan"] .import, #view-models[data-where="lan"] #hf-results, #view-models[data-where="lan"] .pane > .h3,
 #view-models[data-where="lan"] #local-list, #view-models[data-where="lan"] #models-empty,
 #view-models[data-where="claude"] .import, #view-models[data-where="claude"] #hf-results, #view-models[data-where="claude"] .pane > .h3,
@@ -1970,7 +1958,7 @@ html.is-linux .where-seg [data-where="local"], html.is-linux #local-prep, html.i
 
 /* ── 背景の球（4 回目・2026-11-15）: 会話が始まったら、字の後ろをもう一段薄く（オーナー 10-30「見やすく無駄を省く: 会話の列の後ろはさらに薄く」の続き）。
  *    最初の画面（#hello）は今のまま・周りの輪と目盛りは残す。実機（0.1.681）で、表と箇条書きの後ろに球の線がはっきり重なっていた。 */
-.main:not(:has(#hello)) .synapse{
+.main:not(.has-hello) .synapse{
   -webkit-mask-image:radial-gradient(ellipse 48% 64% at 50% 44%, rgba(0,0,0,.1), rgba(0,0,0,.38) 62%, #000 100%);
           mask-image:radial-gradient(ellipse 48% 64% at 50% 44%, rgba(0,0,0,.1), rgba(0,0,0,.38) 62%, #000 100%);
 }
@@ -2046,9 +2034,9 @@ html.is-linux .where-seg [data-where="local"], html.is-linux #local-prep, html.i
 .made__f:hover{ color:var(--text); border-color:var(--line-3); }
 .made__f:focus-visible{ outline:2px solid var(--red); outline-offset:1px; }
 /* ⑤ 最初の画面（枠が 1 つで、まだ何も話していない時）は、入力欄を真ん中に寄せる（両社の形）。話し始めたら下へ戻る。 */
-.panes[data-n="1"] > .cpane:has(#hello){ justify-content:center; }
-.panes[data-n="1"] > .cpane:has(#hello) > .thread{ flex:0 1 auto; padding-bottom:var(--s5); -webkit-mask-image:none; mask-image:none; }
-.panes[data-n="1"] > .cpane:has(#hello) .hello{ margin-top:0; }
+.panes[data-n="1"] > .cpane.is-hello{ justify-content:center; }
+.panes[data-n="1"] > .cpane.is-hello > .thread{ flex:0 1 auto; padding-bottom:var(--s5); -webkit-mask-image:none; mask-image:none; }
+.panes[data-n="1"] > .cpane.is-hello .hello{ margin-top:0; }
 
 /* 古い回答の「戻す」は出さない（2026-11-16 全体のレビュー: 押すと最新の依頼が戻っていた・本体の /undo は直前の依頼を戻す）。 */
 .msg--bot:not(.is-last) .notice__act--undo{ display:none; }
@@ -2133,7 +2121,7 @@ body.is-busy .titlebar::before{ display:none; }
 .tb__tools{ display:flex; align-items:center; height:36px; padding:0 2px; border-radius:18px; margin-left:auto;
   background:var(--glass); box-shadow:var(--glass-rim), var(--elev-2);
   -webkit-backdrop-filter:blur(14px) saturate(160%); backdrop-filter:blur(14px) saturate(160%); }
-body:has(.app.no-drawer) .tb__tools{ display:none; }
+body.no-drawer .tb__tools{ display:none; }
 .tb__tools .tb__icon{ width:32px; height:32px; border:0; border-radius:16px; background:transparent; color:var(--text-2); }
 .tb__tools .tb__icon:hover, .tb__tools .tb__icon[aria-pressed="true"]{ background:var(--fill-2); color:var(--text); }
 .tb__tools .ghost{ height:32px; padding:0 12px; border:0; border-radius:16px; background:transparent; color:var(--text-2); font-size:13px; }
@@ -2191,10 +2179,10 @@ body:has(.app.no-drawer) .tb__tools{ display:none; }
 .convo__ic::after{ content:""; position:absolute; left:11px; top:9px; width:5px; height:9px; transform:rotate(45deg);
   border-right:1.6px solid var(--text-2); border-bottom:1.6px solid var(--text-2); }
 .convo.is-running .convo__ic::after{ left:8px; top:8px; width:14px; height:14px; transform:none; border-radius:50%;
-  border:1.6px solid var(--fill-2); border-top-color:var(--text); animation:convo-spin 1.1s linear infinite; }
+  border:1.6px solid var(--fill-2); border-top-color:var(--text); animation:convo-spin 1.1s steps(22) infinite; }
 .convo.is-asking .convo__ic::after{ content:"?"; left:0; top:0; width:30px; height:30px; transform:none; border:0;
   display:flex; align-items:center; justify-content:center; font:600 14px/1 var(--f-body); color:var(--text); animation:none; }
-@keyframes convo-spin{ to{ transform:rotate(360deg); } }
+@keyframes convo-spin{ to{ transform:rotate(360deg); } }   /* 2026-11-26 GPU: ほかの機械で走っている会話の印は、何もしていない時も回る＝60 → 20 回/秒の段に */
 .convo__tx{ flex:1 1 auto; min-width:0; display:flex; flex-direction:column; text-align:left; }
 .convo__t{ font-size:14px; line-height:20px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .convo__s{ font-size:12px; line-height:16px; color:var(--text-3); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -2217,7 +2205,7 @@ button.sb__item:hover{ background:var(--fill-1); color:var(--text); }
 .sb__item svg{ width:13px; height:13px; fill:none; stroke:currentColor; stroke-width:1.3; }
 .sb__gap{ flex:1 1 auto; }
 .sb__run{ color:var(--text); }
-.sb__spin{ width:10px; height:10px; border-radius:50%; border:1.5px solid var(--fill-2); border-top-color:var(--text); animation:convo-spin 1.1s linear infinite; }
+.sb__spin{ width:10px; height:10px; border-radius:50%; border:1.5px solid var(--fill-2); border-top-color:var(--text); animation:convo-spin 1.1s steps(22) infinite; }
 .statusbar .lamps{ display:inline-flex; align-items:center; gap:10px; padding:0 8px; font-size:12px; color:var(--text-3); }
 .statusbar .lamp.is-down i{ border-color:var(--red-text); }
 .statusbar .side__ver{ color:var(--text-3); }
@@ -2908,7 +2896,7 @@ body[data-view] .convo-group--sec .cgroup__car{ flex:none; display:inline-flex; 
 body[data-view] .convo-group--sec .cgroup__car svg{ width:14px; height:14px; display:block; }
 body[data-view] .convo-group--sec.is-closed .cgroup__car{ transform:rotate(-90deg); }
 body[data-view] .convo-group--sec .cgroup__live{ flex:none; width:10px; height:10px; border-radius:50%; border:1.5px solid var(--fill-2);
-  border-top-color:var(--text); animation:convo-spin 1.1s linear infinite; }
+  border-top-color:var(--text); animation:convo-spin 1.1s steps(22) infinite; }
 body[data-view] .convo-group--sec .cgroup__more{ top:auto; bottom:3px; right:4px; width:22px; height:20px; transform:none; }
 body[data-view] .convo-group--sec .cgroup__more svg{ width:14px; height:14px; }
 body[data-view] .convo-group--sec .cgroup__rename{ left:4px; right:4px; bottom:0; height:26px; }
@@ -2924,7 +2912,7 @@ body[data-view] .convo.is-offline .convo__t{ color:var(--text-2); }
 body[data-view] .convo__tm.is-ask{ color:var(--text); font-weight:600; }
 body[data-view] .convo__tm.is-live{ align-self:center; display:inline-flex; width:14px; height:14px; }
 body[data-view] .convo__tm.is-live::before{ content:""; width:12px; height:12px; margin:1px; border-radius:50%; border:1.5px solid var(--fill-2);
-  border-top-color:var(--text); animation:convo-spin 1.1s linear infinite; }
+  border-top-color:var(--text); animation:convo-spin 1.1s steps(22) infinite; }
 body[data-view] .convo__tm.is-machine{ position:relative; align-self:center; display:inline-flex; color:var(--text-3); }
 body[data-view] .convo__tm.is-machine svg{ width:16px; height:16px; display:block; }
 body[data-view] .convo__tm.is-on::after{ content:""; position:absolute; right:-2px; top:0; width:6px; height:6px; border-radius:50%;

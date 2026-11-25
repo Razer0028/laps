@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "laps"
-version = "0.1.739"
+version = "0.1.740"
 description = "L.A.P.S (Local Autonomous Persistent System) — a self-contained coding agent for local LLMs"
 readme = "README.md"
 requires-python = ">=3.10"

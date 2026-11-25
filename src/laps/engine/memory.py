@@ -225,17 +225,28 @@ class Memory:
             hist = findings.archive(self.ws, self.sid, head, n)
             if hist:
                 self.count("history_archived")
+        from . import compact
+        lean = compact.lean()
         parts: list[str] = []
         if worklog.enabled():
-            wl = worklog.context_block(self.ws)
-            if wl:
-                parts.append(wl)
+            if lean:
+                # ★作業ログの塊は会話の始めに付けている（要約が引き継ぐ）。要約のたびに同じ 2.4K を付け直さず、場所だけ（2026-11-26）。
+                wp = worklog.path(self.ws)
+                if wp.exists():
+                    parts.append(f"Your work log for this folder (earlier conversations and steps, with the files each step "
+                                 f"changed) is {wp}. Read it only if you need something the summary does not have.")
+            else:
+                wl = worklog.context_block(self.ws)
+                if wl:
+                    parts.append(wl)
         td = findings.todo_block(todos)
         if td:
             parts.append(td)
             self.count("todos_after_compaction")
         if findings.enabled():
-            fd = findings.context_block(self.ws, session_id=self.sid)
+            # ★lean（2026-11-26）: 要約の Verified Facts・Dead Ends に既にある行は付け直さない・ほかの会話の行は会話の始めだけ。
+            fd = (findings.context_block(self.ws, findings.CTX_CHARS_LEAN, session_id=self.sid, others=False, skip=summary)
+                  if lean else findings.context_block(self.ws, session_id=self.sid))
             if fd:
                 parts.append(fd)
         if hist:

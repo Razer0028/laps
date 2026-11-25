@@ -1,7 +1,7 @@
 /* ── 背景の点の格子（2026-11-17 オーナー「背景をシンプルだけど面白いデザインにしたい」「ガラスデザインに合うやつ」「任せます」）──
  * 窓全体（左の板の下も）に細かい点の格子を敷く。ガラスの板（左右の板・入力欄）の後ろに点があるので、ぼかしが目に見える。
  *   ・止まっているときは 1 回描くだけ（動かない＝負荷なし）。
- *   ・指の近くの点だけ少し明るくなる。
+ *   ・指の近くの点だけ少し明るくなる（小さな別の canvas・2026-11-26）。
  *   ・エージェントが動いている間（body.is-busy）は、真ん中のスペクトラムの球から輪がゆっくり広がる（色はスペクトラムと同じ赤／青）。
  *     動きは状態を知らせるためなので、動きを減らす設定でも止めない（字の光と同じ扱い・オーナー 2026-10-09）。
  * 色は CSS の変数（--dot・--dot-a・--spec）から読む。テーマが替わったら（bw-theme）読み直す。
@@ -14,6 +14,14 @@
   document.body.prepend(canvas);
   const ctx = canvas.getContext("2d");
   if (!ctx) { canvas.remove(); return; }
+  // ★指の近くの明るい点は小さな canvas に描き、transform で動かす（2026-11-26 オーナー「GPU 負荷が少なくなるようにしてほしい」）。
+  //   以前はマウスが動くたびに窓全体（1440×900 なら点 2,200 個・画素は窓全体）を描き直し、上の入力欄のぼかしも作り直していた。
+  const glow = document.createElement("canvas");
+  glow.className = "bgfield bgfield--glow";
+  glow.setAttribute("aria-hidden", "true");
+  glow.style.cssText = "inset:auto; left:0; top:0; display:none;";
+  canvas.after(glow);
+  const gctx = glow.getContext("2d");
 
   const GAP = 24, SIZE = 1.6, GLOW_R = 150, RING_EVERY = 2600, RING_LIFE = 3400, RING_W = 40, FRAME_MS = 33;
   let W = 0, H = 0, dpr = 1, dot = [255, 255, 255], dotA = 0.075, spec = [208, 52, 44];
@@ -35,11 +43,42 @@
     W = window.innerWidth; H = window.innerHeight;
     canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
     canvas.style.width = W + "px"; canvas.style.height = H + "px";
+    const S = GLOW_R * 2 + GAP * 2;
+    glow.width = Math.round(S * dpr); glow.height = Math.round(S * dpr);
+    glow.style.width = S + "px"; glow.style.height = S + "px";
+    mainRect = null;
+  }
+  /* 指の近くの点（半径 GLOW_R）。小さな canvas の左上を格子の点の間に合わせて置くので、点は下の格子とぴったり重なる。 */
+  function drawGlow() {
+    if (!gctx) return;
+    if (!pointer) { glow.style.display = "none"; return; }
+    const x0 = ((W % GAP) / 2) || GAP / 2, y0 = ((H % GAP) / 2) || GAP / 2, half = SIZE / 2;
+    const bx = x0 + Math.ceil((pointer.x - GLOW_R - x0) / GAP) * GAP - GAP / 2;
+    const by = y0 + Math.ceil((pointer.y - GLOW_R - y0) / GAP) * GAP - GAP / 2;
+    gctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    gctx.clearRect(0, 0, glow.width, glow.height);
+    for (let y = by + GAP / 2; y <= pointer.y + GLOW_R && y < H; y += GAP) {
+      if (y < y0) continue;
+      for (let x = bx + GAP / 2; x <= pointer.x + GLOW_R && x < W; x += GAP) {
+        if (x < x0) continue;
+        const d = Math.hypot(x - pointer.x, y - pointer.y);
+        if (d >= GLOW_R) continue;
+        const k = Math.pow(1 - d / GLOW_R, 2);
+        gctx.fillStyle = `rgba(${dot[0]},${dot[1]},${dot[2]},${(0.22 * k).toFixed(3)})`;
+        gctx.fillRect(x - bx - half - 0.25, y - by - half - 0.25, SIZE + 0.5, SIZE + 0.5);
+      }
+    }
+    glow.style.transform = `translate(${bx}px, ${by}px)`;
+    glow.style.display = "block";
   }
   /* 波の始まり＝スペクトラムの球の中心（synapse.js と同じ: 本文の枠の幅の中央・高さの 44%）。 */
+  // ★.main の位置は控えから読む（2026-11-26）: 走行中は 20 回/秒描くので、毎回 getBoundingClientRect を呼ぶと、答えが届いて
+  //   配置が古くなっているたびに会話全体の配置をその場で確定させていた。大きさが変わった時・窓の大きさが変わった時・走行の始めに測り直す。
+  let mainRect = null;
+  const remeasure = () => { const m = document.querySelector(".main"); mainRect = m ? m.getBoundingClientRect() : null; };
   function origin() {
-    const m = document.querySelector(".main");
-    const r = m ? m.getBoundingClientRect() : { left: 0, top: 0, width: W, height: H };
+    if (!mainRect) remeasure();
+    const r = mainRect || { left: 0, top: 0, width: W, height: H };
     const R = Math.max(60, Math.min(220, Math.min(r.width * 0.2, r.height * 0.19)));
     return { x: r.left + r.width / 2, y: r.top + r.height * 0.44, R };
   }
@@ -59,20 +98,7 @@
     const half = SIZE / 2;
     ctx.fillStyle = base;
     for (let y = y0; y < H; y += GAP) for (let x = x0; x < W; x += GAP) ctx.fillRect(x - half, y - half, SIZE, SIZE);
-    // 指の近く・波の輪の上の点だけ、上から重ねて明るくする（全部の点を描き直さない）。
-    if (pointer) {
-      const gx0 = Math.max(x0, x0 + Math.ceil((pointer.x - GLOW_R - x0) / GAP) * GAP);
-      const gy0 = Math.max(y0, y0 + Math.ceil((pointer.y - GLOW_R - y0) / GAP) * GAP);
-      for (let y = gy0; y <= pointer.y + GLOW_R && y < H; y += GAP) {
-        for (let x = gx0; x <= pointer.x + GLOW_R && x < W; x += GAP) {
-          const d = Math.hypot(x - pointer.x, y - pointer.y);
-          if (d >= GLOW_R) continue;
-          const k = Math.pow(1 - d / GLOW_R, 2);
-          ctx.fillStyle = `rgba(${dot[0]},${dot[1]},${dot[2]},${(0.22 * k).toFixed(3)})`;
-          ctx.fillRect(x - half - 0.25, y - half - 0.25, SIZE + 0.5, SIZE + 0.5);
-        }
-      }
-    }
+    // 波の輪の上の点だけ、上から重ねて明るくする（全部の点を描き直さない）。指の近くは別の小さな canvas（drawGlow）。
     if (live.length) {
       for (let y = y0; y < H; y += GAP) {
         for (let x = x0; x < W; x += GAP) {
@@ -115,18 +141,20 @@
 
   readTheme(); size(); draw(performance.now());
   window.addEventListener("resize", () => { size(); wake(); });
-  window.addEventListener("bw-theme", () => { requestAnimationFrame(() => { readTheme(); wake(); }); });
-  window.addEventListener("pointermove", (e) => { pointer = { x: e.clientX, y: e.clientY }; wake(); }, { passive: true });
-  document.addEventListener("pointerleave", () => { pointer = null; wake(); });
-  window.addEventListener("blur", () => { pointer = null; wake(); });
+  window.addEventListener("bw-theme", () => { requestAnimationFrame(() => { readTheme(); wake(); drawGlow(); }); });
+  let glowQueued = false;
+  const glowSoon = () => { if (glowQueued) return; glowQueued = true; CLOCK.now(() => { glowQueued = false; drawGlow(); }); };
+  window.addEventListener("pointermove", (e) => { pointer = { x: e.clientX, y: e.clientY }; glowSoon(); }, { passive: true });
+  document.addEventListener("pointerleave", () => { pointer = null; drawGlow(); });
+  window.addEventListener("blur", () => { pointer = null; drawGlow(); });
   document.addEventListener("visibilitychange", () => { if (!document.hidden) wake(); });
   const sync = () => {
     const b = document.body.classList.contains("is-busy");
-    if (b !== busy) { busy = b; if (busy) lastSpawn = 0; wake(); }
+    if (b !== busy) { busy = b; if (busy) { lastSpawn = 0; mainRect = null; } wake(); }
   };
   new MutationObserver(sync).observe(document.body, { attributes: true, attributeFilter: ["class"] });
   // 左の板の開閉・右の板の開閉で本文の枠が動くと、波の中心も動く
-  if (typeof ResizeObserver === "function") { const m = document.querySelector(".main"); if (m) new ResizeObserver(wake).observe(m); }
+  if (typeof ResizeObserver === "function") { const m = document.querySelector(".main"); if (m) new ResizeObserver(() => { mainRect = null; wake(); }).observe(m); }
   sync();
   window.BWBgField = { redraw: wake, rethemed: () => { readTheme(); wake(); }, state: () => ({ busy, rings: rings.length, raf: !!raf, W, H, dotA, spec }) };
 })();

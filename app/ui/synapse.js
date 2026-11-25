@@ -429,7 +429,8 @@
     raf = 0;
     const dt = Math.min(0.1, lastT ? (now - lastT) / 1000 : 0.016);
     lastT = now;
-    size();
+    // ★大きさは ResizeObserver が変わった時だけ測る（2026-11-26）: 毎回 clientWidth を読むと、走行中は答えが届いて配置が古くなって
+    //   いるたびに、会話全体の配置をその場で確定させていた（20 回/秒）。
     step(dt);
     draw();
     if (!settled()) { raf = 1; CLOCK.next(frame); }
@@ -455,8 +456,14 @@
         //   残り、隠れた状態で始まるウェブ版では左上に点の塊として固まっていた）。
         if (size()) { if (verts[0]) verts[0].p = null; draw(); }
       }).observe(el);
+      // ★マウスに反応するのは最初の画面（.main.has-hello・球がはっきり見える）だけ（2026-11-26 オーナー「GPU 負荷が少なくなるように」）。
+      //   会話の画面では球は字の後ろで薄く、傾きはほぼ見えないのに、マウスが動くたびに 2 秒間 本文の枠いっぱいを描き直していた。
+      let box = null;
+      window.addEventListener("resize", () => { box = null; if (size()) { if (verts[0]) verts[0].p = null; draw(); } });   // 画素密度の変化（別の画面へ移した時）も
+      if (typeof ResizeObserver === "function") new ResizeObserver(() => { box = null; }).observe(el);
       el.addEventListener("pointermove", (ev) => {
-        const b = el.getBoundingClientRect();
+        if (!el.classList.contains("has-hello")) { mouse = null; return; }
+        const b = box || (box = el.getBoundingClientRect());
         mouse = { x: ev.clientX - b.left, y: ev.clientY - b.top, at: t }; wake();
       }, { passive: true });
       el.addEventListener("pointerleave", () => { mouse = null; });

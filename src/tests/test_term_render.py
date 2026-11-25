@@ -478,12 +478,12 @@ def test_notice_and_error_lines():
     text = c.export_text(clear=False)
     # ★内部の語（[harness] / cancelled / backend_error）を画面に出さない（項目 17・23）
     assert "pushback 1/3" in text and "[harness]" not in text
-    assert "文脈を圧縮 30,000 → 12,000" in text, text        # 4 桁以上に桁区切り（項目 23②）
+    assert "コンテキストを圧縮 30,000 → 12,000" in text, text        # 4 桁以上に桁区切り（項目 23②）
     assert "✗ 中断を要求しました（もう一度 Ctrl-C で終了）" in text, text
     assert "cancelled" not in text and "backend_error" not in text
     assert "ready" not in text
     assert "✗ エラー（backend）: connection refused" in text, text
-    assert "推論器に届かない" in text
+    assert "推論サーバーに接続できない" in text
 
 
 def test_cancel_notice_is_not_repeated_within_one_turn():
@@ -504,8 +504,8 @@ def test_cancel_notice_is_not_repeated_within_one_turn():
     text = c.export_text(clear=False)
     assert text.count("中断を要求しました") == 1, text
     # ★`applied` は情報として価値がある——ただの繰り返しにせず、続報として 1 行だけ足す。
-    assert "走行中に届きました" in text, text
-    assert text.count("走行中に届きました") == 1, text
+    assert "実行中に届きました" in text, text
+    assert text.count("実行中に届きました") == 1, text
 
 
 def test_cancel_applied_shown_only_once_even_if_repeated():
@@ -687,14 +687,14 @@ def test_notice_four_kinds_differ():
     ])
     raw = c.export_text(clear=False, styles=True)
     text = c.export_text(clear=False)
-    codes = [_sgr_of(raw, n) for n in ("この推論器の窓", "文脈を圧縮", "仕切り直しました",
+    codes = [_sgr_of(raw, n) for n in ("この推論器の窓", "コンテキストを圧縮", "仕切り直しました",
                                        "打ち切りました")]
     assert len(set(codes)) == 4, codes           # ★4 種類とも違う SGR
     # 字でも割れる（色が 1 バイトも出ない端末のため）
     reset = next(ln for ln in _rows(text) if "仕切り直しました" in ln)
     assert reset.startswith(T.MARK_BAD), reset
     assert "ここまでの要約だけ引き継ぎ" in reset, reset      # 何が引き継がれたかを同じ行で
-    assert "文脈を圧縮 31,240 → 12,880" in text, text
+    assert "コンテキストを圧縮 31,240 → 12,880" in text, text
     # 打ち切りには**次の一手**が続く（項目 19③と同じ約束）。頭行は折り返すので
     # 「打ち切りました」の**次に来る `→` の行」を見る（間にあるのは折り返した続き行だけ）。
     rows = _rows(text)
@@ -719,7 +719,7 @@ def test_done_stats_line():
         _done("", secs=34.4, tok_s=61, tool_calls={"Bash": 12}),
     ])
     text = c.export_text(clear=False)
-    assert "✓ done    34s  道具 12   61.0 tok/s" in text, text
+    assert "✓ done    34s  ツール 12   61.0 tok/s" in text, text
     assert out == {"text": "", "secs": 34.4, "tools": 12}
 
 
@@ -728,7 +728,7 @@ def test_done_outcome_not_accepted_is_shown_red():
     r = Renderer(c)
     _turn(r, [_done("x", outcome="max_iters", secs=3, tok_s=10)])
     text = c.export_text(clear=False)
-    assert "✗ done     3s  道具  0   10.0 tok/s  反復上限" in text, text
+    assert "✗ done     3s  ツール  0   10.0 tok/s  反復上限" in text, text
     assert "max_iters" not in text                       # 内部識別子は出さない（項目 8④）
     html = c.export_html(inline_styles=True, clear=False)
     assert T.ALERT.lower() in html.lower()
@@ -749,7 +749,7 @@ def test_end_turn_without_done_marks_unresolved():
     out = r.end_turn()
     text = c.export_text(clear=False)
     assert "✗ Bash (sleep 99)" in text and "中断（結果なし）" in text
-    assert "締めが来ていない" in text and "no done" not in text
+    assert "終了の通知が届いていない" in text and "no done" not in text
     assert out["tools"] == 1
 
 
@@ -775,7 +775,7 @@ def test_expand_last_when_nothing():
     c = _console()
     r = Renderer(c)
     r.expand_last()
-    assert "道具はまだ" in c.export_text(clear=False)
+    assert "ツールはまだ" in c.export_text(clear=False)
 
 
 def test_expand_includes_patch_in_full():
@@ -849,7 +849,7 @@ def test_running_tool_shown_in_live_not_in_record():
     c.record = False
     frame = Console(width=80, force_terminal=True, file=io.StringIO(), record=True)
     frame.print(r._live.renderable)
-    assert "▸ Bash (sleep 1)" in frame.export_text()      # 走行中は ▸
+    assert "▸ Bash (sleep 1)" in frame.export_text()      # 実行中は ▸
     r.on_event(_result("Bash", 1, "", summary={"head": "sleep 1", "tail": "(No output)", "status": "ok"}))
     r.on_event(_done())
     r.end_turn()
@@ -904,7 +904,7 @@ def test_start_turn_twice_non_tty_keeps_first_body():
     r.end_turn()
     text = c.export_text(clear=False)
     assert "first" in text and "second" in text
-    assert text.count("締めが来ていない") == 1        # 前ターンは done 無しで閉じた
+    assert text.count("終了の通知が届いていない") == 1        # 前ターンは done 無しで閉じた
 
 
 @pytest.mark.parametrize("tty", [True, False])
@@ -941,7 +941,7 @@ def test_weird_event_values_do_not_crash():
     out = r.end_turn()
     r.expand_last()
     text = c.export_text(clear=False)
-    assert "done  " in text and "締めが来ていない" in text   # outcome 無し
+    assert "done  " in text and "終了の通知が届いていない" in text   # outcome 無し
     assert "tok/s" not in text                          # 数値でない tok_s は出さない
     assert out["tools"] == 2
 
@@ -1305,7 +1305,7 @@ def test_done_line_columns_align():
         c = _console()
         _turn(Renderer(c), [_done("", secs=secs, tok_s=tok, tool_calls={"Bash": n})])
         line = [ln for ln in c.export_text(clear=False).splitlines() if "done" in ln][0]
-        cols.append((line.index("道具"), line.index("tok/s")))
+        cols.append((line.index("ツール"), line.index("tok/s")))
     assert len(set(cols)) == 1, cols
 
 
@@ -1645,7 +1645,7 @@ def test_tok_s_is_hidden_when_it_cannot_be_measured():
     _turn(r, [_done(outcome="backend_error", secs=0.2, tok_s=117.0)])
     text = c.export_text(clear=False)
     assert "tok/s" not in text, text
-    assert "推論器に届かない" in text
+    assert "推論サーバーに接続できない" in text
     c2 = _console()
     r2 = Renderer(c2)
     _turn(r2, [_done(outcome="max_iters", secs=3.0, tok_s=10.0)])
@@ -1752,13 +1752,13 @@ def test_fit_parts_drops_least_important_first():
     """`fit_parts` は rank の大きいものから落として幅に収める（0 は落とさない）。"""
     from laps.term.render import fit_parts
     parts = [("✗", T.S_MARK_BAD, 0), (" done", T.S_META, 0),
-             ("  12s", T.S_META, 1), ("  道具 5", T.S_META, 2),
+             ("  12s", T.S_META, 1), ("  ツール 5", T.S_META, 2),
              ("  失敗 2", T.S_BAD, 0), ("  40.0 tok/s", T.S_META, 3)]
-    assert fit_parts(parts, 100).plain == "✗ done  12s  道具 5  失敗 2  40.0 tok/s"
-    got = fit_parts(parts, 28).plain          # tok/s（統計）が最初に落ちる
-    assert "tok/s" not in got and "道具 5" in got and "失敗 2" in got, got
+    assert fit_parts(parts, 100).plain == "✗ done  12s  ツール 5  失敗 2  40.0 tok/s"
+    got = fit_parts(parts, 30).plain          # tok/s（統計）が最初に落ちる
+    assert "tok/s" not in got and "ツール 5" in got and "失敗 2" in got, got
     got = fit_parts(parts, 20).plain          # 次に道具の数
-    assert "道具" not in got and "12s" in got and "失敗 2" in got, got
+    assert "ツール" not in got and "12s" in got and "失敗 2" in got, got
     # 落とし切っても収まらないときは**自分で**段付きに折る（Rich に折らせない）
     folded = fit_parts(parts, 10).plain.split("\n")
     assert len(folded) > 1

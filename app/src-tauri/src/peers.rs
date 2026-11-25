@@ -136,7 +136,7 @@ pub fn poll(app: &AppHandle, t: &mut Tail) {
         };
         let dev = s(&it, "device_name");
         let body = match now.as_str() {
-            "asking" => format!("{dev}: {}", { let a = s(&it, "ask"); if a.is_empty() { "答えを待っています".into() } else { a } }),
+            "asking" => format!("{dev}: {}", { let a = s(&it, "ask"); if a.is_empty() { "回答を待っています".into() } else { a } }),
             "done" if was_active => format!("{dev}: {}", { let l = s(&it, "last"); if l.is_empty() { "終わりました".into() } else { l } }),
             "failed" if was_active => format!("{dev}: 止まりました"),
             _ => continue,

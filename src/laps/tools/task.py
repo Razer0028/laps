@@ -155,7 +155,7 @@ _ERROR_OUTCOMES = frozenset({
 def _status_line(outcome: str | None, iters: int | None) -> str:
     """要約ではなく、outcome をそのまま人の読める1行にしただけ（捏造しない）。"""
     if outcome is None:
-        label = "不明（子から実行結果を受け取れませんでした）"
+        label = "不明（サブエージェントから実行結果を受け取れませんでした）"
     else:
         label = _OUTCOME_LABELS.get(str(outcome), f"不明な状態（{outcome}）")
     it_txt = f"（反復 {iters} 回）" if isinstance(iters, int) and iters >= 0 else ""

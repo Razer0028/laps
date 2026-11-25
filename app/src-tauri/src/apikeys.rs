@@ -16,7 +16,7 @@ async fn run(args: &[&str], value: Option<String>) -> Result<Value, String> {
     let line = out.lines().rev().find(|l| !l.trim().is_empty()).unwrap_or("");
     let v: Value = serde_json::from_str(line).map_err(|_| {
         let tail = err.lines().rev().take(3).collect::<Vec<_>>().join(" / ");
-        format!("本体の返事を読めません（終了 {code}）{tail}")
+        format!("エンジンの応答を読み取れません（終了 {code}）{tail}")
     })?;
     if let Some(e) = v.get("error").and_then(|e| e.as_str()) {
         return Err(e.to_string());

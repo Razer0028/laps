@@ -140,7 +140,7 @@ pub fn estimate_fit(
             kv_mb,
             headroom_mb: 0,
             note: format!(
-                "そのままでは {} MB 足りません（必要 {} MB／空き {} MB）が、MoE なので experts を CPU に降ろせば動きます（-ot '.ffn_.*_exps=CPU'）。推定 {:.0}〜{:.0} tok/s ですが、これは仮定に基づく概算で実測ではありません。{}",
+                "そのままでは {} MB 足りません（必要 {} MB／空き {} MB）が、MoE なので エキスパートを CPU に置けば動きます（-ot '.ffn_.*_exps=CPU'）。推定 {:.0}〜{:.0} tok/s ですが、これは仮定に基づく概算で実測ではありません。{}",
                 fmt(shortfall_mb),
                 fmt(needed_mb),
                 fmt(vram_free_mb),
@@ -167,7 +167,7 @@ pub fn estimate_fit(
         kv_mb,
         headroom_mb: 0,
         note: format!(
-            "載りません。必要 {} MB（重み {} MB＋KV {} MB＋余白 {} MB）に対し空き {} MB、{} MB 不足です。{}より小さい量子化を選ぶか、LAN の推論機を使ってください。{}",
+            "載りません。必要 {} MB（重み {} MB＋KV {} MB＋余白 {} MB）に対し空き {} MB、{} MB 不足です。{}より小さい量子化を選ぶか、LAN の推論サーバーを使ってください。{}",
             fmt(needed_mb),
             fmt(weights_mb),
             fmt(kv_mb),
@@ -399,7 +399,7 @@ fn verdict_from_meta(
                 fmt(u64::from(max_q8))
             ));
         } else if max_f16 == train_ctx {
-            t.push_str("（モデルの学習文脈長で頭打ち）");
+            t.push_str("（モデルの学習時のコンテキスト長で頭打ち）");
         }
         t.push('。');
         t
@@ -532,7 +532,7 @@ fn verdict_from_meta(
             kv_mb,
             headroom_mb: 0,
             note: format!(
-                "f16 の KV ではどの文脈長でも入りません（{} MB 不足）。ただし KV を q8_0（-ctk q8_0 -ctv q8_0）にすれば ctx {} で載ります。{}",
+                "f16 の KV ではどのコンテキスト長でも入りません（{} MB 不足）。ただし KV を q8_0（-ctk q8_0 -ctv q8_0）にすれば ctx {} で載ります。{}",
                 fmt(shortfall),
                 fmt(u64::from(max_q8)),
                 margin_note,
@@ -553,7 +553,7 @@ fn verdict_from_meta(
         // ここでは fitter の余白の話をしない。余白を削っても足りない状況なので、
         // 出しても「効きそうに見えて効かない助言」になる。
         note: format!(
-            "重みだけで {} MB あり、空き {} MB に収まりません（文脈長を下げても解決しません）。一部の層を CPU に置く（-ngl を下げる）か、より小さい量子化を選ぶか、LAN の推論機を使ってください。",
+            "重みだけで {} MB あり、空き {} MB に収まりません（コンテキスト長を下げても解決しません）。一部の層を CPU に置く（-ngl を下げる）か、より小さい量子化を選ぶか、LAN の推論サーバーを使ってください。",
             fmt(weights_mb),
             fmt(vram_free_mb),
         ),

@@ -95,7 +95,7 @@ pub fn purge_refusal(state: ListState) -> Option<String> {
         ListState::Broken => "チャットの一覧のファイルが壊れていました（別の名前で残してあります）",
     };
     Some(format!(
-        "{why}。どのチャットの記録かを確かめられないので、記録は消しません。先に「記録からチャットを組み直す」で一覧を戻してください。"
+        "{why}。どのチャットの記録かを確認できないため、記録は消しません。先に「記録からチャットを復元」で一覧を戻してください。"
     ))
 }
 
@@ -238,7 +238,7 @@ pub fn move_to_trash(sessions_root: &Path, batch: &Path, id: &str) -> Result<u64
         return Ok(0);
     }
     let (Ok(real), Ok(base)) = (p.canonicalize(), sessions_root.canonicalize()) else {
-        return Err(format!("場所を確かめられません: {id}"));
+        return Err(format!("場所を確認できません: {id}"));
     };
     if !real.starts_with(&base) || real == base {
         return Err(format!("記録の場所の外を指しています: {id}"));

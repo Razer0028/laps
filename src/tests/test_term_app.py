@@ -267,7 +267,7 @@ def test_exit_event_restarts_once(tmp_path):
     assert res["outcome"] == "crashed"
     assert len(cl.restarts) == 1
     out = _text(ctx)
-    assert "本体が終了しました" in out and "立て直しました" in out
+    assert "エンジンが終了しました" in out and "立て直しました" in out
     # 2 度目は再起動しない（1 回だけ）
     res = run_turn(ctx, "b")
     assert res["outcome"] == "crashed"
@@ -843,7 +843,7 @@ def test_cancel_from_serve_does_not_duplicate_the_client_notice(tmp_path):
     run_turn(ctx, "長い仕事")
     text = _text(ctx)
     assert text.count("中断を要求しました") == 1, text
-    assert "走行中に届きました" in text, text
+    assert "実行中に届きました" in text, text
 
 
 def test_cancel_stall_warns_once_when_done_is_slow(tmp_path, monkeypatch):
@@ -910,7 +910,7 @@ def test_exit_translates_signal_and_shows_stderr_tail(tmp_path):
     out = _text(ctx)
     assert "シグナル 9" in out and "SIGKILL" in out
     assert "llama_model_load: error loading model" in out      # 材料（原因の行）
-    assert "推論器の窓" in out                                   # 次の一手
+    assert "推論サーバーのコンテキスト長" in out                                   # 次の一手
     assert "code=-9" not in out
 
 

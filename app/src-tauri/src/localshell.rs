@@ -91,7 +91,7 @@ pub async fn local_shell_open(app: AppHandle, cols: u32, rows: u32, cwd: Option<
     cmd.env("TERM", "xterm-256color");
     cmd.env("COLORTERM", "truecolor");
     cmd.env("LAPS_SHELL", "1");
-    let mut child = pair.slave.spawn_command(cmd).map_err(|e| format!("殻を起こせません: {e}"))?;
+    let mut child = pair.slave.spawn_command(cmd).map_err(|e| format!("シェルを起動できません: {e}"))?;
     drop(pair.slave);
     let mut reader = pair.master.try_clone_reader().map_err(|e| format!("端末を読めません: {e}"))?;
     let mut writer = pair.master.take_writer().map_err(|e| format!("端末へ書けません: {e}"))?;
@@ -186,7 +186,7 @@ pub async fn shell_window_open(app: AppHandle, cwd: Option<String>) -> Result<()
         .inner_size(960.0, 600.0)
         .min_inner_size(480.0, 280.0)
         .build()
-        .map_err(|e| format!("窓を開けません: {e}"))?;
+        .map_err(|e| format!("ウィンドウを開けません: {e}"))?;
     Ok(())
 }
 

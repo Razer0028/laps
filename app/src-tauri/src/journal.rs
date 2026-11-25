@@ -392,7 +392,7 @@ pub fn write(turn: Turn) {
     let d = dir();
     if let Err(e) = std::fs::create_dir_all(&d) {
         N_WRITE_FAILED.fetch_add(1, Ordering::Relaxed);
-        note_error(format!("記録の置き場を作れません（{}）: {e}", d.display()));
+        note_error(format!("ログの保存先を作れません（{}）: {e}", d.display()));
         return;
     }
 
@@ -511,7 +511,7 @@ fn rotate(cfg: &Config, today: &str, cursor: &Cursor) {
         if unsent > 0 {
             // ★ここが 0 でないなら、サーバ側の記録には穴がある。黙って消さない。
             N_EVICTED_UNSENT.fetch_add(unsent, Ordering::Relaxed);
-            note_error(format!("{day} を上限のため消しました。送れていない {unsent} バイトが失われました"));
+            note_error(format!("{day} を上限のため消しました。未送信の {unsent} バイトが失われました"));
         }
     }
 }
@@ -678,8 +678,8 @@ async fn redact(lines: &[String]) -> Result<Redacted, String> {
     #[cfg(windows)]
     cmd.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
 
-    let mut child = cmd.spawn().map_err(|e| format!("濾し器を起動できません（{}）: {e}", py.display()))?;
-    let mut stdin = child.stdin.take().ok_or("濾し器の標準入力を掴めません")?;
+    let mut child = cmd.spawn().map_err(|e| format!("フィルタを起動できません（{}）: {e}", py.display()))?;
+    let mut stdin = child.stdin.take().ok_or("フィルタの標準入力を掴めません")?;
 
     let mut body = lines.join("\n");
     body.push('\n');
@@ -694,21 +694,21 @@ async fn redact(lines: &[String]) -> Result<Redacted, String> {
 
     let out = tokio::time::timeout(REDACT_TIMEOUT, child.wait_with_output())
         .await
-        .map_err(|_| format!("濾し器が {} 秒たっても終わりません", REDACT_TIMEOUT.as_secs()))?
-        .map_err(|e| format!("濾し器の実行に失敗しました: {e}"))?;
+        .map_err(|_| format!("フィルタが {} 秒たっても終わりません", REDACT_TIMEOUT.as_secs()))?
+        .map_err(|e| format!("フィルタの実行に失敗しました: {e}"))?;
     let _ = writer.await;
 
     if !out.status.success() {
         let tail = String::from_utf8_lossy(&out.stderr);
         let tail: String = tail.trim().chars().rev().take(400).collect::<Vec<_>>().into_iter().rev().collect();
-        return Err(format!("濾し器が異常終了しました（{}）: {tail}", out.status));
+        return Err(format!("フィルタが異常終了しました（{}）: {tail}", out.status));
     }
 
     let text = String::from_utf8_lossy(&out.stdout);
     let got: Vec<String> = text.lines().filter(|l| !l.trim().is_empty()).map(str::to_string).collect();
     if got.len() != lines.len() {
         // ★行数が合わない＝どれかが消えている。送らない（減ったことに気づけないほうが悪い）。
-        return Err(format!("濾し器の出力が {} 行（入力は {} 行）", got.len(), lines.len()));
+        return Err(format!("フィルタの出力が {} 行（入力は {} 行）", got.len(), lines.len()));
     }
 
     // 集計は向こうが標準エラーへ1行 JSON で出す。**その言葉をそのまま使う**
@@ -785,7 +785,7 @@ async fn post_one(url: &str, r: &Redacted) -> Result<usize, String> {
         let code = resp.status();
         let tail = resp.text().await.unwrap_or_default();
         let tail: String = tail.trim().chars().take(200).collect();
-        return Err(format!("サーバが {code} を返しました: {tail}"));
+        return Err(format!("サーバーが {code} を返しました: {tail}"));
     }
     N_SENT_BYTES.fetch_add(gz.len() as u64, Ordering::Relaxed);
     Ok(r.lines.len())
@@ -849,7 +849,7 @@ async fn ship(cfg: &Config) -> Result<(), String> {
                 Err(e) => {
                     N_REDACT_FAILED.fetch_add(1, Ordering::Relaxed);
                     cursor.save();
-                    return Err(format!("伏字を掛けられないので送りません: {e}"));
+                    return Err(format!("マスク処理ができないため送信しません: {e}"));
                 }
             };
             let n = post(url, &red).await.inspect_err(|_| {
@@ -1044,10 +1044,10 @@ pub fn journal_status() -> Value {
 pub async fn journal_flush() -> Value {
     let cfg = config();
     if !cfg.enabled {
-        return json!({ "ok": false, "message": "記録は止まっています（telemetry = off）" });
+        return json!({ "ok": false, "message": "ログ送信は停止しています（telemetry = off）" });
     }
     let Some(_) = cfg.url.as_deref() else {
-        return json!({ "ok": false, "message": format!("送り先がありません（{}）", cfg.url_reason) });
+        return json!({ "ok": false, "message": format!("送信先がありません（{}）", cfg.url_reason) });
     };
     let Ok(_g) = ship_lock().try_lock() else {
         return json!({ "ok": false, "message": "いま送信中です" });

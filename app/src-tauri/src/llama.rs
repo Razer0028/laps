@@ -287,7 +287,7 @@ fn resolve_server_binary(app: &AppHandle) -> Result<PathBuf, String> {
     }
 
     Err(format!(
-        "推論器 {SERVER_BIN} が見つかりません。探した場所:\n  {}",
+        "推論サーバー {SERVER_BIN} が見つかりません。探した場所:\n  {}",
         tried.join("\n  ")
     ))
 }
@@ -787,7 +787,7 @@ pub async fn llama_start(app: AppHandle) -> Result<LlamaStatus, String> {
 
     let child = cmd
         .spawn()
-        .map_err(|e| format!("推論器を起動できません（{}）: {e}", exe.display()))?;
+        .map_err(|e| format!("推論サーバーを起動できません（{}）: {e}", exe.display()))?;
     *lock(&sup().child) = Some(child);
 
     // 応答するまで待つ。途中でプロセスが落ちたら、その場でログを添えて返す。
@@ -807,13 +807,13 @@ pub async fn llama_start(app: AppHandle) -> Result<LlamaStatus, String> {
         if !own_child_alive() {
             let tail = log_tail(&log_path, 4000);
             return Err(format!(
-                "推論器がすぐに終了しました。ログの末尾:\n{tail}"
+                "推論サーバーがすぐに終了しました。ログの末尾:\n{tail}"
             ));
         }
         if std::time::Instant::now() >= deadline {
             let tail = log_tail(&log_path, 4000);
             return Err(format!(
-                "推論器が {} 秒たっても応答しません（port {port}）。ログの末尾:\n{tail}",
+                "推論サーバーが {} 秒たっても応答しません（port {port}）。ログの末尾:\n{tail}",
                 START_TIMEOUT.as_secs()
             ));
         }
@@ -907,7 +907,7 @@ pub async fn llama_load(model: String) -> Result<(), String> {
         .json(&serde_json::json!({ "model": model }))
         .send()
         .await
-        .map_err(|e| format!("推論器に届きません: {e}"))?;
+        .map_err(|e| format!("推論サーバーに接続できません: {e}"))?;
 
     let status = resp.status();
     if status.is_success() {
@@ -922,7 +922,7 @@ pub async fn llama_load(model: String) -> Result<(), String> {
     if status.as_u16() == 404 {
         let have: Vec<String> = status_now().await.models.into_iter().map(|m| m.id).collect();
         return Err(format!(
-            "{model} は推論器に登録されていません（HTTP 404）。\n             いま登録されているのは: {}\n             モデルを入れた直後なら、推論器を一度止めてから使い直すと拾われます。",
+            "{model} は推論サーバーに登録されていません（HTTP 404）。\n             いま登録されているのは: {}\n             モデルを入れた直後なら、推論サーバーを一度止めてから使い直すと拾われます。",
             if have.is_empty() { "（0件）".to_string() } else { have.join(", ") }
         ));
     }
@@ -986,12 +986,12 @@ async fn stream_chat(
         .json(&body)
         .send()
         .await
-        .map_err(|e| format!("推論器に届きません: {e}"))?;
+        .map_err(|e| format!("推論サーバーに接続できません: {e}"))?;
 
     if !resp.status().is_success() {
         let code = resp.status().as_u16();
         let text = resp.text().await.unwrap_or_default();
-        return Err(format!("推論器が HTTP {code} を返しました: {}", text.trim()));
+        return Err(format!("推論サーバーが HTTP {code} を返しました: {}", text.trim()));
     }
 
     // 応答全体を溜めない。`chunk()` は reqwest の stream 機能に依存せず、
@@ -1301,7 +1301,7 @@ pub async fn llama_start_headless() -> Result<LlamaStatus, String> {
     #[cfg(windows)]
     cmd.creation_flags(CREATE_NO_WINDOW);
 
-    let child = cmd.spawn().map_err(|e| format!("推論器を起動できません（{}）: {e}", exe.display()))?;
+    let child = cmd.spawn().map_err(|e| format!("推論サーバーを起動できません（{}）: {e}", exe.display()))?;
     *lock(&sup().child) = Some(child);
     // 応答するまで待つ。落ちたらログの末尾を返す（「起動しません」で終わらせない）。
     let deadline = std::time::Instant::now() + START_TIMEOUT;
@@ -1310,10 +1310,10 @@ pub async fn llama_start_headless() -> Result<LlamaStatus, String> {
             return Ok(status_now().await);
         }
         if !own_child_alive() {
-            return Err(format!("推論器がすぐに終了しました。ログの末尾:\n{}", log_tail(&log_path, 30)));
+            return Err(format!("推論サーバーがすぐに終了しました。ログの末尾:\n{}", log_tail(&log_path, 30)));
         }
         if std::time::Instant::now() > deadline {
-            return Err(format!("推論器が {}秒たっても応答しません。ログの末尾:\n{}",
+            return Err(format!("推論サーバーが {}秒たっても応答しません。ログの末尾:\n{}",
                 START_TIMEOUT.as_secs(), log_tail(&log_path, 30)));
         }
         tokio::time::sleep(Duration::from_millis(300)).await;
@@ -1393,7 +1393,7 @@ fn stage_engine(src_exe: &Path) -> Result<PathBuf, String> {
     if !staged.is_file() {
         return Err(format!(
             "エンジンを {} へ複製できませんでした（{} 個複製）。\n\
-             利用者名に ASCII 以外の文字が含まれる環境では、この複製が要ります。",
+             ユーザー名に ASCII 以外の文字が含まれる環境では、この複製が要ります。",
             dst_dir.display(), copied
         ));
     }
@@ -1416,7 +1416,7 @@ pub async fn generate_probe(model: &str) -> Result<String, String> {
         .json(&body)
         .send()
         .await
-        .map_err(|e| format!("推論器に届きません: {e}"))?;
+        .map_err(|e| format!("推論サーバーに接続できません: {e}"))?;
     let status = resp.status();
     let text = resp.text().await.unwrap_or_default();
     if !status.is_success() {

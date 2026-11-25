@@ -117,7 +117,7 @@ async fn handle(stream: tokio::net::TcpStream, token: String) {
     let given = hello.get("token").and_then(|x| x.as_str()).unwrap_or("");
     let same = given.len() == token.len() && given.bytes().zip(token.bytes()).fold(0u8, |a, (x, y)| a | (x ^ y)) == 0;
     if hello.get("type").and_then(|x| x.as_str()) != Some("hello") || !same || token.is_empty() {
-        let _ = write.send(Message::Text(json!({"type": "denied", "reason": "合言葉が違います"}).to_string().into())).await;
+        let _ = write.send(Message::Text(json!({"type": "denied", "reason": "ペアリングキーが違います"}).to_string().into())).await;
         return;
     }
     let me = CONN.fetch_add(1, Ordering::SeqCst) + 1;

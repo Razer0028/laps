@@ -19,7 +19,7 @@ pub async fn voice_transcribe(data: String, lang: Option<String>) -> Result<Valu
         return Err("録音が長すぎます（2 分までにしてください）".into());
     }
     let dir = crate::app_root().join("voice-input");
-    std::fs::create_dir_all(&dir).map_err(|e| format!("録音の置き場を作れません: {e}"))?;
+    std::fs::create_dir_all(&dir).map_err(|e| format!("録音の保存先を作れません: {e}"))?;
     let stamp = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_millis())

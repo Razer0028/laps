@@ -145,10 +145,10 @@ fn path_str_eq(a: &str, b: &str) -> bool {
 pub fn current_root() -> Result<PathBuf, String> {
     let state = load_state_from(&config_path());
     let Some(p) = state.current.filter(|s| !s.trim().is_empty()) else {
-        return Err("作業ディレクトリが未設定です。フォルダを選んでください".to_string());
+        return Err("ワークスペースが未設定です。フォルダを選んでください".to_string());
     };
     canonicalize_root(Path::new(&p))
-        .map_err(|e| format!("{e}。作業ディレクトリを選び直してください"))
+        .map_err(|e| format!("{e}。ワークスペースを選び直してください"))
 }
 
 // ★`reject_dangerous_root` / `info_of` の実体は `workspace_guard`（冒頭の `use` で
@@ -170,7 +170,7 @@ fn adopt_root(path: &Path) -> Result<WsInfo, String> {
     // 保存に失敗しても選択は成立させる。「今回は使えるが次回は覚えていない」方が、
     // 「フォルダを選べない」より遥かにましなので、ここでは落とさず理由だけ残す。
     if let Err(e) = save_state_to(&cfg, &state) {
-        eprintln!("[blackwall] 作業ディレクトリを保存できません: {e}");
+        eprintln!("[blackwall] ワークスペースを保存できません: {e}");
     }
     Ok(info)
 }
@@ -202,7 +202,7 @@ pub async fn ws_pick(app: AppHandle) -> Result<Option<String>, String> {
         .filter(|p| p.is_dir());
 
     let picked = tauri::async_runtime::spawn_blocking(move || {
-        let mut b = app.dialog().file().set_title("作業ディレクトリを選ぶ");
+        let mut b = app.dialog().file().set_title("ワークスペースを選ぶ");
         if let Some(d) = start {
             b = b.set_directory(d);
         }
@@ -282,7 +282,7 @@ pub async fn ws_create(rel: String, dir: bool) -> Result<String, String> {
         std::fs::create_dir_all(&path).map_err(|e| format!("{rel} を作れません: {e}"))?;
     } else {
         if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent).map_err(|e| format!("{rel} の置き場を作れません: {e}"))?;
+            std::fs::create_dir_all(parent).map_err(|e| format!("{rel} の親フォルダを作れません: {e}"))?;
         }
         std::fs::OpenOptions::new().write(true).create_new(true).open(&path).map_err(|e| format!("{rel} を作れません: {e}"))?;
     }
@@ -311,7 +311,7 @@ pub async fn ws_rename(from: String, to: String) -> Result<String, String> {
         return Err(format!("{to} は既にあります"));
     }
     if let Some(parent) = dst.parent() {
-        std::fs::create_dir_all(parent).map_err(|e| format!("{to} の置き場を作れません: {e}"))?;
+        std::fs::create_dir_all(parent).map_err(|e| format!("{to} の親フォルダを作れません: {e}"))?;
     }
     std::fs::rename(&src, &dst).map_err(|e| format!("名前を変えられません: {e}"))?;
     Ok(to)

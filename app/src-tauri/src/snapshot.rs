@@ -29,7 +29,7 @@ fn snapshot_url() -> Result<String, String> {
     let cfg = crate::journal::config();
     let base = cfg
         .url
-        .ok_or_else(|| format!("送り先がありません（{}）", cfg.url_reason))?;
+        .ok_or_else(|| format!("送信先がありません（{}）", cfg.url_reason))?;
     Ok(match base.strip_suffix("/ingest") {
         Some(root) => format!("{root}/snapshot"),
         None => {
@@ -61,7 +61,7 @@ async fn send_inner(png_b64: String, html: String, note: Option<String>) -> Resu
     if approx > MAX_PNG_BYTES {
         // ★切って送らない。切れた画像で判断すると、見えていない所を「無い」と読む。
         return Err(format!(
-            "画像が大きすぎます（約 {:.1}MB > {:.0}MB）。会話を分けてから送ってください",
+            "画像が大きすぎます（約 {:.1}MB > {:.0}MB）。チャットを分けてから送ってください",
             approx as f64 / 1_048_576.0,
             MAX_PNG_BYTES as f64 / 1_048_576.0
         ));
@@ -95,12 +95,12 @@ async fn send_inner(png_b64: String, html: String, note: Option<String>) -> Resu
         .json(&body)
         .send()
         .await
-        .map_err(|e| format!("{url} へ届きません: {e}"))?;
+        .map_err(|e| format!("{url} へ接続できません: {e}"))?;
 
     let status = resp.status();
     let text = resp.text().await.unwrap_or_default();
     if !status.is_success() {
-        return Err(format!("サーバが HTTP {} を返しました: {}", status.as_u16(), text.trim()));
+        return Err(format!("サーバーが HTTP {} を返しました: {}", status.as_u16(), text.trim()));
     }
     let parsed: Value = serde_json::from_str(&text).unwrap_or(json!({}));
     Ok(json!({

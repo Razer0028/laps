@@ -64,8 +64,8 @@ def test_status_shows_running_tool_substance_not_gerund():
     r.on_event({"type": "tool_call", "id": "r1", "name": "Read",
                 "input": {"file_path": "/srv/x/api.py"}, "call": 1})
     txt = _frame(r)
-    assert "api.py を読込" in txt, txt              # 道具名＝主役
-    assert "Nebulizing" not in txt                  # 道具走行中に Gerund を出さない
+    assert "api.py を読込" in txt, txt              # ツール名＝主役
+    assert "Nebulizing" not in txt                  # ツール実行中に Gerund を出さない
 
 
 def test_status_two_running_tools_are_counted():
@@ -75,7 +75,7 @@ def test_status_two_running_tools_are_counted():
                 "input": {"command": "sleep 1"}, "call": 1})
     r.on_event({"type": "tool_call", "id": "r1", "name": "Bash",
                 "input": {"command": "sleep 2"}, "call": 2})
-    assert "道具 2 個を実行中" in _frame(r)
+    assert "ツール 2 個を実行中" in _frame(r)
 
 
 def test_status_pure_inference_rotates_gerund():
@@ -138,7 +138,7 @@ def test_no_color_suppresses_always_on_line_but_keeps_heartbeat(monkeypatch):
     # 心拍が来れば旧来の待ち行は出る（NO_COLOR でも消さない）
     r.on_event({"type": "notice", "id": "r1", "kind": "heartbeat",
                 "stage": "推論機", "quiet_secs": 20})
-    assert "推論機の応答を待っています（20 秒）" in _frame(r)
+    assert "推論サーバーの応答を待っています（20 秒）" in _frame(r)
 
 
 def test_static_mark_and_full_row_when_wide():
@@ -176,5 +176,5 @@ def test_running_tool_appends_silence_note_from_heartbeat():
     r.on_event({"type": "notice", "id": "r1", "kind": "heartbeat",
                 "stage": "道具 Bash", "quiet_secs": 40})
     txt = _frame(r)
-    assert "pytest を実行中" in txt                 # 道具名（substance）が主役
+    assert "pytest を実行中" in txt                 # ツール名（substance）が主役
     assert "（40 秒 応答なし）" in txt              # 沈黙は末尾へ添える

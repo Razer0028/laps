@@ -539,11 +539,11 @@ mod tests {
     fn outcome_は端末と同じ語で出る() {
         let mut f = Fold::default();
         let out = sig(r#"{"type":"done","outcome":"user_stop"}"#, &mut f);
-        assert!(out.iter().any(|s| matches!(s, Signal::Line(t) if t == "✓ 終わり方: 利用者が終了")),
+        assert!(out.iter().any(|s| matches!(s, Signal::Line(t) if t == "✓ 終わり方: ユーザーが終了")),
                 "{out:?}");
         let mut f = Fold::default();
         let out = sig(r#"{"type":"done","outcome":"context_exhausted"}"#, &mut f);
-        assert!(out.iter().any(|s| matches!(s, Signal::Gate(t) if t == "終わり方: 文脈切れ")),
+        assert!(out.iter().any(|s| matches!(s, Signal::Gate(t) if t == "終わり方: コンテキスト切れ")),
                 "識別子のまま出ている: {out:?}");
         let mut f = Fold::default();
         let out = sig(r#"{"type":"done","outcome":"accepted"}"#, &mut f);

@@ -89,20 +89,20 @@ const TOOL_KIND = {
 const KIND_LABEL = { read: "read", write: "edit", exec: "run", ask: "ask", unknown: "?" };
 
 const TOOL_DESC = {
-  Bash: "コマンドを実行", Read: "ファイルを読む", Write: "ファイルを作る",
-  Edit: "ファイルの一部を書き換える", Grep: "ファイルの中を検索", Glob: "名前で探す",
+  Bash: "コマンドを実行", Read: "ファイルを読む", Write: "ファイルを作成",
+  Edit: "ファイルを編集", Grep: "ファイルの中を検索", Glob: "ファイル名で検索",
   WebFetch: "URL を取得", WebSearch: "Web を検索",
-  Construct: "自分のメモリを引く", Remember: "覚えておく",
-  ApplyDiff: "差分を当てる", ApplyPatch: "差分を当てる（複数のファイル）", NotebookEdit: "ノートブックを編集",
-  TodoWrite: "作業の一覧を書く", BashOutput: "実行中のコマンドの出力を読む",
-  RemoteRead: "別のホストを読む（読み取り専用）", SystemState: "このマシンの状態を読む",
-  Task: "別のエージェントに任せる", AskUserQuestion: "利用者に尋ねる",
-  TaskCreate: "作業を作る", TaskList: "作業の一覧", TaskGet: "作業を見る",
-  TaskUpdate: "作業を更新", TaskStop: "作業を止める", Desktop: "画面を操作",
-  Done: "作業を終える", Tools: "ツールを足す",
-  Doc: "資料を作る・読む（Word・PowerPoint・Excel・PDF）",   Api: "他のサービスの API を呼ぶ", Monitor: "ログや出力を見張る", Voice: "文を声にする",
+  Construct: "メモリを検索", Remember: "メモリに保存",
+  ApplyDiff: "パッチを適用", ApplyPatch: "パッチを適用（複数のファイル）", NotebookEdit: "ノートブックを編集",
+  TodoWrite: "TODO リストを更新", BashOutput: "実行中のコマンドの出力を読む",
+  RemoteRead: "別のホストを調べる（読み取り専用）", SystemState: "このマシンの状態を確認",
+  Task: "サブエージェントに任せる", AskUserQuestion: "ユーザーに質問",
+  TaskCreate: "タスクを作成", TaskList: "タスクの一覧", TaskGet: "タスクを表示",
+  TaskUpdate: "タスクを更新", TaskStop: "タスクを停止", Desktop: "画面を操作",
+  Done: "タスクを完了", Tools: "ツールを追加",
+  Doc: "資料を作る・読む（Word・PowerPoint・Excel・PDF）",   Api: "他のサービスの API を呼ぶ", Monitor: "ログや出力を監視", Voice: "テキストを読み上げる",
   ws_list: "ワークスペースの一覧", ws_read: "ファイルを読む",
-  ws_edit: "ファイルの一部を書き換える", ws_write: "ファイルを作る",
+  ws_edit: "ファイルを編集", ws_write: "ファイルを作成",
 };
 
 const toolKind = (name) => TOOL_KIND[String(name || "")] || "unknown";
@@ -772,7 +772,7 @@ function msgActs(text, mine, at = 0, opts = {}) {
     setTimeout(() => { b.textContent = "Copy"; }, 1500);
   });
   if (mine) {
-    mk("Edit", "このプロンプトを入力欄に戻す（直して送る）", () => {
+    mk("Edit", "このプロンプトを入力欄に戻す（編集して送る）", () => {
       const q = $("#q");
       if (!q || composerBusyNote()) return;
       q.value = text;
@@ -785,7 +785,7 @@ function msgActs(text, mine, at = 0, opts = {}) {
     /* ★Retry（2026-11-15 オーナー「入れておいて」・ChatGPT と Claude の回答にある「やり直し」）: 直前の依頼をもう一度送る。
      *   L.A.P.S の会話は枝分かれしないので、前の答えは残り、モデルはそれを見たうえでやり直す。モデルを替える時は入力欄の下で選んでから。
      *   最後の回答にだけ出す（paintLastAnswer）。 */
-    mk("Retry", "直前のプロンプトをもう一度送る（前の答えは残る・モデルを替える時は入力欄の下で選んでから）", (b) => {
+    mk("Retry", "直前のプロンプトをもう一度送る（前の回答は残る・モデルを替える時は入力欄の下で選んでから）", (b) => {
       const note = $("#composer-note");
       if (state.busy) { if (note) note.textContent = "作業が終わってから押してください（いまは止めるか、終わるのを待ってください）。"; return; }
       if (composerBusyNote()) return;
@@ -2355,7 +2355,9 @@ function beginLive(opts = {}) {
       const QUIET = /^(Stopped \d+ (background jobs|apps started)|New files: \d|Moved \d+ throwaway scripts|⚠ Check still failing \(reported\))/;
       let undoLine = "", cancelled = false;
       noticeList.forEach((item) => {
-        const line = typeof item === "string" ? item : String(item?.text || "");
+        // 古い記録の「子: …」「Helper: …」も今の呼び名で出す。
+        const line = (typeof item === "string" ? item : String(item?.text || ""))
+          .replace(/^子: /, "サブエージェント: ").replace(/^Helper: (\d+ tool call)/, "Subagent: $1");
         if (!line || QUIET.test(line)) return;
         if (/\/undo\b/.test(line)) { undoLine = line; return; }
         if (/^中断しました。?$/.test(line.trim())) { cancelled = true; return; }
@@ -2427,7 +2429,7 @@ function beginLive(opts = {}) {
       if (cancelled) { el.dataset.cancelled = "1"; paintWho(); }   // 見出しの右（ツール N 回 · 中断）に出す（カードにしない）
       const worked = stoppedByUser ? "（途中で止めました。）" : records.length
         ? "（ツールは動きましたが、答えの本文が返りませんでした。何を実行して何が返ったかは、上のツールの記録にあります。）"
-        : "（返事が空でした。推論サーバーが途中で止まった可能性があります。）";
+        : "（応答が空でした。推論サーバーが途中で止まった可能性があります。）";
       text = stripThinking(text);
       const shown = String(text || "").trim()
         ? text
@@ -2657,7 +2659,7 @@ function applyRailFold(turns, s) {
       if (toolIsBad(e) && e.kind !== "denied" && !e.stopped) failed++;
     });
   });
-  s.t.say = `前の ${old.length} 手番`;
+  s.t.say = `前の ${old.length} ターン`;
   s.t.w = [...by.entries()].sort((a, b) => b[1] - a[1]).slice(0, 4).map(([k, n]) => `${k} ${n}`).join(" · ");
   s.t.res = failed ? `${failed} failed` : "";
   s.t.resBad = failed > 0;
@@ -3003,7 +3005,7 @@ function paintTool(node, e) {
   let ob = node.querySelector(".tool__open");
   if (fpath && !ob) {
     ob = document.createElement("button");
-    ob.type = "button"; ob.className = "tool__open"; ob.textContent = "View"; ob.title = "横の枠で開く";
+    ob.type = "button"; ob.className = "tool__open"; ob.textContent = "View"; ob.title = "横のペインで開く";
     ob.addEventListener("click", (ev) => {           // 行を開け閉めさせない
       ev.preventDefault(); ev.stopPropagation();
       const p = absPath(toolFilePath(node.__entry)); if (p) openFile(p);
@@ -3475,7 +3477,7 @@ function buildChatFiles(box, list) {
     if (session && window.bwX?.openChangeDiff && !/\.(png|jpe?g|gif|webp|bmp|ico|pdf|docx?|xlsx?|pptx?|zip|exe|dll)$/i.test(f.path)) {
       const d = document.createElement("button");
       d.type = "button"; d.className = "x-icon fl__diff";
-      d.title = "この会話で変える前との差分（塊ごとに戻せる）"; d.setAttribute("aria-label", `${baseName(f.path)} の差分`);
+      d.title = "このチャットで変更する前との差分（塊ごとに戻せる）"; d.setAttribute("aria-label", `${baseName(f.path)} の差分`);
       d.innerHTML = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 2.5v7M2 6.5h6M8.5 13.5h5"/><path d="M11 2.5v6"/></svg>';
       d.addEventListener("click", () => window.bwX.openChangeDiff(absPath(f.path, wsPath()) || f.path, session));
       row.appendChild(d);
@@ -3499,8 +3501,8 @@ function paintEdCtx() {
   b.hidden = false;
   b.classList.toggle("is-off", edctx.off);
   b.setAttribute("aria-pressed", String(!edctx.off));
-  b.title = edctx.off ? "エディターの今を依頼に添えません（押すと添える）"
-    : c.text ? `選んでいる ${c.to - c.from + 1} 行を依頼に添えます（押すと添えない）` : `開いているファイルと行を依頼に添えます（押すと添えない）`;
+  b.title = edctx.off ? "エディターの内容をメッセージに含めない（クリックで含める）"
+    : c.text ? `選んでいる ${c.to - c.from + 1} 行をメッセージに含める（クリックで外す）` : `開いているファイルと行をメッセージに含める（クリックで外す）`;
 }
 function editorExtra() {
   if (edctx.off || state.cur?.remote) return "";
@@ -4023,7 +4025,7 @@ async function voiceToggle() {
 }
 $("#mic")?.addEventListener("click", () => { voiceToggle(); });
 document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape" && voice.rec) { e.preventDefault(); voiceStop(true); voiceNote("音声入力を取りやめました。"); }
+  if (e.key === "Escape" && voice.rec) { e.preventDefault(); voiceStop(true); voiceNote("音声入力をキャンセルしました。"); }
 });
 
 /* 送るときに作業フォルダへ写し、依頼の文に書き添える塊を返す（添付が無ければ ""・失敗したら null＝送らない）。 */
@@ -4084,7 +4086,7 @@ $("#ask")?.addEventListener("submit", async (e) => {
     try {
       const r = await addRemember(remM[1].trim());
       if (r.ok) { ta.value = ""; ta.style.height = "auto"; }
-      if (note) note.textContent = r.ok ? `覚えました: ${remM[1].trim()}` : r.message;
+      if (note) note.textContent = r.ok ? `メモリに保存しました: ${remM[1].trim()}` : r.message;
     } catch (err) { if (note) note.textContent = String(err?.message || err); }
     return;
   }
@@ -4165,7 +4167,7 @@ $("#ask")?.addEventListener("submit", async (e) => {
   const peerNow = state.cur?.remote ? peerItem(state.cur) : null;
   if (peerNow && peerNow.online === false) {
     const note = $("#composer-note");
-    if (note) note.textContent = `${state.cur.remote.name || "ほかのデバイス"} はいまオフラインです。繋がったら送れます（文は入力欄に残しています）。`;
+    if (note) note.textContent = `${state.cur.remote.name || "ほかのデバイス"} はいまオフラインです。接続したら送れます（文は入力欄に残しています）。`;
     dropOnce();
     return;
   }
@@ -4263,7 +4265,7 @@ function finishRun(run) {
 async function ask(q, useTools = false, live = null, toolset = null, run = null) {
   if (DEMO) return { text: DEMO_ANSWER, think: "", stats: null, notice: [] };
   const model = state.model?.name || state.models[0]?.name;
-  if (!model && !(run ? run.convo : state.cur)?.remote && !run?.via) throw new Error("モデルが載っていません。左下の Models から選んでください。");
+  if (!model && !(run ? run.convo : state.cur)?.remote && !run?.via) throw new Error("モデルが読み込まれていません。サイドバーの「推論サーバー」から選んでください。");
   const sys = systemPrompt(useTools);
   // ★同じチャットの前の走行のセッションを続ける（2026-10-05）。渡さないと依頼のたびに新しい会話になり、
   //   前の手番で道具を使って調べた結果が消えて、同じ調査を繰り返していた（実機の記録）。
@@ -4337,12 +4339,14 @@ async function ask(q, useTools = false, live = null, toolset = null, run = null)
       // 利用者が差し込んだ文は吹き出しの中の位置に出してある。同じ内容を末尾の注記へ重ねない。
       if (m && live?.isInjected?.(m)) return;
       // サブエージェントの動きは、任せている行に出す（新しい中核は「子: Read パス」と「子: ✓ Read」で流す・対象も分かる）。
-      const kidLine = /^子: (?:([▶✓✗]) )?(.+)$/.exec(m);
+      // ★頭の「子: 」は本体との取り決め（古い本体と保存済みの記録にも残る）。画面には「サブエージェント: 」と出す。
+      const kidLine = /^(?:子|サブエージェント): (?:([▶✓✗]) )?(.+)$/.exec(m);
+      const kidShown = kidLine ? "サブエージェント: " + (kidLine[1] ? kidLine[1] + " " : "") + kidLine[2] : m;
       if (kidLine) live?.kid?.(kidLine[1] || "▶", kidLine[2]);
       // ★走行中だけの知らせ（経過: 背景の仕事・文脈の整理・見直し・促しなど・wire.rs AFTER_KINDS に無い kind・2026-10-28）は状態行にだけ出す。
       //   答えの下に溜めると、長い走行が終わった後に十数行並んだ（オーナーの画面）。モデルは受け取って対応済み。
       //   答えの下に残るのは止められた・打ち切った事と、本体が final を付けた走行の終わりの状態だけ。
-      if (ev.payload?.live) { if (m) live?.note(m, lv); return; }
+      if (ev.payload?.live) { if (m) live?.note(kidShown, lv); return; }
       // ★子の行は 1 行ずつ答えの下に残さない（2026-11-19 オーナー「タスク完了時にこのログがめっちゃ出てきます」）。
       //   新しい中核は呼び出しを印なし（「子: Bash cd …」）で流すので、旧い正規表現（▶ 必須）に当たらず、
       //   全部が注記に積まれていた。印なし＝呼び出しとして数え、失敗も数だけにして末尾の 1 行にまとめる。
@@ -4352,7 +4356,7 @@ async function ask(q, useTools = false, live = null, toolset = null, run = null)
         if (kidLine[2].startsWith("終わり")) { /* 子の終わりの知らせ（engine/loop.py）。数えない */ }
         else if (mark === "▶") { kids.calls++; kids.by[name] = (kids.by[name] || 0) + 1; }
         else if (mark === "✗") kids.fails++;
-        live?.note(m, lv);
+        live?.note(kidShown, lv);
         return;
       }
       if (m && !notices.some((x) => x.text === m)) notices.push({ text: m, level: lv });
@@ -4394,7 +4398,7 @@ async function ask(q, useTools = false, live = null, toolset = null, run = null)
     }
     if (kids.calls) {
       const top = Object.entries(kids.by).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([k, v]) => `${k} ${v}`).join(", ");
-      notices.push({ text: `Helper: ${kids.calls} tool call${kids.calls === 1 ? "" : "s"} (${top})`
+      notices.push({ text: `Subagent: ${kids.calls} tool call${kids.calls === 1 ? "" : "s"} (${top})`
         + (kids.fails ? `, ${kids.fails} failed` : ""), level: "plain" });
     }
     return { text: out, think, stats, notice: notices };
@@ -4506,8 +4510,8 @@ function showAsk(p) {
     if (!r) return;
     r.ask = p;
     renderConvos();
-    if (r.park || r.convo !== state.cur) { toastConv(r.convo, "聞かれています", p.question); return; }
-    if (document.hidden) toastConv(r.convo, "聞かれています", p.question);
+    if (r.park || r.convo !== state.cur) { toastConv(r.convo, "回答待ち", p.question); return; }
+    if (document.hidden) toastConv(r.convo, "回答待ち", p.question);
   }
   // ★入力欄の直前に出す（2026-10-08 に波を窓の帯へ移したので、波の隣ではなく入力欄を基準にする）。
   const host = $("#ask")?.parentNode;
@@ -4560,7 +4564,7 @@ function showAsk(p) {
           err.className = "askbox__err"; err.setAttribute("role", "alert");
           box.appendChild(err);
         }
-        err.textContent = "返事をエンジンへ渡せませんでした: " + (e?.message || e);
+        err.textContent = "回答をエンジンへ渡せませんでした: " + (e?.message || e);
       });
   };
   // ★選択肢の説明（serve.py が 2026-09-03 に足した `descriptions`）。label と説明は添字で対応する（Rust 側で同じ長さに揃えてある）。
@@ -4963,7 +4967,7 @@ async function sendToPeerApp(c, q) {
     r = await authCall({ op: "ctl", device: c.remote.device, ctl: "chat.send",
                          args: { session: c.remote.sid, text: q, think_level: thinkLevel(), source: "windows" } });
   } catch (e) { r = { ok: false, message: String(e?.message || e) }; }
-  if (note) note.textContent = r?.ok ? `${c.remote.name} で走らせます…` : `${c.remote.name} へ送れませんでした: ${r?.message || ""}`;
+  if (note) note.textContent = r?.ok ? `${c.remote.name} で実行します…` : `${c.remote.name} へ送れませんでした: ${r?.message || ""}`;
   return true;
 }
 
@@ -5147,7 +5151,7 @@ async function deletePeerConvo(device, sid, name) {
     return false;
   }
   const d = await authCall({ op: "conv_delete", device, sid }).catch((e) => ({ ok: false, message: String(e?.message || e) }));
-  if (!d?.ok && note) note.textContent = `中継の写しを消せませんでした: ${d?.message || d?.error || ""}`;
+  if (!d?.ok && note) note.textContent = `中継サーバー上のコピーを消せませんでした: ${d?.message || d?.error || ""}`;
   state.peers.items = state.peers.items.filter((x) => !(x.device === device && x.sid === sid));
   const c = state.convos.find((y) => y.remote && y.remote.device === device && y.remote.sid === sid);
   if (c) {
@@ -5768,11 +5772,11 @@ function peerRowEl(it) {
   const tx = document.createElement("span"); tx.className = "convo__tx";
   const t1 = document.createElement("span"); t1.className = "convo__t"; t1.textContent = title;
   const t2 = document.createElement("span"); t2.className = "convo__s";
-  t2.textContent = x.archived ? "マシンに無い（中継の写し）" : "";
+  t2.textContent = x.archived ? "マシンに無い（中継サーバー上のコピー）" : "";
   tx.append(t1, t2);
   b.append(ic, tx, rowTail(it, whenText(Number(x.updated || 0) * 1000)));
   const dev = x.device_name || "ほかのデバイス";
-  b.title = !canOpen ? `${title} — ${dev} はオフラインです（繋がったら開けます）`
+  b.title = !canOpen ? `${title} — ${dev} はオフラインです（接続したら開けます）`
     : x.online === false ? `${title} — ${dev} はオフラインです。中身は読めます（送るのは繋がってから）`
     : peerActive(x) ? `${title} — ${dev} で実行中の様子を見る` : `${title} — ${dev} で、このチャットの続きを実行する`;
   b.addEventListener("click", () => { if (canOpen) openPeerConvo(x); });
@@ -6292,7 +6296,7 @@ function renderMemory() {
   ];
   if (m.orphans > 0 && chats > 0) rows.push(["うち一覧にない記録", `${m.orphans} 件 ・ ${fmtBytes(m.orphan_bytes)}`]);
   if (m.protected > 0) rows.push(["別の名前で残した一覧が指す記録", `${m.protected} 件（消さずに残します）`]);
-  if (m.tool_output_bytes > 0) rows.push(["ツールの出力の控え", fmtBytes(m.tool_output_bytes)]);
+  if (m.tool_output_bytes > 0) rows.push(["ツール出力の保存ファイル", fmtBytes(m.tool_output_bytes)]);
   if (trash.sessions > 0) rows.push(["ゴミ箱", `${trash.sessions} 件 ・ ${fmtBytes(trash.bytes)}`]);
   if (m.path) rows.push(["場所", m.path]);
   rows.forEach(([k, v]) => {
@@ -6315,7 +6319,7 @@ function renderMemory() {
   };
   const rebuildBtn = () => {
     // ★主ボタンの色は赤（この意匠のアクセント）で「消す」と紛れるので、組み直しは中立の見た目のまま。
-    const b = memEl("button", "btn", `記録からチャットを組み直す（${rebuildable} 件）`);
+    const b = memEl("button", "btn", `記録からチャットを復元（${rebuildable} 件）`);
     b.type = "button"; b.disabled = anyBusy(); b.dataset.act = "rebuild";
     b.addEventListener("click", () => rebuildFromRecords(b));
     return b;
@@ -6325,11 +6329,11 @@ function renderMemory() {
   if (trouble && m.sessions > 0) {
     const card = memEl("div", "mem-card mem-card--warn");
     card.dataset.trouble = trouble;
-    card.append(memEl("p", "mem-card__title", LIST_TROUBLE[trouble] || "チャットの一覧を確かめられません。"));
+    card.append(memEl("p", "mem-card__title", LIST_TROUBLE[trouble] || "チャットの一覧を確認できません。"));
     card.append(memEl("p", "mem-card__body",
-      "どのチャットの記録かを確かめられないので、この画面から記録は消しません（一覧にない記録・残っている記録）。" +
-      (hist.length ? "前の日の一覧の控えから戻すと、元どおりに戻ります。" : "") +
-      (rebuildable > 0 ? (hist.length ? "控えに無いチャットは、記録から組み直せます（依頼・道具・答えだけ）。" : "記録からチャットを組み直すと、一覧に戻せます（依頼・道具・答えだけ）。") : "")));
+      "どのチャットの記録かを確認できないため、この画面から記録は消しません（一覧にない記録・残っている記録）。" +
+      (hist.length ? "前の日の一覧のバックアップから戻すと、元どおりに戻ります。" : "") +
+      (rebuildable > 0 ? (hist.length ? "バックアップに無いチャットは、記録から復元できます（プロンプト・ツール・回答のみ）。" : "記録からチャットを復元すると、一覧に戻せます（プロンプト・ツール・回答のみ）。") : "")));
     const aside = Array.isArray(m.aside) ? m.aside : [];
     if (aside.length) {
       const ul = memEl("ul", "mem-confirm__list");
@@ -6366,9 +6370,9 @@ function renderMemory() {
       const card = memEl("div", "mem-card");
       card.append(memEl("p", "mem-card__title", m.sessions > 0
         ? `チャットはありませんが、過去の記録が ${m.sessions} 件（${fmtBytes(m.bytes)}）残っています。`
-        : `チャットはありませんが、ツールの出力の控え（${fmtBytes(m.tool_output_bytes)}）が残っています。`));
+        : `チャットはありませんが、ツール出力の保存ファイル（${fmtBytes(m.tool_output_bytes)}）が残っています。`));
       card.append(memEl("p", "mem-card__body", rebuildable > 0
-        ? "どのチャットからも開けない記録です。チャットに組み直して読むことも、消すこともできます。"
+        ? "どのチャットからも開けない記録です。チャットに復元して読むことも、消すこともできます。"
         : "どのチャットからも開けない記録で、新しいチャットのモデルにも渡りません。不要なら消せます。"));
       const act = memEl("div", "mem-actions");
       if (hist.length) act.append(histBtn());
@@ -6446,7 +6450,7 @@ function askMemConfirm(kind) {
   if (kind === "all") {
     ul.append(memEl("li", null, `サイドバーのチャット ${chats} 件`));
     ul.append(memEl("li", null, `この PC の記録 ${m.sessions} 件（${fmtBytes(m.bytes)}）`));
-    if (m.tool_output_bytes > 0) ul.append(memEl("li", null, `ツールの出力の控え（${fmtBytes(m.tool_output_bytes)}）`));
+    if (m.tool_output_bytes > 0) ul.append(memEl("li", null, `ツール出力の保存ファイル（${fmtBytes(m.tool_output_bytes)}）`));
   } else if (kind === "orphans") {
     ul.append(memEl("li", null, `一覧にない記録 ${m.orphans} 件（${fmtBytes(m.orphan_bytes)}）`));
     ul.append(memEl("li", "mem-confirm__keep", `一覧のチャット ${chats} 件とその記録は残ります`));
@@ -6456,7 +6460,7 @@ function askMemConfirm(kind) {
     // 別の名前で残した一覧が指す記録は消さない（本体の memory_purge も同じ）＝その分を引いて数える。
     const n = Math.max(0, m.sessions - (m.protected || 0));
     ul.append(memEl("li", null, m.protected > 0 ? `記録 ${n} 件` : `記録 ${n} 件（${fmtBytes(m.bytes)}）`));
-    if (m.tool_output_bytes > 0) ul.append(memEl("li", null, `ツールの出力の控え（${fmtBytes(m.tool_output_bytes)}）`));
+    if (m.tool_output_bytes > 0) ul.append(memEl("li", null, `ツール出力の保存ファイル（${fmtBytes(m.tool_output_bytes)}）`));
   }
   if (m.protected > 0 && (kind === "orphans" || kind === "left")) {
     ul.append(memEl("li", "mem-confirm__keep", `別の名前で残した一覧が指す記録 ${m.protected} 件は残ります`));
@@ -6464,7 +6468,7 @@ function askMemConfirm(kind) {
   const warn = memEl("p", "mem-confirm__warn", kind === "trash"
     ? "元に戻せません。"
     : `記録はゴミ箱に移り、${trashDays()} 日間は「元に戻す」で戻せます。` +
-      (m.tool_output_bytes > 0 && kind !== "orphans" ? "ツールの出力の控えはすぐに消えます。" : "") +
+      (m.tool_output_bytes > 0 && kind !== "orphans" ? "ツール出力の保存ファイルはすぐに消えます。" : "") +
       "ワークスペースのファイル・設定・モデルは消えません。");
   const act = memEl("div", "mem-actions");
   const yes = memEl("button", "btn btn--danger", "消す"); yes.type = "button";
@@ -6568,7 +6572,7 @@ async function restoreHistory(btn, day) {
 async function rebuildFromRecords(btn) {
   if (DEMO || !invoke || anyBusy()) return;
   const res = $("#mem-result");
-  btn.disabled = true; btn.textContent = "組み直しています…";
+  btn.disabled = true; btn.textContent = "復元しています…";
   let items = [];
   try { items = JSON.parse(await invoke("sessions_rebuild", { exclude: referencedSessions() })) || []; }
   catch (e) { if (res) res.textContent = "記録を読めませんでした: " + (e?.message || e); renderMemory(); return; }
@@ -6600,9 +6604,9 @@ async function rebuildFromRecords(btn) {
     renderConvos();
   }
   if (res) res.textContent = added.length
-    ? `記録から ${added.length} 件のチャットを組み直して一覧に足しました（依頼・道具・答えだけで、思考や画像は戻りません）。` +
-      (big ? `記録が大きすぎた ${big} 件は組み直していません。` : "")
-    : "組み直せる記録はありませんでした。" + (big ? `記録が大きすぎた ${big} 件があります。` : "");
+    ? `記録から ${added.length} 件のチャットを復元して一覧に追加しました（プロンプト・ツール・回答のみで、思考や画像は戻りません）。` +
+      (big ? `記録が大きすぎた ${big} 件は復元していません。` : "")
+    : "復元できる記録はありませんでした。" + (big ? `記録が大きすぎた ${big} 件があります。` : "");
   await refreshMemory();
 }
 
@@ -6647,7 +6651,7 @@ function srvText(s, i) {
   // ★推論機の混み具合（2026-10-07）。同時に 2 本走ると、片方の読み込みの間もう片方の生成がほぼ止まる（実測）。
   //   推論機は機械に 1 つ（数えも 1 つ）なので、1 枚目の行にだけ添える。
   const llm = i === 0 && s.llm && typeof s.llm.busy === "number"
-    ? ` · 処理中 ${s.llm.busy} 本` + (s.llm.busy >= 2 ? "（混雑・遅くなります）" : "") : "";
+    ? ` · 処理中 ${s.llm.busy} 件` + (s.llm.busy >= 2 ? "（混雑・遅くなります）" : "") : "";
   return { val: pct + temp, sub: vram + llm };
 }
 
@@ -6754,7 +6758,7 @@ function srvRender() {
   panel.classList.toggle("is-down", !!state.srv.err);
   const msg = $("#srv-msg");
   if (msg) msg.textContent = state.srv.err ? `${state.srv.err}（10 秒ごとに試し直します）`
-                           : stale ? "測定が届いていません（サーバーが忙しいか、計測が止まっています）"
+                           : stale ? "計測値を受信していません（サーバーが忙しいか、計測が止まっています）"
                            : latest && !srvRows().length ? "No GPU found on the inference server" : "";
   // なぞっている間は、見出しの右に「その時刻」を出す（各行には値だけ＝狭い欄で詰まらない）。
   // ★GPU の名前は各行の見出しに出すので、ふだんは何枚かだけ（2026-10-18・2 枚になった）。
@@ -7134,7 +7138,7 @@ async function fitOf(size, name = "") {
   const need = mib(size) + 1400;
   if (need <= free) return { verdict: "fits", needed_mb: need, note: `必要 約 ${(need / 1024).toFixed(1)}GB・空き ${(free / 1024).toFixed(1)}GB` };
   return isMoe
-    ? { verdict: "fits_with_cpu_offload", needed_mb: need, note: "experts を CPU に降ろせば動きます（約 6〜10 tok/s）" }
+    ? { verdict: "fits_with_cpu_offload", needed_mb: need, note: "エキスパートを CPU に置けば動きます（約 6〜10 tok/s）" }
     : { verdict: "no_fit", needed_mb: need, note: `${(need / 1024).toFixed(1)}GB 必要ですが、空きは ${(free / 1024).toFixed(1)}GB です` };
 }
 
@@ -7155,7 +7159,7 @@ function row({ name, meta, fit, actions, current }) {
     `<span class="verdict verdict--${cls}">${label}</span></div>` : "") +
     (fit?.note ? `<div class="item__why">${esc(fit.note)}</div>` : "");
   const act = $(".item__actions", el);
-  if (current) { const now = document.createElement("span"); now.className = "row__now"; now.textContent = "In use"; act.appendChild(now); }
+  if (current) { const now = document.createElement("span"); now.className = "row__now"; now.textContent = "使用中"; act.appendChild(now); }
   (actions || []).forEach((a) => {
     const b = document.createElement("button");
     b.className = "btn" + (a.primary ? " btn--primary" : "");
@@ -7224,7 +7228,7 @@ $("#hf-form")?.addEventListener("submit", async (e) => {
   return hfRepoFiles(q);
 });
 async function hfSearch(q) {
-  $("#hf-note").textContent = "Searching…";
+  $("#hf-note").textContent = "検索しています…";
   try {
     const repos = await invoke("hf_search", { query: q });
     $("#hf-results").hidden = false;
@@ -7241,7 +7245,7 @@ async function hfSearch(q) {
   } catch (err) { $("#hf-note").textContent = "Search failed: " + (err?.message || err); }
 }
 async function hfRepoFiles(q) {
-  $("#hf-note").textContent = "Searching…";
+  $("#hf-note").textContent = "検索しています…";
   try {
     const info = DEMO ? DEMO_HF : await invoke("hf_repo_files", { repo: q });
     $("#hf-results").hidden = false;
@@ -7250,7 +7254,7 @@ async function hfRepoFiles(q) {
       list.appendChild(row({ name: f.path, meta: fmtGB(f.size), fit: await fitOf(f.size, f.path),
         actions: [{ label: "Fetch", on: () => download(info.repo, f.path) }] }));
     }
-    $("#hf-note").textContent = `${info.files.length} ファイル。${info.architecture ? info.architecture + " / " : ""}落とす前の見積りです。載せたときに確定します。`;
+    $("#hf-note").textContent = `${info.files.length} ファイル。${info.architecture ? info.architecture + " / " : ""}ダウンロード前の見積もりです。読み込んだときに確定します。`;
   } catch (err) { $("#hf-note").textContent = "Search failed: " + (err?.message || err); }
 }
 async function download(repo, path) {
@@ -7328,7 +7332,7 @@ async function refreshRig() {
   const destState = !b ? "unknown" : b.remote ? lanState : (b.local_ok ? "up" : "down");
   if (remote) remote.innerHTML =
     kv("LAN engine", lanAddr, lanState) +
-    kv("推論の宛先", `${backendAddr()}｜${b?.source_label || "不明"}`, destState);
+    kv("推論の接続先", `${backendAddr()}｜${b?.source_label || "不明"}`, destState);
   await refreshLanForm();
   const d = $("#diag");
   if (d) d.hidden = true;
@@ -7418,7 +7422,7 @@ async function openConvModelMenu() {
   if (!menu.hidden) { menu.hidden = true; btn.setAttribute("aria-expanded", "false"); return; }
   if (state.cur?.remote) return;           // ほかの機械の会話は、その機械のモデルで走る
   const cur = convEngine(state.cur);
-  const rows = [["", "いつもの宛先", whereNow() === "local" ? "この PC の GPU" : "サーバー"],
+  const rows = [["", "既定の接続先", whereNow() === "local" ? "この PC の GPU" : "サーバー"],
     ["lan", "Server", "サーバー（設定した推論サーバー）"]];
   if (state.backend?.local_ok) rows.push(["local", "This PC", "この PC の GPU"]);
   menu.innerHTML = "";
@@ -7493,12 +7497,12 @@ async function refreshLocalGpu() {
 async function loadLocalModel() {
   state.model = null;
   await refreshModels();
-  localNote("モデルを載せています…（初回は 1 分ほどかかります）");
+  localNote("モデルを読み込んでいます…（初回は 1 分ほどかかります）");
   await autoLoadModel();
   paintChipMeta();
   localNote(state.model
     ? `この PC の GPU で動きます（${state.model.name}）。`
-    : "モデルを載せられませんでした。下の一覧から選んでください。");
+    : "モデルを読み込めませんでした。下の一覧から選んでください。");
 }
 /* 宛先の設定だけを書き換える（モデルは載せない）。Models 画面の「Use」からも呼ぶ。 */
 async function writeWhere(where) {
@@ -7533,7 +7537,7 @@ async function setInferWhere(where) {
     await autoLoadModel();                       // 遠隔のときはサーバーのモデル名を立てるだけ
     const ok = await invoke("backend_probe").catch(() => false);
     await refreshLocalGpu();
-    localNote(ok ? "サーバーの推論サーバーに切り替えました。" : "切り替えましたが、サーバーの推論サーバーに届きません。");
+    localNote(ok ? "サーバーの推論サーバーに切り替えました。" : "切り替えましたが、サーバーの推論サーバーに接続できません。");
     const cn = $("#chip-name"); if (cn && state.model) cn.textContent = state.model.name;
     paintChipMeta();
     await refreshModels().catch(() => {});
@@ -7580,7 +7584,7 @@ async function refreshLanForm() {
   // ★enabled は auto のときも false になる（「LAN に固定」の意味）。この PC は mode が "off" のときだけ。
   paintWhere(cur.mode === "off" ? "local" : "lan");
   const note = $("#lan-mode");
-  if (note) note.textContent = `いまの宛先: ${backendAddr()}`;
+  if (note) note.textContent = `現在の接続先: ${backendAddr()}`;
   await refreshLocalGpu();
 }
 
@@ -7603,12 +7607,12 @@ async function saveLanSettings(ev) {
     await refreshRig();
     return;
   }
-  if (note) note.textContent = "保存しました。届くか確認しています…";
+  if (note) note.textContent = "保存しました。接続できるか確認しています…";
   const ok = await invoke("backend_probe").catch(() => false);
   if (note) {
     note.textContent = ok
-      ? `保存しました。${url} に届き、${model || "指定なし"} が動いています。`
-      : `保存しましたが **届きません**。推論サーバーが起動しているか、` +
+      ? `保存しました。${url} に接続でき、${model || "指定なし"} が動いています。`
+      : `保存しましたが **接続できません**。推論サーバーが起動しているか、` +
         `モデル名（${model || "未指定"}）が合っているか確認してください。`;
   }
   await refreshRig();
@@ -7652,8 +7656,8 @@ function renderToolList() {
   });
   if (!note) return;
   if (known.length) note.textContent = `推論サーバーにツールを ${known.length} 本渡しています。`;
-  else if (state.seen.length) note.textContent = "一覧を出せません（この推論サーバーの版はツールを報告しません）。下は、このチャットで実際に使ったツールです。";
-  else note.textContent = "一覧を出せません（この推論サーバーの版はツールを報告しません）。正しいのはプロンプトごとに送っているツールの定義で、使ったツールはすべてチャットに残ります。";
+  else if (state.seen.length) note.textContent = "一覧を出せません（このバージョンの推論サーバーはツールを報告しません）。下は、このチャットで実際に使ったツールです。";
+  else note.textContent = "一覧を出せません（このバージョンの推論サーバーはツールを報告しません）。正しいのはプロンプトごとに送っているツールの定義で、使ったツールはすべてチャットに残ります。";
 }
 
 /* 入力欄の下の一言と、切替の表記。
@@ -8113,7 +8117,7 @@ globalThis.BWSynapse?.mount($(".main"));
 /* ── 整合性の確認（2026-10-08 オーナー「Windows 版に整合性のチェック機能を追加してほしい」）──────────
  * 確かめるだけでは何も変えない（integrity_check）。直すのは「直す」を押したときだけ（integrity_fix）。
  * ★更新のあとの最初の起動では、裏で一度だけ確かめ、問題があったときだけ入力欄の下で知らせる（静かな場合は何も出さない）。 */
-const INTEG_GROUPS = [["app", "アプリの中身"], ["parts", "ツールの部品"], ["config", "設定と推論サーバー"],
+const INTEG_GROUPS = [["app", "アプリのファイル"], ["parts", "ツールのコンポーネント"], ["config", "設定と推論サーバー"],
                       ["remote", "スマホからの操作"], ["data", "保存データ"]];
 const INTEG_MARK = { ok: "✓", warn: "!", fail: "✗" };
 state.integ = { rows: [], busy: false };
@@ -8136,7 +8140,7 @@ function renderIntegrity() {
         `<div><div class="integ__title">${esc(r.title)}</div><div class="integ__detail">${esc(r.detail)}</div></div>`;
       if (r.fix && r.status !== "ok") {
         const btn = document.createElement("button");
-        btn.className = "btn integ__fix"; btn.type = "button"; btn.textContent = "直す";
+        btn.className = "btn integ__fix"; btn.type = "button"; btn.textContent = "修復";
         btn.disabled = state.integ.busy;
         btn.addEventListener("click", () => fixIntegrity([r.fix]));
         el.appendChild(btn);
@@ -8167,11 +8171,11 @@ async function refreshApiKeys() {
     const meta = [(k.hosts || []).join(", "), k.note, k.head ? `値 ${k.head}` : "", k.created].filter(Boolean).join(" · ");
     row.innerHTML = `<div><div class="item__name">{{${esc(k.name)}}}</div><div class="item__meta">${esc(meta)}</div></div>`;
     const del = document.createElement("button");
-    del.className = "btn"; del.type = "button"; del.textContent = "Delete";
+    del.className = "btn"; del.type = "button"; del.textContent = "削除";
     del.addEventListener("click", async () => {
       if (del.dataset.armed !== "1") {      // ★確認の窓は出さない（窓は操作を止める）。2 度押しで消す
         del.dataset.armed = "1"; del.textContent = "もう一度押すと削除";
-        setTimeout(() => { del.dataset.armed = ""; del.textContent = "Delete"; }, 4000);
+        setTimeout(() => { del.dataset.armed = ""; del.textContent = "削除"; }, 4000);
         return;
       }
       try { await invoke("apikeys_delete", { name: k.name }); if (note) note.textContent = `${k.name} を削除しました。`; }
@@ -8193,13 +8197,13 @@ $("#apikey-form")?.addEventListener("submit", async (ev) => {
   const hosts = ($("#apikey-hosts")?.value || "").trim();
   const memo = ($("#apikey-memo")?.value || "").trim();
   if (!name || !value.trim() || !hosts) {
-    if (note) note.textContent = "名前・送ってよいドメイン・値の 3 つを入れてください。";
+    if (note) note.textContent = "名前・許可するドメイン・値の 3 つを入れてください。";
     return;
   }
   try {
     const r = await invoke("apikeys_set", { name, value, hosts, note: memo });
     $("#apikey-value").value = "";
-    if (note) note.textContent = `${r.name} を保存しました（送り先: ${(r.hosts || []).join(", ")}）。チャットでは {{${r.name}}} と書けば使えます。`;
+    if (note) note.textContent = `${r.name} を保存しました（送信先: ${(r.hosts || []).join(", ")}）。チャットでは {{${r.name}}} と書けば使えます。`;
   } catch (e) {
     if (note) note.textContent = "保存できませんでした: " + (e?.message || e);
   }
@@ -8242,7 +8246,7 @@ function renderMcp(rows) {
     const st = r.ok ? "ok" : "fail";
     const tools = r.tools || [];
     const detail = r.ok ? `${tools.length} tools${r.server ? " · " + r.server : ""}: ${tools.slice(0, 12).join(", ")}${tools.length > 12 ? " …" : ""}`
-      : (r.error || "つなげませんでした");
+      : (r.error || "接続できませんでした");
     const el = document.createElement("div");
     el.className = `integ__row is-${st}`;
     el.innerHTML = `<span class="integ__mark" aria-label="${st}">${MCP_MARK[st]}</span>` +
@@ -8256,14 +8260,14 @@ function renderMcp(rows) {
 async function checkMcp() {
   const note = $("#mcp-note");
   if (DEMO || !invoke) return;
-  if (note) note.textContent = "つないでいます…（npx / uvx の初回はダウンロードで数分かかることがあります）";
+  if (note) note.textContent = "接続しています…（npx / uvx の初回はダウンロードで数分かかることがあります）";
   try {
     const rows = await invoke("mcp_status");
     renderMcp(rows);
     const bad = rows.filter((r) => !r.ok).length;
     if (note) note.textContent = !rows.length ? "サーバーは設定されていません。上の雛形から足せます。"
-      : bad ? `${rows.length} 件のうち ${bad} 件につなげませんでした。` : `${rows.length} 件ともつながりました。次のプロンプトからツールが使えます。`;
-  } catch (e) { if (note) note.textContent = "確かめられませんでした: " + (e?.message || e); }
+      : bad ? `${rows.length} 件のうち ${bad} 件に接続できませんでした。` : `${rows.length} 件とも接続しました。次のプロンプトからツールが使えます。`;
+  } catch (e) { if (note) note.textContent = "確認できませんでした: " + (e?.message || e); }
 }
 
 $("#mcp-json")?.addEventListener("input", (ev) => { ev.target.dataset.dirty = "1"; });
@@ -8291,10 +8295,10 @@ $("#mcp-add")?.addEventListener("click", () => {
   ta.value = JSON.stringify(data, null, 2) + "\n";
   ta.dataset.dirty = "1";
   if (note) note.textContent = p.key
-    ? `「${name}」を足しました。API keys に ${p.key}（送り先 ${p.hosts}）を登録してから Save & connect を押してください。`
-    : p.folder ? `「${name}」を足しました。args の最後のフォルダを使わせたい場所に書き換えてから Save & connect を押してください。`
-    : p.ext ? `「${name}」を足しました。Chrome（か Edge）に拡張機能「Playwright Extension」を入れてから Save & connect を押してください。最初に使うとき、どのタブを使わせるかを Chrome で選びます。`
-    : `「${name}」を足しました。Save & connect を押すとつなぎます。`;
+    ? `「${name}」を追加しました。「API キー」に ${p.key}（送信先 ${p.hosts}）を登録してから「保存して接続」を押してください。`
+    : p.folder ? `「${name}」を追加しました。args の最後のフォルダを使わせたい場所に書き換えてから「保存して接続」を押してください。`
+    : p.ext ? `「${name}」を追加しました。Chrome（か Edge）に拡張機能「Playwright Extension」を追加してから「保存して接続」を押してください。最初に使うとき、どのタブを使わせるかを Chrome で選びます。`
+    : `「${name}」を追加しました。「保存して接続」を押すと接続します。`;
 });
 
 async function runIntegrity({ quiet = false } = {}) {
@@ -8306,7 +8310,7 @@ async function runIntegrity({ quiet = false } = {}) {
   try {
     state.integ.rows = await invoke("integrity_check");
   } catch (e) {
-    if (note) note.textContent = "確かめられませんでした: " + (e?.message || e);
+    if (note) note.textContent = "確認できませんでした: " + (e?.message || e);
     state.integ.busy = false;
     return null;
   }
@@ -8326,7 +8330,7 @@ async function fixIntegrity(fixes) {
   const msgs = [];
   for (const f of fixes) {
     if (note) note.textContent = f === "parts" || f === "localgpu" || f === "voice"
-      ? "部品をダウンロードしています…（初めてだと数分〜数十分かかります）" : "直しています…";
+      ? "コンポーネントをダウンロードしています…（初めてだと数分〜数十分かかります）" : "修復しています…";
     try { msgs.push(await invoke("integrity_fix", { fix: f })); }
     catch (e) { msgs.push("✗ " + (e?.message || e)); }
   }
@@ -8348,7 +8352,7 @@ async function autoRepair(rows, where) {
   const say = (t) => { if (note) note.textContent = t; if (where === "update" && cnote) cnote.textContent = t; };
   const others = fixes.filter((f) => f !== "reinstall");   // 入れ直し（配信元からの取り直し）はこの版には無い
   if (others.length) {
-    say("問題が見つかったので、自動で直しています…");
+    say("問題が見つかったので、自動で修復しています…");
     await fixIntegrity(others);
     if (where === "update" && cnote && note) cnote.textContent = "整合性の確認: " + note.textContent;
   }
@@ -8369,9 +8373,9 @@ async function integrityAfterUpdate(ver) {
     const fail = (rows || []).filter((r) => r.status === "fail");
     const note = $("#composer-note");
     if (fail.length && note && !note.textContent) {
-      note.textContent = `${recheck ? "入れ直しの後" : "更新のあと"}の整合性の確認で ${fail.length} 件の問題が見つかりました（${fail.map((r) => r.title).join("・")}）。自動で直します。`;
+      note.textContent = `${recheck ? "再インストールの後" : "更新のあと"}の整合性の確認で ${fail.length} 件の問題が見つかりました（${fail.map((r) => r.title).join("・")}）。自動で直します。`;
     } else if (!fail.length && recheck && note && !note.textContent) {
-      note.textContent = "入れ直しの後の整合性の確認: 問題はありません。";
+      note.textContent = "再インストールの後の整合性の確認: 問題はありません。";
     }
     await autoRepair(rows, "update");
   }, 25000);
@@ -8384,19 +8388,19 @@ let chromeToken = "";
 async function paintChromeLink() {
   const st = $("#chrome-status"); if (!st || DEMO) return;
   let d;
-  try { d = await invoke("chrome_bridge_info"); } catch (e) { st.textContent = `確かめられません: ${String(e?.message || e)}`; return; }
+  try { d = await invoke("chrome_bridge_info"); } catch (e) { st.textContent = `確認できません: ${String(e?.message || e)}`; return; }
   chromeToken = String(d.token || "");
   const tok = $("#chrome-token"); if (tok) tok.textContent = chromeToken ? `${"•".repeat(10)}${chromeToken.slice(-4)}` : "—";
   const dir = $("#chrome-ext-dir"); if (dir) dir.textContent = d.ext_dir || "—";
   const ext = d.extension || {};
-  st.textContent = d.connected ? `つながっています（拡張機能 ${ext.version || ""}・ポート ${d.port}）`
-    : d.listen && d.listen !== "ok" ? `待ち受けられません: ${d.listen}`
-    : `拡張機能を待っています（ポート ${d.port}）。下の手順で Chrome に入れてください。`;
+  st.textContent = d.connected ? `接続済み（拡張機能 ${ext.version || ""}・ポート ${d.port}）`
+    : d.listen && d.listen !== "ok" ? `ポートを開けません: ${d.listen}`
+    : `拡張機能の接続を待っています（ポート ${d.port}）。下の手順で Chrome に追加してください。`;
   st.classList.toggle("is-on", !!d.connected);
 }
 $("#chrome-token-copy")?.addEventListener("click", async () => {
   if (!chromeToken) await paintChromeLink();
-  try { await navigator.clipboard.writeText(chromeToken); sbFlash("合言葉をコピーしました"); } catch { /* 写せない */ }
+  try { await navigator.clipboard.writeText(chromeToken); sbFlash("ペアリングキーをコピーしました"); } catch { /* 写せない */ }
 });
 $("#chrome-ext-open")?.addEventListener("click", async () => {
   try { await invoke("chrome_ext_open"); } catch (e) { const st = $("#chrome-status"); if (st) st.textContent = String(e?.message || e); }
@@ -8424,7 +8428,7 @@ async function runSelfTest(write) {
       list.appendChild(el);
     });
     const ng = rows.filter((r) => !r.ok).length;
-    note.textContent = ng ? `${rows.length} 項目のうち ${ng} 項目が失敗しました。` : "すべて通りました。";
+    note.textContent = ng ? `${rows.length} 項目のうち ${ng} 項目が失敗しました。` : "すべて成功しました。";
   } catch (e) {
     note.textContent = "self-test failed: " + (e?.message || e);
   }
@@ -8490,7 +8494,7 @@ async function authBoot() {
   if (s?.signed_in || s?.mode === "off") authShow(false);
   else {
     authShow(true);
-    if (offline) { authErr(s?.error || s?.message || "中継に届きません"); $("#auth-skip").hidden = false; }
+    if (offline) { authErr(s?.error || s?.message || "中継サーバーに接続できません"); $("#auth-skip").hidden = false; }
     else if (s?.error === "signed_out") authErr("サインインし直してください");
     if (s?.signup === "closed") $("#auth-switch").hidden = true;
   }
@@ -8569,7 +8573,7 @@ async function refreshAccount() {
   ss.innerHTML = ""; ms.innerHTML = "";
   if (!local?.signed_in) return;
   const [sess, mach] = [await authCall({ op: "sessions" }).catch(() => null), await authCall({ op: "machines" }).catch(() => null)];
-  if (!sess?.ok) { ss.appendChild(memEl("li", "rem-list__empty", sess?.message || "中継に届きません")); return; }
+  if (!sess?.ok) { ss.appendChild(memEl("li", "rem-list__empty", sess?.message || "中継サーバーに接続できません")); return; }
   sess.items.forEach((r) => {
     const sub = [r.kind, r.scope === "machine" ? "接続だけ" : "", r.online ? "接続中" : "", `最後の利用 ${acctAgo(r.last_used)}`].filter(Boolean).join(" ・ ");
     ss.appendChild(acctRow((r.name || "名前のないデバイス") + (r.current ? "（このデバイス）" : ""), sub,
@@ -8756,7 +8760,7 @@ const DEMO_TOOL_CALLS = [
   { name: "Bash", args: { command: "llama-server --list-devices", description: "GPU を確認する" },
     ok: true, result: "ggml_vulkan: Found 1 Vulkan devices:\nVulkan0: NVIDIA GeForce RTX 4070 (12282 MiB)" },
   { name: "Write", args: { file_path: "C:\\Windows\\System32\\drivers\\etc\\hosts", content: "127.0.0.1 example" },
-    ok: false, result: "エラー: 作業ディレクトリの外は変更できません（拒否されました）" },
+    ok: false, result: "エラー: ワークスペースの外は変更できません（拒否されました）" },
 ];
 
 /* ── 画面側の自己試験 ────────────────────────────────────────────

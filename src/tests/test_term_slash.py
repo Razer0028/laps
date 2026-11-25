@@ -109,8 +109,8 @@ def test_status_shows_settings_and_unreachable(tmp_path):
     assert "blackwall-coder" in out
     assert "direct" in out and "workspace" in out
     assert "sess-9" in out
-    assert "ターン 2" in out and "道具 5" in out and "345 トークン" in out
-    assert "届きません" in out
+    assert "ターン 2" in out and "ツール 5" in out and "345 トークン" in out
+    assert "接続できません" in out
     # ★並びは「いま変わるもの」から。版番号は最後（起動から一度も変わらない）。
     keys = [ln.split()[0] for ln in out.splitlines() if ln.strip()]
     assert keys[0] == "reach" and keys.index("policy") < keys.index("version")
@@ -134,7 +134,7 @@ def test_status_reachable_shows_health_and_slots(tmp_path, monkeypatch):
     slash.dispatch(ctx, "/status")
     out = _out(ctx)
     assert "health ok" in out and "slots 2" in out and "処理中 1" in out
-    assert "届きません" not in out
+    assert "接続できません" not in out
     # /v1 を外した根を叩く
     assert "http://192.0.2.1:8741/health" in seen and "http://192.0.2.1:8741/slots" in seen
 
@@ -203,14 +203,14 @@ def test_policy_and_ethics_validate_and_restart(tmp_path, key, good, bad):
     slash.dispatch(ctx, f"/{key} {good}")
     assert cl.restarts == [{key: good}]
     assert cl.settings[key] == good
-    assert "子を再起動" in _out(ctx)
+    assert "エンジンを再起動" in _out(ctx)
 
 
 def test_policy_refused_while_running_and_restart_failure(tmp_path):
     cl = FakeClient()
     ctx = _ctx(tmp_path, cl, running_rid="r1")
     slash.dispatch(ctx, "/policy readonly")
-    assert "走行中" in _out(ctx) and cl.restarts == []
+    assert "実行中" in _out(ctx) and cl.restarts == []
     ctx.running_rid = None
     cl.restart_fail = True
     slash.dispatch(ctx, "/policy readonly")
@@ -234,7 +234,7 @@ def test_clear_resets_session_transcript_and_events(tmp_path):
     record_event(ctx, {"type": "token", "id": "r1", "text": "t"})
     slash.dispatch(ctx, "/clear")
     assert ctx.session is None and ctx.renderer.transcript == [] and len(ctx.events) == 0
-    assert "新しい会話" in _out(ctx)
+    assert "新しいチャット" in _out(ctx)
 
 
 def test_verbose_toggles_and_expand_without_tools(tmp_path):
@@ -247,14 +247,14 @@ def test_verbose_toggles_and_expand_without_tools(tmp_path):
     slash.dispatch(ctx, "/expand")
     # ★空状態には必ず「次の一手」がある（文言そのものは render の担当）
     out = _out(ctx)
-    assert "道具" in out and "→" in out
+    assert "ツール" in out and "→" in out
 
 
 def test_cancel_when_idle_and_running(tmp_path):
     cl = FakeClient()
     ctx = _ctx(tmp_path, cl)
     slash.dispatch(ctx, "/cancel")
-    assert "走行中ではありません" in _out(ctx) and cl.cancels == []
+    assert "実行中ではありません" in _out(ctx) and cl.cancels == []
     ctx.running_rid = "r7"
     slash.dispatch(ctx, "/cancel")
     assert cl.cancels == ["r7"]
@@ -395,7 +395,7 @@ def test_sendlog_shows_rejected_and_reasons(tmp_path, monkeypatch):
 def test_sendlog_unreachable_is_red_line(tmp_path):
     ctx = _ctx(tmp_path)
     slash.dispatch(ctx, "/sendlog")
-    assert "届きません" in _out(ctx)
+    assert "接続できません" in _out(ctx)
 
 
 def test_sendlog_without_url(tmp_path):
@@ -520,7 +520,7 @@ def test_help_is_grouped_and_fits_80(tmp_path):
     slash.dispatch(ctx, "/help")
     out = c.export_text(clear=True)
     assert _fits(out) == []
-    for title in ("走行中", "会話", "接続と設定", "その他"):
+    for title in ("実行中", "チャット", "接続と設定", "その他"):
         assert f"\n{title}\n" in "\n" + out
     assert "Ctrl-R" in out and "blackwall --help" in out       # 起動時の引数への導線
 
@@ -625,7 +625,7 @@ def test_clear_forgets_the_tool_bundle_and_reprints_the_header(tmp_path):
     _out(ctx)
     slash.dispatch(ctx, "/clear")
     out = _out(ctx)
-    assert "新しい会話" in out and "/resume" in out
+    assert "新しいチャット" in out and "/resume" in out
     assert "L.A.P.S" in out                       # 銘の再掲（送り先・作業場・実行ゲート）
     slash.dispatch(ctx, "/expand")
     assert "cat /etc/shadow" not in _out(ctx)

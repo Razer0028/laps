@@ -86,20 +86,20 @@ ENV_KEYS: dict[str, str] = {
 
 # ensure_file が書くコメント（各鍵の意味）。
 KEY_HELP: dict[str, str] = {
-    "backend": "推論の送り先（OpenAI 互換 /v1）。既定は同じ機械の http://127.0.0.1:8080/v1",
+    "backend": "推論の送り先（OpenAI 互換 /v1）。既定は同じマシンの http://127.0.0.1:8080/v1",
     "model": "モデル名（llama-swap の名前）",
     "policy": "実行ゲート: readonly | workspace | trusted（trusted は /policy で上げる）",
     "ethics": "倫理の刻み: strict | standard | direct | raw",
     # ★focused は案内しない（2026-10-16 監査: 既定の oc 中核は focused で道具を絞らない＝受け付けて黙って無視していた。
     #   値としては受け付ける。旧中核は 2026-10-21 に外した）。
-    "tools": "道具の束: full | chat（chat はウェブ検索だけの会話）",
+    "tools": "ツールの束: full | chat（chat はウェブ検索だけのチャット）",
     "max_iters": "1回の送信あたりの反復上限。0 = 上限なし（オーナー指示）",
     "telemetry": "/sendlog の送り先（記録の受け口）",
     "wave": "推論中の波: on | calm（遅く・小さく） | off（出さない）",
     "prose_width": "本文の読み幅（表示セル）。0 = 端末幅いっぱい。広い端末で本文が板になるのを防ぐ",
     "ui": "画面: tui（btop 風の全画面・対話のとき） | classic（従来の行の形）",
-    "claude_backend": "Claude API の中継（自分で立てた物）。/model で Claude のモデルを選ぶと送り先がここになる",
-    "server_backend": "Claude へ切り替える前の推論機の送り先（戻るときに使う・端末版が書く）。空なら既定の P40",
+    "claude_backend": "Claude API の中継サーバー（自分で立てた物）。/model で Claude のモデルを選ぶと送り先がここになる",
+    "server_backend": "Claude へ切り替える前の推論サーバーの送り先（戻るときに使う・端末版が書く）。空なら既定の P40",
 }
 
 
@@ -176,7 +176,7 @@ def _read(path: str | os.PathLike | None = None) -> dict[str, Any]:
     if not p.is_file():
         return got
     if _toml is None:
-        warnings.warn(f"TOML を読む部品が無い（tomllib/tomli）。既定で動く: {p}")
+        warnings.warn(f"TOML を読むコンポーネントが無い（tomllib/tomli）。既定で動く: {p}")
         return got
     try:
         raw = p.read_bytes()

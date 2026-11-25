@@ -986,11 +986,11 @@
     let base;
     try { base = await inv("change_base", { session: String(session || ""), path: ws ? `${ws}/${rel}` : rel }); }
     catch (e) { flash(`変更の記録を読めません: ${String(e?.message || e)}`); return; }
-    if (!base || !base.found) { flash("この会話でエージェントが変えた記録がありません"); await openAt(path, line); return; }
+    if (!base || !base.found) { flash("このチャットでエージェントが変更したファイルはありません"); await openAt(path, line); return; }
     try {
       const orig = m.editor.createModel(base.text || "", langOf(rel));
       const fm = await fileModel(rel);
-      t = { id: ++ED.seq, kind: "diff", key, rel, staged: false, agent: true, created: !base.existed, title: rel.split("/").pop(), dir: "この会話の前", orig, mod: fm.model, own: false };
+      t = { id: ++ED.seq, kind: "diff", key, rel, staged: false, agent: true, created: !base.existed, title: rel.split("/").pop(), dir: "このチャットの前", orig, mod: fm.model, own: false };
       S.tabs.push(t);
     } catch (e) { flash(`差分を開けません: ${String(e?.message || e)}`); return; }
     activate(t.id);
@@ -1093,13 +1093,13 @@
     if (fm && fm.conflict) {
       n.append(el("span", "", "ディスク上のファイルが、開いた後に書き換えられています。"));
       const over = el("button", "x-back", "上書き保存"); over.type = "button"; over.addEventListener("click", () => saveActive(true));
-      const re = el("button", "x-back", "読み直す（変更を捨てる）"); re.type = "button"; re.addEventListener("click", () => reloadModel(fm, true));
+      const re = el("button", "x-back", "再読み込み（変更を破棄）"); re.type = "button"; re.addEventListener("click", () => reloadModel(fm, true));
       n.append(over, re); n.hidden = false; return;
     }
     if (fm && !fm.editable) { n.append(el("span", "", fm.truncated ? "大きいファイルのため読み取り専用です（先頭 5MB）" : fm.lossy ? "UTF-8 ではないため読み取り専用です" : "読み取り専用です")); n.hidden = false; return; }
     if (t.kind === "diff" && t.staged) { n.append(el("span", "", "ステージ済みの差分（読み取り専用）")); n.hidden = false; }
     if (t.kind === "diff" && t.agent) {
-      n.append(el("span", "", t.created ? "この会話で作ったファイルです。" : "左はこの会話でエージェントが変える前、右が今です。"),
+      n.append(el("span", "", t.created ? "このチャットで作ったファイルです。" : "左はこのチャットでエージェントが変更する前、右が今です。"),
         el("span", "", " 右の余白の矢印でその変更だけ元に戻せます。保存（Ctrl+S）で確定します。"));
       n.classList.add("is-info"); n.hidden = false;
     } else n.classList.remove("is-info");

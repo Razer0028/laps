@@ -152,7 +152,7 @@
       </div>
       <form class="composer" id="ask">
         <!-- ★上を読んでいる間だけ出る「最新へ」（2026-11-15・app.js の to-latest）。 -->
-        <button class="tolatest" id="to-latest" type="button" hidden title="最新へ移動">↓ Latest</button>
+        <button class="tolatest" id="to-latest" type="button" hidden title="最新へ移動">↓ 最新へ</button>
         <!-- ★会話（セッション）ごとのフォルダ（2026-10-08 オーナー「Claude Code とかのアプリはここからセッションごとに
              ワークスペースを指定できるので、Blackwall も同様にしたい。現在は左側に一つだけ」）。左の Workspace の欄はやめた。
              やり取りのある会話で別のフォルダを選ぶと、そのフォルダで新しい会話を始める（会話とフォルダは 1 対 1）。 -->
@@ -223,7 +223,7 @@
               </span>
               <!-- ★音声入力（2026-10-09 オーナー「音声入力の仕組みも欲しい」）。押して話し、もう一度押すと文字になって入力欄に入る。 -->
               <span class="mic__time num" id="mic-time" hidden></span>
-              <button class="iconbtn mic" id="mic" type="button" aria-label="Voice input" aria-pressed="false"
+              <button class="iconbtn mic" id="mic" type="button" aria-label="音声入力" aria-pressed="false"
                       title="音声入力（Esc でキャンセル）">
                 <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="5.6" y="1.8" width="4.8" height="8.2" rx="2.4" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M3.4 7.6a4.6 4.6 0 0 0 9.2 0M8 12.2v2.2M5.8 14.4h4.4" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
               </button>
@@ -320,26 +320,26 @@
 
         <div class="import">
           <div class="drop" id="drop" tabindex="0" role="button" aria-label=".gguf を選択、またはドロップ">
-            <b>Drop a .gguf here</b><span>or click to browse</span>
+            <b>.gguf をここにドロップ</b><span>またはクリックして選択</span>
           </div>
           <div class="folder">
-            <button class="btn" id="open-dir" type="button">Open folder</button>
+            <button class="btn" id="open-dir" type="button">フォルダを開く</button>
             <code class="folder__path" id="models-path">（「開く」で場所を表示します）</code>
             <p class="note"></p>
-            <button class="btn" id="rescan" type="button">Rescan</button>
+            <button class="btn" id="rescan" type="button">再スキャン</button>
           </div>
           <form class="hf" id="hf-form">
             <label class="lbl" for="hf-q">Hugging Face</label>
             <div class="row">
               <input id="hf-q" class="input" placeholder="例: unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF" spellcheck="false">
-              <button class="btn" type="submit">Search</button>
+              <button class="btn" type="submit">検索</button>
             </div>
             <p class="note" id="hf-note"></p>
           </form>
         </div>
 
         <div id="hf-results" hidden>
-          <h3 class="h3">Candidates</h3>
+          <h3 class="h3">候補</h3>
           <div class="list" id="hf-list"></div>
         </div>
 
@@ -357,7 +357,7 @@
          ★中身は app.js の renderMemory() が状態ごとに描く。 -->
     <section class="view" id="view-memory" hidden>
       <div class="pane">
-        <h2 class="h2">Memory</h2>
+        <h2 class="h2">メモリ</h2>
         <p class="mem-lead">チャットの記録は<strong>この PC だけ</strong>に置きます。消したチャットはモデルに渡りません。</p>
         <dl class="kv mem-kv" id="mem-kv"></dl>
         <h3 class="h3">メモリの項目</h3>
@@ -421,7 +421,7 @@
     <!-- Connection -->
     <section class="view" id="view-rig" hidden>
       <div class="pane">
-        <h2 class="h2">Connection</h2>
+        <h2 class="h2">接続</h2>
         <div class="two">
           <div hidden><h3 class="h3">Local</h3><dl class="kv" id="kv-local"></dl></div>
           <div><h3 class="h3">状態</h3><dl class="kv" id="kv-remote"></dl></div>
@@ -473,7 +473,7 @@
         <!-- ★API キー（2026-10-08 オーナー「他のプラットフォームの API を Blackwall から扱えるようにしたい」）。
              名前を付けて暗号化して保存（Windows は DPAPI）。エージェントには {{NAME}} だけが見え、Api 道具が送る瞬間に値を差し込む。
              登録したドメイン以外へは送らない。中身は src-tauri/src/apikeys.rs と blackwall/apikeys.py。 -->
-        <h3 class="h3">API keys</h3>
+        <h3 class="h3">API キー</h3>
         <p class="note" id="apikey-note">値はエージェントに見せず、登録したドメインへ送るときだけ差し込みます。</p>
         <div class="list" id="apikey-list" hidden></div>
         <form class="hf apikey-form" id="apikey-form" autocomplete="off">
@@ -482,8 +482,8 @@
             <input id="apikey-hosts" class="input" placeholder="許可するドメイン（例: api.openweathermap.org）" spellcheck="false" aria-label="許可するドメイン">
           </div>
           <div class="row">
-            <input id="apikey-value" class="input" type="password" placeholder="Key" spellcheck="false" aria-label="値">
-            <input id="apikey-memo" class="input" placeholder="Note (optional)" spellcheck="false" aria-label="メモ">
+            <input id="apikey-value" class="input" type="password" placeholder="キー" spellcheck="false" aria-label="値">
+            <input id="apikey-memo" class="input" placeholder="メモ（任意）" spellcheck="false" aria-label="メモ">
             <button class="btn" type="submit">Save</button>
           </div>
         </form>
@@ -492,33 +492,33 @@
              ここで書き、つないで道具の一覧か失敗の理由を出す。鍵は {{NAME}}（上の API keys）で書ける。
              中身は src-tauri/src/mcp.rs と blackwall/oc/mcp.py。 -->
         <h3 class="h3">MCP</h3>
-        <p class="note" id="mcp-note">書き方は Claude Desktop の mcp.json と同じ。トークンは API keys に入れて <code>{{NAME}}</code> と書きます。</p>
+        <p class="note" id="mcp-note">書き方は Claude Desktop の mcp.json と同じ。トークンは「API キー」に入れて <code>{{NAME}}</code> と書きます。</p>
         <div class="row mcp-add">
           <select id="mcp-preset" class="input" aria-label="テンプレート">
-            <option value="">Add a connector…</option>
+            <option value="">コネクタを追加…</option>
             <option value="github">GitHub（リモート・個人用トークン）</option>
             <option value="notion">Notion（npx・統合のトークン）</option>
             <option value="files">Files（npx・フォルダを指定）</option>
             <option value="chrome">Chrome（いまのタブ・Playwright 拡張機能）</option>
             <option value="playwright">Browser（Playwright・新しいブラウザ）</option>
           </select>
-          <button class="btn" id="mcp-add" type="button">Add</button>
+          <button class="btn" id="mcp-add" type="button">追加</button>
         </div>
         <textarea id="mcp-json" class="input mcp-json" spellcheck="false" rows="10" aria-label="mcp.json"></textarea>
         <div class="folder">
-          <button class="btn" id="mcp-save" type="button">Save &amp; connect</button>
-          <button class="btn" id="mcp-check" type="button">Check</button>
+          <button class="btn" id="mcp-save" type="button">保存して接続</button>
+          <button class="btn" id="mcp-check" type="button">確認</button>
         </div>
         <div class="integ" id="mcp-list" hidden></div>
 
         <!-- ★ふだんの Chrome とつなぐ（2026-11-18 オーナー「L.A.P.S の Chrome 連携を強化したい」）。
              L.A.P.S の Chrome 拡張機能（app/chrome-ext・アプリと一緒に入る）が、この PC の 127.0.0.1 の口（chromebridge.rs）へつなぐ。
              ここでは、つながっているか・合言葉（拡張機能のポップアップに入れる）・拡張機能のフォルダを見せる。 -->
-        <h3 class="h3">Chrome とつなぐ</h3>
+        <h3 class="h3">Chrome と接続</h3>
         <div class="folder chromelink">
-          <p class="note" id="chrome-status">確かめています…</p>
+          <p class="note" id="chrome-status">確認しています…</p>
           <div class="chromelink__row">
-            <span class="chromelink__k">合言葉</span>
+            <span class="chromelink__k">ペアリングキー</span>
             <code class="num chromelink__token" id="chrome-token">—</code>
             <button class="btn" id="chrome-token-copy" type="button">コピー</button>
           </div>
@@ -530,7 +530,7 @@
           <ol class="note chromelink__steps">
             <li>Chrome で <code>chrome://extensions</code> を開き、右上の「デベロッパー モード」をオンにする。</li>
             <li>「パッケージ化されていない拡張機能を読み込む」で、上の拡張機能のフォルダを選ぶ。</li>
-            <li>ツールバーの L.A.P.S のボタンを押し、合言葉を貼って「保存してつなぐ」。</li>
+            <li>ツールバーの L.A.P.S のボタンを押し、ペアリングキーを貼って「保存して接続」。</li>
           </ol>
           <p class="note">L.A.P.S がふだんの Chrome を使うと、タブは「L.A.P.S」のタブグループにまとまり、ページに操作中の表示が出ます。初めてのサイトは毎回たずねます。Chrome の「デバッグ中」の帯の × でいつでも止められます。</p>
         </div>
@@ -538,18 +538,18 @@
         <!-- ★整合性の確認（2026-10-08 オーナー「Windows 版に整合性のチェック機能を追加してほしい」）。
              アプリの中身（同梱の Python を照合値と突き合わせる）・道具の部品・設定と推論機・スマホからの操作・保存データ。
              確かめるだけでは何も変えない。直すのは「直す」を押したときだけ。中身は src-tauri/src/integrity.rs と blackwall/integrity.py。 -->
-        <h3 class="h3">Integrity</h3>
+        <h3 class="h3">整合性</h3>
         <div class="folder">
-          <button class="btn" id="run-integrity" type="button">Check</button>
-          <button class="btn" id="fix-integrity" type="button" hidden>Fix all</button>
-          <p class="note" id="integrity-note">アプリの部品と設定が揃っているかを確認します。</p>
+          <button class="btn" id="run-integrity" type="button">確認</button>
+          <button class="btn" id="fix-integrity" type="button" hidden>すべて修復</button>
+          <p class="note" id="integrity-note">アプリのコンポーネントと設定が揃っているかを確認します。</p>
         </div>
         <div class="integ" id="integrity-list"></div>
 
-        <h3 class="h3">Self-test</h3>
+        <h3 class="h3">セルフテスト</h3>
         <div class="folder">
-          <button class="btn" id="run-selftest" type="button">Run</button>
-          <button class="btn" id="run-selftest-full" type="button">Include engine start</button>
+          <button class="btn" id="run-selftest" type="button">実行</button>
+          <button class="btn" id="run-selftest-full" type="button">エンジンの起動も含める</button>
           <p class="note" id="selftest-note"></p>
         </div>
         <div class="list" id="selftest-list"></div>
@@ -568,7 +568,7 @@
        （Sources は答えの根拠に番号を振る場所なので混ぜない）。「画面分離にも対応させたい」→「両方」:
        左の縁をつまんで幅を変える（.drawer__grip）＋ Files の「別の窓」で切り離す（viewer.html）。中身は app.js の files*。 -->
   <aside class="drawer" id="drawer" aria-label="ソース">
-    <div class="drawer__grip" id="drawer-grip" role="separator" aria-orientation="vertical" aria-label="Resize the panel" tabindex="0"></div>
+    <div class="drawer__grip" id="drawer-grip" role="separator" aria-orientation="vertical" aria-label="パネルの幅を変更" tabindex="0"></div>
     <div class="drawer__head">
       <div class="drawer__tabs" role="tablist">
         <button class="drawer__tab is-active" id="tab-sources" type="button" role="tab" aria-selected="true" data-tab="sources">ソース</button>
@@ -590,8 +590,8 @@
         <button class="bz__btn" id="bz-back" type="button" title="Back" aria-label="Back">←</button>
         <button class="bz__btn" id="bz-fwd" type="button" title="Forward" aria-label="Forward">→</button>
         <button class="bz__btn" id="bz-reload" type="button" title="Reload" aria-label="Reload">↻</button>
-        <input class="bz__url" id="bz-url" type="text" spellcheck="false" placeholder="検索または URL" aria-label="Address">
-        <button class="bz__btn" id="bz-pop" type="button" title="新しいウィンドウで開く">Pop out</button>
+        <input class="bz__url" id="bz-url" type="text" spellcheck="false" placeholder="検索または URL" aria-label="アドレス">
+        <button class="bz__btn" id="bz-pop" type="button" title="新しいウィンドウで開く">ポップアウト</button>
       </form>
       <div class="bz__host" id="bz-host"><p class="empty bz__hint" id="bz-hint">URL または検索語を入力</p>
         <!-- ★診断（2026-10-18）: 子の webview の裏に書く＝読めたら子がこの場所を覆っていない（ページが出ていない理由の手掛かり）。 -->

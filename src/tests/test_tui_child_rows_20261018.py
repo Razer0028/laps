@@ -14,10 +14,10 @@ def test_child_step_counts_calls_and_failures_20261018():
     assert not child_step(st, "子: ✓ Read")              # 成功は数を増やさない（呼んだ時に数えた）
     assert child_step(st, "子: ▶ Grep")
     assert child_step(st, "子: ✗ Grep 失敗: no match")
-    assert not child_step(st, "子の道具が止まりました")     # 形の違う行は数えない
+    assert not child_step(st, "子のツールが止まりました")     # 形の違う行は数えない
     assert st["n"] == 2 and st["bad"] == 1 and st["by"] == {"Read": 1, "Grep": 1}
-    assert child_label(st, "where is it") == "子 2 ✗1 · where is it"
-    assert child_label({"n": 3}, "") == "子 3"
+    assert child_label(st, "where is it") == "サブエージェント 2 ✗1 · where is it"
+    assert child_label({"n": 3}, "") == "サブエージェント 3"
 
 
 def test_tui_row_shows_child_progress_20261018(tmp_path, monkeypatch):
@@ -52,10 +52,10 @@ def test_tui_row_shows_child_progress_20261018(tmp_path, monkeypatch):
                 app._child_event(m)
             await pilot.pause()
             t = app.query_one("#tools", tui.ToolsTable)
-            assert str(t.get_cell("c1", "target")) == "子 2 ✗1 · where is the parser"
-            assert str(t.get_cell("r1", "target")) == "b/c.py"            # 子を走らせない道具の行は変えない
+            assert str(t.get_cell("c1", "target")) == "サブエージェント 2 ✗1 · where is the parser"
+            assert str(t.get_cell("r1", "target")) == "b/c.py"            # 子を走らせないツールの行は変えない
             app._tool_event({"type": "tool_result", "name": "Explore", "call": "c1", "ok": True, "result": "x"})
             app._child_event("子: ▶ Read")
             await pilot.pause()
-            assert str(t.get_cell("c1", "target")) == "子 2 ✗1 · where is the parser"
+            assert str(t.get_cell("c1", "target")) == "サブエージェント 2 ✗1 · where is the parser"
     asyncio.run(main())

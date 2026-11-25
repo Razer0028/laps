@@ -193,7 +193,7 @@ class ServeClient:
         try:
             ws.mkdir(parents=True, exist_ok=True)   # serve 自身も起動時に作る。cwd に使うので先に
         except OSError as e:
-            raise RuntimeError(f"作業場を用意できない: {ws}: {e}") from e
+            raise RuntimeError(f"ワークスペースを用意できない: {ws}: {e}") from e
         # 子ごとに新しい列と stderr の控えを持つ（旧い子のポンプが生き残っていても混ざらない）
         q: "queue.Queue[dict]" = queue.Queue()
         tail: collections.deque[str] = collections.deque(maxlen=_STDERR_TAIL)

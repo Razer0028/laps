@@ -264,7 +264,7 @@ impl InFlight {
             .lock()
             .map_err(|_| "内部状態が壊れています（ロック取得に失敗）".to_string())?;
         if !guard.insert(p.to_path_buf()) {
-            return Err("このファイルは既に取り寄せ中です".to_string());
+            return Err("このファイルは既にダウンロード中です".to_string());
         }
         Ok(InFlight(p.to_path_buf()))
     }
@@ -309,7 +309,7 @@ pub async fn hf_search(query: String) -> Result<Vec<HfRepo>, String> {
         .get(&url)
         .send()
         .await
-        .map_err(|e| format!("Hugging Face に繋がりません: {e}"))?;
+        .map_err(|e| format!("Hugging Face に接続できません: {e}"))?;
     let hits: Vec<SearchHit> = read_json(resp, "検索").await?;
     Ok(hits
         .into_iter()
@@ -413,7 +413,7 @@ pub async fn hf_repo_files(repo: String) -> Result<HfRepoInfo, String> {
         .get(&tree_url)
         .send()
         .await
-        .map_err(|e| format!("Hugging Face に繋がりません: {e}"))?;
+        .map_err(|e| format!("Hugging Face に接続できません: {e}"))?;
     let entries: Vec<TreeEntry> = read_json(resp, "ファイル一覧の取得").await?;
 
     // メタ情報は「あれば嬉しい」もの。ここで落ちてもファイル一覧は返す
@@ -694,13 +694,13 @@ async fn stream_to_part(
             }
         }
         return Err(StreamErr::RestartFromZero(
-            "途中のファイルが実体と食い違うため、先頭から取り直します".to_string(),
+            "途中のファイルが実体と食い違うため、先頭からダウンロードし直します".to_string(),
         ));
     }
     if status.as_u16() == 403 || status.as_u16() == 401 {
         // 署名の失効がこの形で出る。URL を引き直せば直る。
         return Err(StreamErr::Retry(
-            "署名付き URL が失効しました（引き直します）".to_string(),
+            "署名付き URL が失効しました（取得し直します）".to_string(),
         ));
     }
     if status.as_u16() == 404 {
@@ -714,7 +714,7 @@ async fn stream_to_part(
     if *received > 0 && status.as_u16() != 206 {
         // レンジを無視して先頭から返してきた。追記すると混ざるので必ず捨てる。
         return Err(StreamErr::RestartFromZero(
-            "配信元が途中再開に対応しませんでした。先頭から取り直します".to_string(),
+            "配信元が途中再開に対応しませんでした。先頭からダウンロードし直します".to_string(),
         ));
     }
 
@@ -818,7 +818,7 @@ pub async fn hf_download(app: AppHandle, repo: String, path: String) -> Result<S
     let dir = models_dir()?;
     fs::create_dir_all(&dir)
         .await
-        .map_err(|e| format!("置き場所を作れません {}: {e}", dir.display()))?;
+        .map_err(|e| format!("保存先を作れません {}: {e}", dir.display()))?;
 
     let final_path = dir.join(target_file_name(&repo, &path));
     if fs::metadata(&final_path).await.is_ok() {
@@ -959,7 +959,7 @@ pub async fn hf_download(app: AppHandle, repo: String, path: String) -> Result<S
 #[tauri::command]
 pub async fn open_models_dir() -> Result<String, String> {
     let dir = models_dir()?;
-    std::fs::create_dir_all(&dir).map_err(|e| format!("置き場を作れません: {e}"))?;
+    std::fs::create_dir_all(&dir).map_err(|e| format!("保存先を作れません: {e}"))?;
 
     #[cfg(windows)]
     {
@@ -995,7 +995,7 @@ pub async fn list_local_models() -> Result<Vec<LocalModel>, String> {
     while let Some(entry) = rd
         .next_entry()
         .await
-        .map_err(|e| format!("置き場所を読めません {}: {e}", dir.display()))?
+        .map_err(|e| format!("保存先を読めません {}: {e}", dir.display()))?
     {
         let path = entry.path();
         let name = match path.file_name().and_then(|n| n.to_str()) {

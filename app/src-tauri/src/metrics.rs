@@ -53,13 +53,13 @@ pub async fn server_metrics(since: f64) -> Result<String, String> {
         .query(&[("since", format!("{since}"))])
         .send()
         .await
-        .map_err(|e| format!("UNREACHABLE:{host} の計測に届きません（{e}）"))?;
+        .map_err(|e| format!("UNREACHABLE:{host} の計測に接続できません（{e}）"))?;
     let status = resp.status();
     if !status.is_success() {
         return Err(format!("UNREACHABLE:{host} の計測が {status} を返しました"));
     }
     let text = resp.text().await.map_err(|e| format!("UNREACHABLE:読み取りに失敗しました（{e}）"))?;
     serde_json::from_str::<serde_json::Value>(&text)
-        .map_err(|_| "UNREACHABLE:計測の答えが JSON ではありません".to_string())?;
+        .map_err(|_| "UNREACHABLE:計測 API の応答が JSON ではありません".to_string())?;
     Ok(text)
 }

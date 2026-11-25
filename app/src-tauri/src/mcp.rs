@@ -20,7 +20,7 @@ pub async fn mcp_set(text: String) -> Result<Value, String> {
         crate::sidecar::run_python_module("laps.oc.mcp", &["set"], &[("LAPS_MCP_JSON", text)], 60).await?;
     let line = out.lines().rev().find(|l| !l.trim().is_empty()).unwrap_or("");
     let v: Value = serde_json::from_str(line)
-        .map_err(|_| format!("本体の返事を読めません: {}", err.lines().rev().take(3).collect::<Vec<_>>().join(" / ")))?;
+        .map_err(|_| format!("エンジンの応答を読み取れません: {}", err.lines().rev().take(3).collect::<Vec<_>>().join(" / ")))?;
     if let Some(e) = v.get("error").and_then(|e| e.as_str()) {
         return Err(e.to_string());
     }
@@ -33,5 +33,5 @@ pub async fn mcp_status() -> Result<Value, String> {
     let (_code, out, err) = crate::sidecar::run_python_module("laps.oc.mcp", &["status"], &[], 420).await?;
     let line = out.lines().rev().find(|l| l.trim_start().starts_with('[')).unwrap_or("");
     serde_json::from_str(line)
-        .map_err(|_| format!("本体の返事を読めません: {}", err.lines().rev().take(3).collect::<Vec<_>>().join(" / ")))
+        .map_err(|_| format!("エンジンの応答を読み取れません: {}", err.lines().rev().take(3).collect::<Vec<_>>().join(" / ")))
 }

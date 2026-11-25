@@ -232,7 +232,7 @@ class Server:
             if not isinstance(obj, dict):
                 raise ValueError("not an object")
         except ValueError as e:
-            self.out.emit("error", None, kind="bad_request", message=f"読めない行: {e}", line=line[:200])
+            self.out.emit("error", None, kind="bad_request", message=f"読み取れない行: {e}", line=line[:200])
             return True
         t = obj.get("type")
         rid = obj.get("id")
@@ -254,7 +254,7 @@ class Server:
             self.out.notice("shutdown", rid)
             return False
         else:
-            self.out.emit("error", rid, kind="unknown_command", message=f"知らない type: {t!r}")
+            self.out.emit("error", rid, kind="unknown_command", message=f"不明な type: {t!r}")
         return True
 
     def _accept_run(self, obj: dict) -> None:

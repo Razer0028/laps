@@ -50,7 +50,7 @@ def _run(events, args="", session="") -> str:
 
 def test_線の形で読める():
     out = _run(WIRE)
-    assert "道具 2 回" in out and "圧縮 6 回" in out
+    assert "ツール 2 回" in out and "圧縮 6 回" in out
     assert "ls -la" in out and "/x/agent.py" in out
     assert "失敗: No such file" in out
 
@@ -58,7 +58,7 @@ def test_線の形で読める():
 def test_記録の形でも読める():
     """★`payload` の中に欄がある形。片方だけ対応するのがこの現場の典型的な欠陥。"""
     out = _run(REC)
-    assert "道具 2 回" in out and "圧縮 6 回" in out
+    assert "ツール 2 回" in out and "圧縮 6 回" in out
     assert "ls -la" in out
 
 
@@ -85,7 +85,7 @@ def test_空状態には次の一手():
 
 def test_道具ゼロの走行をそう言う():
     out = _run([{"type": "result", "id": "r1", "counters": {}}])
-    assert "道具は使われていません" in out
+    assert "ツールは使われていません" in out
 
 
 def test_受け取った分は_取りこぼしを明示する():
@@ -128,4 +128,4 @@ def test_登録されている():
     cmd = slash.COMMANDS["trace"]
     assert cmd.handler is slash._cmd_trace
     assert not cmd.hidden, "/help の一覧に出ない"
-    assert "圧縮" in cmd.help, "何のための道具かが一覧から読めない"
+    assert "圧縮" in cmd.help, "何のためのツールかが一覧から読めない"

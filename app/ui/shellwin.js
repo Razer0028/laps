@@ -11,7 +11,7 @@
   const nameEl = document.getElementById("name"), cwdEl = document.getElementById("cwd");
   if (!call || typeof window.Terminal !== "function" || !window.FitAddon) {
     stage.innerHTML = "";
-    const p = document.createElement("p"); p.className = "err"; p.textContent = "シェルを開けません（このウィンドウではターミナルの部品が読めませんでした）";
+    const p = document.createElement("p"); p.className = "err"; p.textContent = "シェルを開けません（このウィンドウではターミナルのコンポーネントが読めませんでした）";
     stage.appendChild(p);
     return;
   }

@@ -164,8 +164,8 @@ def _server_choices(d: dict) -> list[Choice]:
         if not uid:
             continue
         name = str(u.get("model") or uid)
-        feat = [f"文脈 {round(int(u['ctx']) / 1024)}K" if u.get("ctx") else "",
-                "画像" if u.get("vision") else "", "先読み" if u.get("mtp") else ""]
+        feat = [f"コンテキスト {round(int(u['ctx']) / 1024)}K" if u.get("ctx") else "",
+                "画像" if u.get("vision") else "", "投機的デコード" if u.get("mtp") else ""]
         detail = "・".join(x for x in feat if x)
         if name != uid:
             detail = f"{uid}" + (f"・{detail}" if detail else "")
@@ -188,11 +188,11 @@ def fetch(cfg: dict, backend: str, transport: Optional[httpx.BaseTransport] = No
             base = bases.get(kind)
             if not base:
                 continue
-            name = "Claude の中継" if kind == "claude" else "推論機の切り替え口"
+            name = "Claude の中継サーバー" if kind == "claude" else "推論サーバーの切り替え API"
             try:
                 r = h.get(base + "v1/models")
             except Exception as e:  # noqa: BLE001 — 届かない理由を 1 行で
-                lst.notes.append(f"{name}（{base}）に届きません: {type(e).__name__}")
+                lst.notes.append(f"{name}（{base}）に接続できません: {type(e).__name__}")
                 continue
             try:
                 d = r.json() if r.status_code == 200 else None
@@ -265,16 +265,16 @@ def switch(lst: Listing, c: Choice, backend: str,
     if not c.active:
         base = _bases(lst).get(c.kind)
         if not base:
-            return Result(False, "切り替え口の住所が分かりません")
+            return Result(False, "切り替え API の住所が分かりません")
         if c.kind == "server" and lst.switching:
-            return Result(False, f"推論機は {lst.switching} へ入れ替えている途中です（終わってから）")
+            return Result(False, f"推論サーバーは {lst.switching} へ入れ替えている途中です（終わってから）")
         if c.kind == "server" and lst.stopping:
-            return Result(False, "推論機を止めている途中です（終わってから）")
+            return Result(False, "推論サーバーを止めている途中です（終わってから）")
         try:
             with _http(transport) as h:
                 r = h.post(base + "v1/switch", json={"id": c.id, "force": False})
         except Exception as e:  # noqa: BLE001
-            return Result(False, f"切り替え口（{base}）に届きません: {type(e).__name__}")
+            return Result(False, f"切り替え API （{base}）に接続できません: {type(e).__name__}")
         try:
             d = r.json()
         except ValueError:
@@ -282,18 +282,18 @@ def switch(lst: Listing, c: Choice, backend: str,
         if not isinstance(d, dict):
             d = {}
         if r.status_code >= 400:
-            return Result(False, str(d.get("error") or f"切り替え口が HTTP {r.status_code} を返しました")[:300])
+            return Result(False, str(d.get("error") or f"切り替え API が HTTP {r.status_code} を返しました")[:300])
         msg = str(d.get("message") or "切り替えを始めました")
         pending = c.kind == "server"
         if pending and lst.server_stopped:
             # ★止まっている推論機に選んだ＝入れ替えではなく起動（モデル切り替えの口 は前のモデル無しで載せる）。
             msg = f"{c.label} を起動します"
         if pending:
-            msg += "（推論機の読み込みに 1〜3 分ほど。進み具合は /model）"
+            msg += "（推論サーバーの読み込みに 1〜3 分ほど。進み具合は /model）"
     else:
         msg = f"{c.label} はもう選ばれています"
     if move and target:
-        where = "Claude API（中継）" if c.kind == "claude" else "推論機"
+        where = "Claude API（中継サーバー）" if c.kind == "claude" else "推論サーバー"
         msg += f"。送り先を {where} {target} にしました（次の依頼から）"
         if c.kind == "claude":
             msg += "。費用は共有の API の枠から出ます"
@@ -309,25 +309,25 @@ def stop(lst: Listing, force: bool = False, transport: Optional[httpx.BaseTransp
       GPU の仕事（GPU の貸し出し の借り）が GPU を持っている間（409 lease）は押し切らない＝借りと争わない。"""
     base = _bases(lst).get("server")
     if not base or not lst.server_read:
-        why = "・".join(n for n in lst.notes if "推論機" in n)
-        return Result(False, "推論機の切り替え口が読めません" + (f"（{why}）" if why else ""))
+        why = "・".join(n for n in lst.notes if "推論サーバー" in n)
+        return Result(False, "推論サーバーの切り替え API が読めません" + (f"（{why}）" if why else ""))
     if is_claude(lst.server_url):
-        return Result(False, "Claude API の中継には止める口がありません（止めるのは推論機だけ）")
+        return Result(False, "Claude API の中継サーバーには止める口がありません（止めるのは推論サーバーだけ）")
     if not lst.stoppable:
-        return Result(False, "この推論機の切り替え口は止める口を持っていません（モデル切り替えの口 が古い）")
+        return Result(False, "この推論サーバーの切り替え API は止める口を持っていません（モデル切り替えの口 が古い）")
     if lst.stopping:
-        return Result(True, "推論機はもう止めている途中です（進み具合は /model）", pending=True)
+        return Result(True, "推論サーバーはもう止めている途中です（進み具合は /model）", pending=True)
     if lst.switching:
-        return Result(False, f"推論機は {lst.switching} へ入れ替えている途中です（終わってから）")
+        return Result(False, f"推論サーバーは {lst.switching} へ入れ替えている途中です（終わってから）")
     # ★貸し出しが止めた LLM は仕事の後に戻されるので、止まって見えても手元で「もう止まっています」と答えない（2026-11-03）。
     #   向こうに頼んで「戻さない」と帳面から消してもらう（仕事が動いている間は 409 lease で断られる）。
     if lst.server_stopped and not lst.lease_stopped:
-        return Result(True, f"推論機はもう{STOPPED_LABEL}")
+        return Result(True, f"推論サーバーはもう{STOPPED_LABEL}")
     try:
         with _http(transport) as h:
             r = h.post(base + "v1/stop", json={"force": bool(force)})
     except Exception as e:  # noqa: BLE001
-        return Result(False, f"切り替え口（{base}）に届きません: {type(e).__name__}")
+        return Result(False, f"切り替え API （{base}）に接続できません: {type(e).__name__}")
     try:
         d = r.json()
     except ValueError:
@@ -335,18 +335,18 @@ def stop(lst: Listing, force: bool = False, transport: Optional[httpx.BaseTransp
     if not isinstance(d, dict):
         d = {}
     if r.status_code == 404:
-        return Result(False, "この推論機の切り替え口は止める口を持っていません（モデル切り替えの口 が古い）")
+        return Result(False, "この推論サーバーの切り替え API は止める口を持っていません（モデル切り替えの口 が古い）")
     if r.status_code >= 400:
-        msg = str(d.get("error") or f"切り替え口が HTTP {r.status_code} を返しました")[:300]
+        msg = str(d.get("error") or f"切り替え API が HTTP {r.status_code} を返しました")[:300]
         if d.get("busy") and not force:
             msg += "（生成の途中です。それでも止めるなら /model stop --force）"
         elif d.get("lease"):
             msg += "（GPU の仕事が GPU を使っています。終われば空きます）"
         return Result(False, msg)
     if d.get("already"):
-        return Result(True, str(d.get("message") or f"推論機はもう{STOPPED_LABEL}"))
+        return Result(True, str(d.get("message") or f"推論サーバーはもう{STOPPED_LABEL}"))
     if lst.server_stopped and r.status_code == 200:
-        return Result(True, str(d.get("message") or f"推論機はもう{STOPPED_LABEL}"))
-    msg = str(d.get("message") or "推論機を止めます")
+        return Result(True, str(d.get("message") or f"推論サーバーはもう{STOPPED_LABEL}"))
+    msg = str(d.get("message") or "推論サーバーを止めます")
     msg += "（GPU が空くまで数十秒。進み具合は /model。起こすときは /model <名前>）"
     return Result(True, msg, pending=True)

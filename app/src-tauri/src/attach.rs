@@ -31,11 +31,11 @@ pub struct Attached {
 fn ws_root(workspace: &str) -> Result<PathBuf, String> {
     let w = workspace.trim();
     if w.is_empty() {
-        return Err("先に作業フォルダを選んでください（添付は作業フォルダの中に保存します）".into());
+        return Err("先にワークスペースを選んでください（添付はワークスペースの中に保存します）".into());
     }
-    let c = std::fs::canonicalize(w).map_err(|e| format!("作業フォルダが見つかりません（{w}）: {e}"))?;
+    let c = std::fs::canonicalize(w).map_err(|e| format!("ワークスペースが見つかりません（{w}）: {e}"))?;
     if !c.is_dir() {
-        return Err(format!("作業フォルダではありません: {w}"));
+        return Err(format!("ワークスペースではありません: {w}"));
     }
     Ok(c)
 }
@@ -192,7 +192,7 @@ pub async fn attach_save(workspace: String, paths: Vec<String>) -> Result<Vec<At
             let src = PathBuf::from(raw);
             let meta = std::fs::metadata(&src).map_err(|e| format!("読めません（{raw}）: {e}"))?;
             if meta.is_dir() {
-                return Err(format!("フォルダは添付できません（{raw}）。作業フォルダの中に置くか、zip にまとめてください"));
+                return Err(format!("フォルダは添付できません（{raw}）。ワークスペースの中に置くか、zip にまとめてください"));
             }
             if meta.len() > MAX_FILE_BYTES {
                 return Err(format!("大きすぎます（{raw}・{} MB）", meta.len() / 1_048_576));
@@ -207,7 +207,7 @@ pub async fn attach_save(workspace: String, paths: Vec<String>) -> Result<Vec<At
             }
             let d = dir.as_ref().unwrap();
             let dst = unique_in(d, &safe_name(&src.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default()));
-            std::fs::copy(&src, &dst).map_err(|e| format!("写せません（{raw} → {}）: {e}", dst.display()))?;
+            std::fs::copy(&src, &dst).map_err(|e| format!("コピーできません（{raw} → {}）: {e}", dst.display()))?;
             out.push(entry(&root, &dst));
         }
         Ok(out)

@@ -30,7 +30,7 @@ KNOWN = ("claude-haiku-5-5", "claude-sonnet-5-5", "claude-opus-5-5", "claude-fab
 
 
 class Lab:
-    """中継と推論機の切り替え口の偽物。呼ばれた POST を数える。"""
+    """中継と推論サーバーの切り替え APIの偽物。呼ばれた POST を数える。"""
 
     def __init__(self) -> None:
         self.claude = "claude-haiku-5-5"
@@ -129,7 +129,7 @@ def test_fetch_says_why_when_one_side_is_down_20261019(lab):
         return lab.handler(req)
     lst = models.fetch({"claude_backend": RELAY}, SERVER, httpx.MockTransport(half))
     assert [c.kind for c in lst.choices] == ["claude"] * 4
-    assert len(lst.notes) == 1 and "推論機の切り替え口" in lst.notes[0] and "ConnectError" in lst.notes[0]
+    assert len(lst.notes) == 1 and "推論サーバーの切り替え API" in lst.notes[0] and "ConnectError" in lst.notes[0]
 
 
 # ── /model ───────────────────────────────────────────────────────────
@@ -138,9 +138,9 @@ def test_model_shows_both_groups_with_marks_20261019(tmp_path, lab):
     ctx = _ctx(tmp_path)
     slash.dispatch(ctx, "/model")
     out = _out(ctx)
-    assert "Claude API" in out and "今月 $1.23" in out and "推論機" in out
+    assert "Claude API" in out and "今月 $1.23" in out and "推論サーバー" in out
     assert "Claude Sonnet 5.5" in out and "KAT-Coder-V2.5-Dev" in out
-    assert "← 中継で選ばれている" in out and "← いま" in out
+    assert "← 中継サーバーで選ばれている" in out and "← いま" in out
     assert "/model <番号か名前>" in out
 
 
@@ -175,7 +175,7 @@ def test_model_refuses_while_running_and_keeps_old_name_behaviour_20261019(tmp_p
     ctx = _ctx(tmp_path)
     ctx.running_rid = "r1"
     slash.dispatch(ctx, "/model sonnet")
-    assert "走行中は切り替えられません" in _out(ctx) and lab.posts == [] and ctx.client.backend == SERVER
+    assert "実行中は切り替えられません" in _out(ctx) and lab.posts == [] and ctx.client.backend == SERVER
     ctx.running_rid = None
     slash.dispatch(ctx, "/model 42")
     assert "番号 42 は一覧にありません" in _out(ctx)

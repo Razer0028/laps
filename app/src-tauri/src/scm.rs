@@ -52,7 +52,7 @@ fn run(dir: &Path, args: &[&str]) -> Result<Output, Option<String>> {
 }
 
 fn no_git() -> String {
-    "git が見つかりません（Git for Windows を入れて、コマンドとして呼べるようにしてください）".to_string()
+    "git が見つかりません（Git for Windows をインストールして、コマンドとして呼べるようにしてください）".to_string()
 }
 
 fn err_text(e: Option<String>) -> String {

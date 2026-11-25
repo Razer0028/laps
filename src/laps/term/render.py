@@ -57,7 +57,7 @@ W_NO_RESULT = "中断（結果なし）"          # 旧 "no result returned"
 W_THINK = "思考 {n} 秒"                   # 旧 "Thought for Ns"
 W_ARGS = "引数"                           # 旧 "input"
 W_RESULT = "結果"                         # 旧 "result"
-W_RUNNING = "（走行中）"                  # 旧 "(running)"
+W_RUNNING = "（実行中）"                  # 旧 "(running)"
 W_EMPTY = "（空）"                        # 旧 "(empty)"
 W_REST = "… 残り {n} 行"                  # 旧 "… +N lines (/expand)"
 W_EXPAND = "→ /expand で全文"             # 失敗と畳みの「次の一手」（SPEC 項目 19）
@@ -65,13 +65,13 @@ W_CANCEL = "中断を要求しました（もう一度 Ctrl-C で終了）"
 W_CANCEL_STALL = "まだ止まっていない（{secs}）・もう一度 Ctrl-C で強制終了"
 W_HINT_RUN = "Ctrl-C 中断"                # 走行中の頭行の末尾（SPEC 項目 14）
 # -- 文脈まわりの 4 状態（SPEC 項目 16）。本体が文面を持たないときの既定 ------------
-W_CTX_WARN = "文脈の窓が狭くなっています"          # 警告（まだ何も失っていない）
-W_CTX_COMPACT = "文脈を圧縮 {before} → {after}"    # 圧縮（自動で縮めた・失ったものは無い）
-W_CTX_COMPACTED = "文脈を圧縮しました"             # 圧縮（本体が数字を送っていないとき）
-W_CTX_RESET = "文脈を仕切り直しました"             # 仕切り直し（会話は捨てた・作業は続く）
+W_CTX_WARN = "コンテキストウィンドウが狭くなっています"          # 警告（まだ何も失っていない）
+W_CTX_COMPACT = "コンテキストを圧縮 {before} → {after}"    # 圧縮（自動で縮めた・失ったものは無い）
+W_CTX_COMPACTED = "コンテキストを圧縮しました"             # 圧縮（本体が数字を送っていないとき）
+W_CTX_RESET = "コンテキストをリセットしました"             # 仕切り直し（会話は捨てた・作業は続く）
 W_CTX_RESET_KEPT = "ここまでの要約だけ引き継ぎ"     # ★何が失われたかを同じ行の中で言う
-W_CTX_EXHAUSTED = "★文脈が足りなくなったので打ち切りました"   # 打ち切り（走行は終わった）
-W_CTX_NEXT = "→ 作業を小さく分けるか、広い窓で起動し直してください"
+W_CTX_EXHAUSTED = "★コンテキストが足りなくなったので打ち切りました"   # 打ち切り（走行は終わった）
+W_CTX_NEXT = "→ 作業を小さく分けるか、大きいコンテキストウィンドウで再起動してください"
 
 # done の outcome → 日本語（SPEC 項目 8④）。
 # ★ここに無い値は**そのまま出す**（内部識別子でも、隠すより出すほうが調べられる）。
@@ -79,18 +79,18 @@ _OUTCOME_JA = {
     "accepted": "",
     "accepted_after_pushback": "差し戻しあり",
     "cancelled": "中断",
-    "user_stop": "利用者が終了",        # 2026-09-04: AskUser の答えが停止の意図（回答の強制）
+    "user_stop": "ユーザーが終了",        # 2026-09-04: AskUser の答えが停止の意図（回答の強制）
     "max_iters": "反復上限",
-    "context_exhausted": "文脈切れ",
-    "context_overflow": "文脈あふれ",
+    "context_exhausted": "コンテキスト切れ",
+    "context_overflow": "コンテキストあふれ",
     "budget_exhausted": "予算切れ",
-    "loop_detected": "同じ手の繰り返し",
-    "crashed": "本体が落ちた",
-    "backend_error": "推論器に届かない",
-    "declined": "モデルが断った",       # 2026-10-30: 推論機が応答を断った（finish_reason=content_filter）
-    "phase_failed": "工程 不合格",
+    "loop_detected": "同じ操作の繰り返し",
+    "crashed": "エンジンが停止した",
+    "backend_error": "推論サーバーに接続できない",
+    "declined": "モデルが拒否した",       # 2026-10-30: 推論機が応答を断った（finish_reason=content_filter）
+    "phase_failed": "ステップ 不合格",
     "unknown": "不明",
-    "": "締めが来ていない",
+    "": "終了の通知が届いていない",
 }
 CODE_THEME = "bw"        # 旧: pygments の名前。★実際の描画は _CODE_THEME（下）＝pygments の "bw" は
                          #   background_color が白で、黒い端末ではコードが白い帯になる（検証で実測）。
@@ -272,7 +272,7 @@ def _mask_obj(obj: Any) -> Any:
 
 
 # 道具の種類の札（カード表示）。
-_CARD_KIND = {"Bash": "実行", "Read": "読む", "Glob": "探す", "Grep": "探す", "Edit": "書く",
+_CARD_KIND = {"Bash": "実行", "Read": "読む", "Glob": "検索", "Grep": "検索", "Edit": "書く",
               "Write": "書く", "NotebookEdit": "書く", "WebSearch": "Web", "WebFetch": "Web",
               "Construct": "記憶", "Skill": "手順書", "Desktop": "画面", "TodoWrite": "計画",
               "AskUserQuestion": "質問"}
@@ -367,7 +367,7 @@ _TOOL_ING = {
     "Read": "読込", "Grep": "検索", "Glob": "検索", "Write": "書込",
     "Edit": "編集", "ApplyDiff": "編集", "ApplyPatch": "編集", "MultiEdit": "編集", "NotebookEdit": "編集",
     "Bash": "実行", "Task": "委譲", "RemoteRead": "取得", "WebFetch": "取得",
-    "WebSearch": "検索", "TodoWrite": "記帳", "AskUserQuestion": "確認",
+    "WebSearch": "検索", "TodoWrite": "TODO", "AskUserQuestion": "確認",
 }
 
 
@@ -668,7 +668,7 @@ def patch_lines(patch: dict, width: int = 0) -> list[Text]:
             else:
                 out.append(Text(first + body, style=style))
     if patch.get("truncated"):
-        msg = "… 差分が長いので以降は省略（/expand でも出ません。ファイルを開いて確かめてください）"
+        msg = "… 差分が長いので以降は省略（/expand でも出ません。ファイルを開いて確認してください）"
         out.append(Text(wrap_with_gutter(msg, width, INDENT, INDENT) if width > 0 else INDENT + msg,
                         style=T.S_DIFF_CTX))
     return out
@@ -1106,14 +1106,16 @@ class Renderer:
         et = str(ev.get("type") or "")
         if et == "notice" and str(ev.get("kind") or "") == "heartbeat":
             stage = str(ev.get("stage") or "推論機")
+            # 段階の名前（推論機・道具 X）は本体との取り決め。画面の呼び名に替える
+            shown = "推論サーバー" if stage == "推論機" else ("ツール " + stage[3:]) if stage.startswith("道具 ") else stage
             q = max(0, int(ev.get("quiet_secs") or 0))
             detail = str(ev.get("detail") or "").strip()     # 推論機の読み込みの進み具合（2026-10-07）
             with self._lock:
                 self._quiet_secs = q
-                self._waiting = (f"{stage} を実行中（{q} 秒 応答なし）" if stage.startswith("道具 ")
-                                 else f"背景の仕事の終わりを待っています（{q} 秒）" if stage == "背景の仕事"
-                                 else f"{stage}: {detail}" if detail
-                                 else f"{stage}の応答を待っています（{q} 秒）")
+                self._waiting = (f"{shown} を実行中（{q} 秒 応答なし）" if stage.startswith("道具 ")
+                                 else f"バックグラウンドタスクの完了を待っています（{q} 秒）" if stage == "背景の仕事"
+                                 else f"{shown}: {detail}" if detail
+                                 else f"{shown}の応答を待っています（{q} 秒）")
             return          # Live は refresh_per_second で自動再描画（明示の refresh は無い）
         with self._lock:
             self._waiting = ""
@@ -1199,14 +1201,14 @@ class Renderer:
             # ★旧実装は、道具を使った次のターンでも「まだ使われていません」と言っていた＝
             #   起きたことを起きていないと言う嘘だった（項目 22①）。
             if self._forgot:
-                self.console.print(Text("この走行の記録はもう残っていません（束はターンごとに入れ替わります）",
+                self.console.print(Text("この実行ログはもう残っていません（束はターンごとに入れ替わります）",
                                         style=T.S_DIM))
                 self.console.print(Text("  → 見たいターンの直後に /expand を打ってください。",
                                         style=T.S_DIM))
             else:
-                self.console.print(Text("道具はまだ使われていません", style=T.S_DIM))
+                self.console.print(Text("ツールはまだ使われていません", style=T.S_DIM))
                 self.console.print(Text(
-                    "  → 走行が始まると、ここに道具の呼び出しと結果が並びます。",
+                    "  → 実行が始まると、ここにツールの呼び出しと結果が並びます。",
                     style=T.S_DIM))
             return
         for e in self._bundle:
@@ -1489,7 +1491,7 @@ class Renderer:
         "cancel_detail": ("", T.S_META, ""),
         "queue_cleared": ("", T.S_META, ""),
         "inject_ignored": ("", T.S_META, ""),
-        "shutdown": ("", T.S_META, "本体を終了します。"),
+        "shutdown": ("", T.S_META, "エンジンを終了します。"),
         # ★2026-10-18: 0.1.520 で足した 2 つ（wire.rs には足したが端末版の表に入れ忘れ、既定の色に落ちていた）。
         #   autoverify＝確かめずに終えようとしたのでハーネスが速い検査を走らせた／diffreview＝終える前の変更の見直し。
         "autoverify": ("", T.S_META, ""),
@@ -1611,14 +1613,16 @@ class Renderer:
             #   （詳細 REPORTS/app-term-clients-merge-order.md §5）。
             mark, style = T.MARK_BAD, T.S_BAD
         text = msg or default or kind
+        if kind == "subagent" and text.startswith("子: "):   # 頭の「子: 」は本体との取り決め。画面の呼び名に替える
+            text = "サブエージェント: " + text[3:]
         first = f"{mark} " if mark else ""
         self._print(Text(wrap_with_gutter(text, w, first, "  "), style=style))
 
     #: cancel の `applied`（serve.py `_accept_cancel`）を利用者の言葉にする。
     _CANCEL_APPLIED_JA = {
-        "running": "走行中に届きました",
+        "running": "実行中に届きました",
         "pending": "待ち行列に残っていたので取り消しました",
-        "failed": "本体に伝えられませんでした（もう一度 Ctrl-C で強制終了してください）",
+        "failed": "エンジンに伝えられませんでした（もう一度 Ctrl-C で強制終了してください）",
     }
 
     def _cancel_notice(self, ev: dict, msg: str, w: int) -> None:
@@ -1673,10 +1677,10 @@ class Renderer:
             return
         n = _int(ev.get("sockets"), 0)
         if n > 0:
-            line = f"→ 推論器への接続を {n} 本切りました"
+            line = f"→ 推論サーバーへの接続を {n} 本切りました"
             style = T.S_META
         else:
-            line = "→ 推論器への接続は掴めませんでした（返事が来るまで止まらないことがあります）"
+            line = "→ 推論サーバーへの接続は掴めませんでした（返事が来るまで止まらないことがあります）"
             style = T.S_BAD
         # ★`bash_killed` は**書かない**（2026-09-04 実測）。agent.request_cancel は
         #   `kill_running()` が例外を投げなければ**数えずに 1 を足す**ので、走っている
@@ -1695,7 +1699,7 @@ class Renderer:
         tool = str(ev.get("tool") or "?")
         target = str(ev.get("target") or "?")
         n = _int(ev.get("n"), 1)
-        text = f"作業場の外への {tool} を止めました（{target}）"
+        text = f"ワークスペース外への {tool} を止めました（{target}）"
         if n > 1:
             text += f"・{n} 回目"
         self._print(Text(wrap_with_gutter(text, w, f"{T.MARK_BAD} ", "  "), style=T.S_BAD))
@@ -1797,7 +1801,7 @@ class Renderer:
         mark = _pulse_mark(now, animate)
         if running:                                   # ①道具が走っている＝substance を主役に
             label = (_tool_status_label(running[-1]) if len(running) == 1
-                     else f"道具 {len(running)} 個を実行中")
+                     else f"ツール {len(running)} 個を実行中")
             if quiet > 0:                             # 走行中に沈黙が続くなら末尾へ添える
                 label += f"（{quiet} 秒 応答なし）"
         elif waiting:                                 # ②心拍の一文（stage＋沈黙を既に含む）
@@ -1962,7 +1966,7 @@ class Renderer:
         title = Text(" ")
         title.append(" ", style=chip)
         title.append(mark, style=chip if e.bad else f"bold {mstyle} on {T.CHIP_BG}")
-        title.append(" " + _CARD_KIND.get(e.name, "道具") + " ", style=chip)
+        title.append(" " + _CARD_KIND.get(e.name, "ツール") + " ", style=chip)
         title.append(f" {e.name}", style=T.S_META)
         head = " ".join(str(e.head).split())
         room = max(0, self._width() - cell_width(title.plain) - 14)
@@ -2130,7 +2134,7 @@ class Renderer:
             (T.MARK_OK if good else T.MARK_BAD, T.S_MARK_OK if good else T.S_MARK_BAD, 0),
             (" done", T.S_META, 0),
             (f"{DONE_SEP}{secs:>4,.0f}s", T.S_META, 1),
-            (f"{DONE_SEP}道具 {n_tools:>2,}", T.S_META, 2),
+            (f"{DONE_SEP}ツール {n_tools:>2,}", T.S_META, 2),
         ]
         if n_bad:
             parts.append((f"{DONE_SEP}失敗 {n_bad:>2,}", T.S_BAD, 0))

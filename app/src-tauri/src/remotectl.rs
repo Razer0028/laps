@@ -100,7 +100,7 @@ pub fn start(app: AppHandle) {
                     let args = req.get("args").cloned().unwrap_or(Value::Null);
                     let d2 = d.clone();
                     if now - ts > STALE_REQ_SECS {
-                        write_res(&d2, &id, Err("要求が古いので実行しませんでした（アプリが止まっていた間に届いた物）".into()));
+                        write_res(&d2, &id, Err("リクエストが古いため実行しませんでした（アプリが止まっていた間に届いた物）".into()));
                         continue;
                     }
                     let app2 = app.clone();
@@ -229,7 +229,7 @@ async fn dispatch(app: &AppHandle, op: &str, a: &Value) -> Result<Value, String>
         "memory.stats" => Ok(parsed(convos::memory_stats(strs(a, "referenced")))),
         // ★走行中は消さない（2026-11-13: この門は画面にしか無く、スマホからの依頼は、本体が書いている最中の記録のフォルダも消せた）。
         "memory.delete" | "memory.purge" if !crate::sidecar::lanes_running().is_empty() => {
-            Err("走行中は記憶を消せません。走行が終わってからもう一度お試しください。".into())
+            Err("実行中はメモリを消去できません。実行が終わってからもう一度お試しください。".into())
         }
         "memory.delete" => Ok(parsed(convos::memory_delete_sessions(strs(a, "ids")))),
         // ★2026-11-23: 一覧に頼る消し方は一覧が ok のときだけ・記録はゴミ箱へ（convos::memory_purge の注）。
@@ -244,6 +244,6 @@ async fn dispatch(app: &AppHandle, op: &str, a: &Value) -> Result<Value, String>
         }
         // 走行記録の送信の状態（読むだけ・2026-11-14: 実機から記録が届かない理由を、離れた所から読めなかった）。
         "journal.status" => Ok(crate::journal::journal_status()),
-        _ => Err(format!("知らない操作: {op}")),
+        _ => Err(format!("不明な操作: {op}")),
     }
 }

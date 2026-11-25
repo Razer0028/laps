@@ -468,7 +468,7 @@ class Aids:
             a._count("auto_bg")
             # 画面の帯に出る一言＝利用者あての文なので日本語（app/DESIGN.md §2.5・2026-11-15 実機の帯に英文が出ていた）。
             m = re.match(r"Still running after (\d+)", raw)
-            a.out.notice("auto_bg", a.rid, message=(f"{m.group(1)} 秒を過ぎたので背景で続けています" if m else "背景で続けています"))
+            a.out.notice("auto_bg", a.rid, message=(f"{m.group(1)} 秒を過ぎたのでバックグラウンドで続けています" if m else "バックグラウンドで続けています"))
         cls = failclass.classify(real, r.ok, r.kind, raw)
         if cls:
             a._count(f"fail:{real}:{cls}")
@@ -733,7 +733,7 @@ class Aids:
             self.a._count(f"bwtool:{k}")
         bad = sum(1 for c in calls if not c.get("ok"))
         # 画面の帯に出る（モデルには渡らない）＝日本語（2026-11-05 実機で英語の文がほかの日本語と並んでいた）。
-        self.a.out.notice("bwtool", self.a.rid, message="スクリプトから使った道具: "
+        self.a.out.notice("bwtool", self.a.rid, message="スクリプトから使ったツール: "
                           + ", ".join(f"{k} ×{v}" for k, v in sorted(by.items())) + (f"（失敗 {bad}）" if bad else ""))
 
     # ── 手番の区切り ──────────────────────

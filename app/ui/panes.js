@@ -31,7 +31,7 @@ function paintPanes() {
     const g = p.el.querySelector(".cpane__ghost"); if (g) g.hidden = i === panes.focus;
   });
   const sp = $("#split-add");
-  if (sp) { sp.disabled = n >= PANES_MAX; sp.title = n >= PANES_MAX ? `枠は ${PANES_MAX} つまで` : "枠を足して横に並べる（Ctrl+\\）"; }
+  if (sp) { sp.disabled = n >= PANES_MAX; sp.title = n >= PANES_MAX ? `ペインは ${PANES_MAX} つまで` : "ペインを追加して横に並べる（Ctrl+\\）"; }
 }
 
 function savePanes() {
@@ -48,7 +48,7 @@ function makePane(el) {
     el.className = "cpane";
     el.innerHTML =
       '<div class="cpane__head"><button class="cpane__title" type="button"></button>' +
-      '<button class="cpane__x" type="button" aria-label="この枠を閉じる" title="枠を閉じる（チャットは止めない）">×</button></div>' +
+      '<button class="cpane__x" type="button" aria-label="このペインを閉じる" title="ペインを閉じる（チャットは停止しない）">×</button></div>' +
       '<div class="thread"></div>' +
       '<button class="cpane__ghost" type="button" hidden>ここに返信…</button>';
     if (!panes.restoring) enterOnce(el, "is-entering");   // 開いた枠だけ動かす（起動時に並びを戻すときは動かさない）

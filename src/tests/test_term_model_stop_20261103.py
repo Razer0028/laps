@@ -139,7 +139,7 @@ def test_model_stop_asks_then_stops_20261103(tmp_path, lab):
     out = _out(ctx)
     assert ctx.asked and "[y/N]" in ctx.asked[0] and "KAT-Coder-V2.5-Dev" in ctx.asked[0]
     assert lab.stops == [{"force": False}] and "katcoder を止めます" in out and "/model" in out
-    assert "推論機へ送る依頼は届きません" in out                  # 送り先が推論機のまま
+    assert "推論サーバーへのリクエストは処理されません" in out                  # 送り先が推論機のまま
     assert ctx.client.backend == SERVER                              # 送り先は変えない
 
 
@@ -189,7 +189,7 @@ def test_model_stop_refusals_20261103(tmp_path, lab):
     ctx = _ctx(tmp_path, answers=["y"])
     ctx.running_rid = "r1"
     slash.dispatch(ctx, "/model stop")
-    assert "走行中は止められません" in _out(ctx) and lab.stops == [] and ctx.asked == []
+    assert "実行中は止められません" in _out(ctx) and lab.stops == [] and ctx.asked == []
     ctx.running_rid = None
     slash.dispatch(ctx, "/model stop now")
     assert "分からない引数" in _out(ctx) and lab.stops == []
@@ -207,7 +207,7 @@ def test_model_stop_from_claude_relay_targets_server_only_20261103(tmp_path, lab
     slash.dispatch(ctx, "/model stop")
     out = _out(ctx)
     assert lab.stops == [{"force": False}] and "katcoder を止めます" in out
-    assert "推論機へ送る依頼は届きません" not in out                 # 送り先は Claude のまま
+    assert "推論サーバーへのリクエストは処理されません" not in out                 # 送り先は Claude のまま
     assert ctx.client.backend == RELAY
     assert not any(p[0] == "claude" for p in lab.posts)
 
@@ -219,13 +219,13 @@ def test_model_listing_says_stopped_20261103(tmp_path, lab):
     ctx = _ctx(tmp_path)
     slash.dispatch(ctx, "/model")
     out = _out(ctx)
-    assert "止まっています（GPU は空き）" in out and "推論機は止まっています（GPU は空き）" in out
-    assert "← いま" not in out and "止まっている推論機に選ぶと起動します" in out
-    assert "/model stop で推論機を止めて" not in out
+    assert "止まっています（GPU は空き）" in out and "推論サーバーは止まっています（GPU は空き）" in out
+    assert "← いま" not in out and "止まっている推論サーバーに選ぶと起動します" in out
+    assert "/model stop で推論サーバーを止めて" not in out
     lab.server = "katcoder"
     slash.dispatch(ctx, "/model")
     out = _out(ctx)
-    assert "止まっています" not in out and "/model stop で推論機を止めて GPU を空ける" in out
+    assert "止まっています" not in out and "/model stop で推論サーバーを止めて GPU を空ける" in out
 
 
 def test_model_listing_while_stopping_20261103(tmp_path, lab):
@@ -233,7 +233,7 @@ def test_model_listing_while_stopping_20261103(tmp_path, lab):
     lab.sw = {"state": "running", "action": "stop", "target": None, "previous": "katcoder", "steps": []}
     ctx = _ctx(tmp_path)
     slash.dispatch(ctx, "/model")
-    assert "推論機を止めている途中です" in _out(ctx)
+    assert "推論サーバーを止めている途中です" in _out(ctx)
     slash.dispatch(ctx, "/model qwen38x2")                          # 止めている途中は起こさない
     assert "止めている途中です" in _out(ctx) and lab.posts == []
 

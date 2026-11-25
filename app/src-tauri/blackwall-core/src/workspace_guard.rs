@@ -166,14 +166,14 @@ pub fn split_relative(rel: &str) -> Result<Vec<&str>, String> {
 
     if t.starts_with('/') || t.starts_with('\\') {
         return Err(format!(
-            "`{t}` は絶対パス（または UNC）です。作業ディレクトリからの相対パスで指定してください"
+            "`{t}` は絶対パス（または UNC）です。ワークスペースからの相対パスで指定してください"
         ));
     }
     // `C:\x` も `C:x`（ドライブ相対）も、作業ディレクトリの外を指し得る。
     let b = t.as_bytes();
     if b.len() >= 2 && b[0].is_ascii_alphabetic() && b[1] == b':' {
         return Err(format!(
-            "`{t}` はドライブ名から始まっています。作業ディレクトリからの相対パスで指定してください"
+            "`{t}` はドライブ名から始まっています。ワークスペースからの相対パスで指定してください"
         ));
     }
 
@@ -184,7 +184,7 @@ pub fn split_relative(rel: &str) -> Result<Vec<&str>, String> {
         }
         if seg == ".." {
             return Err(format!(
-                "`{t}` に `..` が入っています。作業ディレクトリの外は読み書きできません"
+                "`{t}` に `..` が入っています。ワークスペースの外は読み書きできません"
             ));
         }
         if seg.contains(':') {
@@ -223,7 +223,7 @@ pub fn is_reserved_device_name(seg: &str) -> bool {
 /// 作業ディレクトリを正準化する。比較の土台なので、必ずここを通してから使う。
 pub fn canonicalize_root(root: &Path) -> Result<PathBuf, String> {
     let canon = std::fs::canonicalize(root)
-        .map_err(|e| format!("作業ディレクトリを開けません {}: {e}", display_path(root)))?;
+        .map_err(|e| format!("ワークスペースを開けません {}: {e}", display_path(root)))?;
     if !canon.is_dir() {
         return Err(format!("{} はフォルダではありません", display_path(&canon)));
     }
@@ -262,7 +262,7 @@ pub fn resolve_in_ws(root: &Path, rel: &str) -> Result<PathBuf, String> {
         let Some(name) = existing.file_name().map(|n| n.to_os_string()) else {
             // 根まで遡っても見つからない＝作業ディレクトリごと消えている。
             return Err(format!(
-                "作業ディレクトリが見つかりません（{}）。選び直してください",
+                "ワークスペースが見つかりません（{}）。選び直してください",
                 display_path(&root_canon)
             ));
         };
@@ -271,7 +271,7 @@ pub fn resolve_in_ws(root: &Path, rel: &str) -> Result<PathBuf, String> {
             Some(p) => existing = p.to_path_buf(),
             None => {
                 return Err(format!(
-                    "作業ディレクトリが見つかりません（{}）。選び直してください",
+                    "ワークスペースが見つかりません（{}）。選び直してください",
                     display_path(&root_canon)
                 ))
             }
@@ -285,7 +285,7 @@ pub fn resolve_in_ws(root: &Path, rel: &str) -> Result<PathBuf, String> {
 
     if !is_within(&root_canon, &existing_canon) {
         return Err(format!(
-            "`{rel}` は作業ディレクトリ（{}）の外を指しています（実体は {}）。読み書きできません",
+            "`{rel}` はワークスペース（{}）の外を指しています（実体は {}）。読み書きできません",
             display_path(&root_canon),
             display_path(&existing_canon)
         ));
@@ -312,7 +312,7 @@ pub fn resolve_in_ws(root: &Path, rel: &str) -> Result<PathBuf, String> {
 pub fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), String> {
     let parent = path
         .parent()
-        .ok_or_else(|| format!("{} の置き場所が決まりません", display_path(path)))?;
+        .ok_or_else(|| format!("{} の保存先が決まりません", display_path(path)))?;
     std::fs::create_dir_all(parent)
         .map_err(|e| format!("{} を作成できません: {e}", display_path(parent)))?;
 
@@ -427,7 +427,7 @@ pub fn list_in(root: &Path, rel: &str) -> Result<Vec<WsEntry>, String> {
         notes.push(format!("項目が {SCAN_CAP} 件を超えたので途中で読み止めました"));
     }
     if excluded > 0 {
-        notes.push(format!("{excluded} 件は作業ディレクトリの外を指すか開けないため除きました"));
+        notes.push(format!("{excluded} 件はワークスペースの外を指すか開けないため除きました"));
     }
     if !notes.is_empty() {
         entries.push(notice_entry(format!("{NOTICE_TAG} {}", notes.join(" / "))));
@@ -455,7 +455,7 @@ pub fn trim_to_char_boundary(b: &[u8]) -> &[u8] {
 pub fn read_text_in(root: &Path, rel: &str) -> Result<String, String> {
     let root_canon = canonicalize_root(root)?;
     if split_relative(rel)?.is_empty() {
-        return Err("読むファイルを指定してください（作業ディレクトリ自身は読めません）".to_string());
+        return Err("読むファイルを指定してください（ワークスペース自身は読めません）".to_string());
     }
     let path = resolve_in_ws(&root_canon, rel)?;
 
@@ -530,7 +530,7 @@ pub fn write_text_in(root: &Path, rel: &str, content: &str) -> Result<String, St
     // 親が無ければ作る。resolve_in_ws を通っているので、作られる場所は必ず作業ディレクトリの中。
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)
-            .map_err(|e| format!("`{rel}` の置き場所を作れません: {e}"))?;
+            .map_err(|e| format!("`{rel}` の保存先を作れません: {e}"))?;
     }
     atomic_write(&path, content.as_bytes())?;
     Ok(display_path(&path))

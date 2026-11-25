@@ -77,8 +77,8 @@ impl Source {
             Source::ExplicitLan => "設定で LAN",
             Source::ExplicitLocal => "設定でローカル固定",
             Source::AutoLan => "既定（別の推論サーバー）",
-            Source::AutoLocal => "既定だが宛先が空なのでローカル",
-            Source::LanNoUrl => "LAN を選んでいるが宛先が空",
+            Source::AutoLocal => "既定だが接続先が空なのでローカル",
+            Source::LanNoUrl => "LAN を選んでいるが接続先が空",
         }
     }
     /// 記録に残す機械可読な語。

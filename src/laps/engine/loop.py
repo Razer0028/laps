@@ -1843,7 +1843,7 @@ class Agent:
         self._count("child_iters", child.iters)
         self._count("child_secs", int(rec["secs"]))
         self.out.notice("subagent", self.rid, child_event="done", child_label=label,
-                        message=f"子: 終わり（{child.iters} 手・{child.last_tokens // 1000}K トークン・{int(rec['secs'])} 秒）")
+                        message=f"子: 終わり（{child.iters} ターン・{child.last_tokens // 1000}K トークン・{int(rec['secs'])} 秒）")
         if not text.strip() and child.outcome in ("backend_error", "crashed"):
             raise RuntimeError(f"the sub-agent failed: {child.out.error or child.outcome}")   # 成功に見せない（Task の失敗として親へ返る）
         if kind == "explore" and child.tool_calls:

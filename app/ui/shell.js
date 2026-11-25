@@ -168,7 +168,7 @@
 
   function setOpen(on) {
     if (on && !call) { open = true; dock.hidden = false; say("この画面ではシェルを使えません（アプリの中で開いてください）。"); return; }
-    if (on && !libOK()) { open = true; dock.hidden = false; say("ターミナルの部品（vendor/xterm.js）を読めません。アプリを入れ直してください。"); return; }
+    if (on && !libOK()) { open = true; dock.hidden = false; say("ターミナルのコンポーネント（vendor/xterm.js）を読めません。アプリを再インストールしてください。"); return; }
     open = on;
     ls.set(LS_OPEN, on ? "1" : "0");
     dock.hidden = !on;

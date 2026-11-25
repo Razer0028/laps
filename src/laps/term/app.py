@@ -371,8 +371,8 @@ def _ask_user(ctx: AppContext, ev: dict) -> str:
     return ans
 
 
-CANCEL_NOTICE = "中断を要求しました（本体の返事を待っています。もう一度 Ctrl-C で終了）"
-RUNNING_NOTE = "走行中… Ctrl-C で中断（走行中に打った文字は受け付けません）"
+CANCEL_NOTICE = "中断を要求しました（エンジンの応答を待っています。もう一度 Ctrl-C で終了）"
+RUNNING_NOTE = "実行中… Ctrl-C で中断（実行中に打った文字は受け付けません）"
 # ★cancel を送ってから done も来ない（心拍も鳴らない）まま何秒で「まだ止まっていない」
 #   を言うか（2026-09-03）。実機で 73 秒 止まらなかった走行があり、その間クライアントは
 #   何も出さず固まって見えた。心拍の既定間隔（LAPS_HEARTBEAT_SECS=15）より短く、
@@ -430,9 +430,9 @@ def _resume_live(ctx: AppContext, rid: str, paused: bool) -> None:
 #   （子が SIGKILL で殺された）。番号のまま出すと、読んだ人に打てる手が無い。
 SIGNAL_HINTS = {
     9: ("SIGKILL・メモリ不足の可能性",
-        "→ 推論器の窓（-c）か並列数を下げてください。全文は --debug FILE で取れます"),
-    11: ("SIGSEGV・本体が異常終了", "→ --debug FILE を付けて再現させ、その中身を見てください"),
-    6: ("SIGABRT・本体が自分で止まった", "→ 直前の道具の呼び出しと --debug FILE を見てください"),
+        "→ 推論サーバーのコンテキスト長（-c）か並列数を下げてください。全文は --debug FILE で取れます"),
+    11: ("SIGSEGV・エンジンが異常終了", "→ --debug FILE を付けて再現させ、その中身を見てください"),
+    6: ("SIGABRT・エンジンが自分で止まった", "→ 直前のツールの呼び出しと --debug FILE を見てください"),
     15: ("SIGTERM・外から止められた", "→ 誰かが止めたか、systemd の停止です。/status で疎通を見てください"),
 }
 EXIT_TAIL_LINES = 5
@@ -443,7 +443,7 @@ def _exit_reason(code: Any) -> tuple[str, str]:
     try:
         n = int(code)
     except (TypeError, ValueError):
-        return (f"code={code}", "→ /status で疎通を確かめてください")
+        return (f"code={code}", "→ /status で疎通を確認してください")
     if n < 0:
         why, nxt = SIGNAL_HINTS.get(-n, (f"シグナル {-n}", "→ --debug FILE で全文を取ってください"))
         return (f"シグナル {-n} = {why}", nxt)
@@ -459,7 +459,7 @@ def _report_exit(ctx: AppContext, ev: dict) -> None:
     from .render import INDENT, TAIL
     c = ctx.console
     why, nxt = _exit_reason(ev.get("code"))
-    c.print(Text(f"{T.MARK_BAD} 本体が終了しました（{why}）", style=T.S_BAD))
+    c.print(Text(f"{T.MARK_BAD} エンジンが終了しました（{why}）", style=T.S_BAD))
     tail = ""
     try:
         fn = getattr(ctx.client, "stderr_tail", None)
@@ -478,12 +478,12 @@ def _respawn(ctx: AppContext) -> bool:
     try:
         ctx.client.restart()
     except Exception as e:
-        c.print(Text(f"本体を再起動できません: {e}", style=T.S_RED))
+        c.print(Text(f"エンジンを再起動できません: {e}", style=T.S_RED))
         return False
     ctx.restarts += 1
     # ★「やり直してください」だけだと、同じ原因（例: メモリ不足）ならもう一度死ぬ。
     #   何が届いていないかを言い、直す手は _report_exit の「次の一手」に任せる。
-    c.print(Text("本体を立て直しました（さきほど送った内容は届いていません）", style=T.S_META))
+    c.print(Text("エンジンを立て直しました（さきほど送った内容は届いていません）", style=T.S_META))
     return True
 
 
@@ -525,11 +525,11 @@ def run_turn(ctx: AppContext, text: str) -> dict:
     #   _exit の「再起動は 1 回だけ」は走行中の連鎖死を止めるための上限で、利用者が打った
     #   send ごとに 1 回立て直すのは別（利用者の操作で区切られる）。
     if getattr(ctx.client, "alive", True) is False:
-        c.print(Text("本体が止まっているので再起動します", style=T.S_META))
+        c.print(Text("エンジンが止まっているので再起動します", style=T.S_META))
         try:
             ctx.client.restart()
         except Exception as e:
-            c.print(Text(f"本体を再起動できません: {e}", style=T.S_RED))
+            c.print(Text(f"エンジンを再起動できません: {e}", style=T.S_RED))
             ctx.last_outcome = "send_failed"
             return {"outcome": "send_failed", "rid": "", "done": None}
     try:
@@ -620,7 +620,7 @@ def run_turn(ctx: AppContext, text: str) -> dict:
         outcome = "cancelled"
         _debug_note(ctx, f"2 回目の Ctrl-C rid={rid}（強制終了へ）")
         # quit は走行中の子を最大 5 秒待ってから SIGTERM する（実測 ~10 秒）。黙っていると固まって見える。
-        c.print(Text("終了します（本体を止めています…）", style=T.S_META))
+        c.print(Text("終了します（エンジンを止めています…）", style=T.S_META))
         return True
 
     keys.start()
@@ -941,7 +941,7 @@ def _startup_probe(ctx: AppContext) -> None:
         pr = slash.probe_backend(backend, timeout=STARTUP_PROBE_TIMEOUT)
         if not pr["ok"]:
             ctx.console.print(Text(
-                f"{T.MARK_BAD} 送り先に届きません: {pr['error'] or pr['health'] or '?'}", style=T.S_BAD))
+                f"{T.MARK_BAD} 送り先に接続できません: {pr['error'] or pr['health'] or '?'}", style=T.S_BAD))
             ctx.console.print(Text("  → /backend <URL> で切替、/status で確かめ直せます。", style=T.S_META))
             return
         bad = slash.model_mismatch(str(s.get("model") or ""),
@@ -1120,7 +1120,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--json", action="store_true", help="-p のとき事象をそのまま JSONL で stdout へ")
     p.add_argument("--backend", metavar="URL", help="推論先（OpenAI 互換 /v1）")
     p.add_argument("--model", metavar="NAME", help="モデル名")
-    p.add_argument("--workspace", metavar="DIR", help="作業場（既定 cwd）")
+    p.add_argument("--workspace", metavar="DIR", help="ワークスペース（既定 cwd）")
     p.add_argument("--policy", choices=slash.POLICIES, help="実行ゲート")
     p.add_argument("--ethics", choices=slash.ETHICS, help="倫理の刻み")
     p.add_argument("--resume", metavar="ID", help="セッション id で続きから")
@@ -1129,7 +1129,7 @@ def build_parser() -> argparse.ArgumentParser:
                         "止めるなら LAPS_WAVE=off か設定の wave=off")
     # ★2026-10-06 録画のための切り替え（オーナー「TUI を美麗に作り直して録画に使えないか」）。既定は今までどおり。
     p.add_argument("--card", action="store_true",
-                   help="カード表示（道具を枠つきのカード・思考を縦線の欄・依頼を ❯）")
+                   help="カード表示（ツールを枠つきのカード・思考を縦線の欄・依頼を ❯）")
     p.add_argument("--privacy", action="store_true",
                    help="伏せ表示（IP・ホームのパス・ユーザー名・ホスト名を伏せ字に）")
     p.add_argument("--record", action="store_true",
@@ -1137,7 +1137,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--demo", action="store_true", help="--record --privacy をまとめて（録画用）")
     p.add_argument("--ui", choices=config.UI_MODES,
                    help="画面: tui（btop 風の全画面・既定）| classic（従来の行の形）。設定の ui でも選べる")
-    p.add_argument("--debug", metavar="FILE", help="子の stderr とトレースをこのファイルへ")
+    p.add_argument("--debug", metavar="FILE", help="エンジンの stderr とトレースをこのファイルへ")
     p.add_argument("--config", metavar="PATH", help="設定ファイル（既定 " + str(config.config_path()).replace("%", "%%") + "）")
     p.add_argument("--version", action="store_true", help="版を出して終わる")
     return p
@@ -1231,7 +1231,7 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
             _write_debug(args.debug, traceback.format_exc())
             code = 1
         finally:
-            console.print(Text("本体を止めています…", style=T.S_META))
+            console.print(Text("エンジンを止めています…", style=T.S_META))
             try:
                 client.quit()
             except Exception:

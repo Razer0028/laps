@@ -55,7 +55,7 @@ def test_問題が無ければ一行も出さない(monkeypatch):
 
 def test_届かないことは送る前に言う(monkeypatch):
     out = _run(monkeypatch, probe={"ok": False, "health": "", "error": "ConnectError: refused"}, served=None)
-    assert "送り先に届きません" in out and "refused" in out and "/backend" in out
+    assert "送り先に接続できません" in out and "refused" in out and "/backend" in out
 
 
 def test_モデル名の食い違いを起動時に言う(monkeypatch):

@@ -38,8 +38,8 @@ pub async fn auth_call(req: Value) -> Result<Value, String> {
         .lines()
         .rev()
         .find(|l| l.trim_start().starts_with('{'))
-        .ok_or_else(|| format!("本体が答えませんでした: {}", err.trim().chars().take(300).collect::<String>()))?;
-    serde_json::from_str(text).map_err(|e| format!("答えを読めません: {e}"))
+        .ok_or_else(|| format!("エンジンが応答しませんでした: {}", err.trim().chars().take(300).collect::<String>()))?;
+    serde_json::from_str(text).map_err(|e| format!("応答を読み取れません: {e}"))
 }
 
 /// サインインしていれば、このアカウントの機械の一覧（整合性の確認から）。していなければ None。

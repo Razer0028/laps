@@ -176,7 +176,7 @@ def child_step(stats: dict, msg: str) -> bool:
 def child_label(stats: dict, target: str) -> str:
     """行の「対象」の頭に付ける子の進み（子 5 ✗1 · 元の対象）。"""
     n, bad = int(stats.get("n", 0)), int(stats.get("bad", 0))
-    head = f"子 {n}" + (f" ✗{bad}" if bad else "")
+    head = f"サブエージェント {n}" + (f" ✗{bad}" if bad else "")
     return f"{head} · {target}" if target else head
 
 
@@ -502,7 +502,7 @@ class Poller(threading.Thread):
         except Exception as e:
             with self.tel.lock:
                 self.tel.srv_ok = False
-                self.tel.srv_err = f"Claude の中継（{urlparse(root).netloc}）に届きません（{type(e).__name__}）"
+                self.tel.srv_err = f"Claude の中継サーバー（{urlparse(root).netloc}）に接続できません（{type(e).__name__}）"
 
     def run(self) -> None:
         with httpx.Client(timeout=httpx.Timeout(4.0, connect=2.0), trust_env=False) as http:
@@ -536,7 +536,7 @@ class Poller(threading.Thread):
                         except Exception as e:
                             with self.tel.lock:
                                 self.tel.srv_ok = False
-                                self.tel.srv_err = f"{urlparse(metrics).netloc} に届きません（{type(e).__name__}）"
+                                self.tel.srv_err = f"{urlparse(metrics).netloc} に接続できません（{type(e).__name__}）"
                     if now >= self._next_models:
                         self._next_models = now + MODELCTL_SECS
                         try:
@@ -627,7 +627,7 @@ class TuiRenderer(Renderer):
         if not counts and not bad:
             return
         parts = [f"{k} ×{v}" for k, v in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))]
-        line = "子の道具: " + (SEP.join(parts) if parts else "なし") + (f"（✗ {bad}）" if bad else "")
+        line = "サブエージェントのツール: " + (SEP.join(parts) if parts else "なし") + (f"（✗ {bad}）" if bad else "")
         self._print(Text(wrap_with_gutter(line, self._width(), "  ", "  "), style=T.S_DIM))
 
     def user(self, text: str) -> None:
@@ -715,7 +715,7 @@ class HeaderBar(Widget):
         host = urlparse(str(s.get("backend") or "")).hostname or "?"
         model = tui.tel.model_name or str(s.get("model") or "")
         if tui.tel.models_seen and not tui.tel.model_unit and not tui.tel.claude:
-            model = "推論機は貸し出し中" if tui.tel.lease_stopped else "推論機は停止中"
+            model = "推論サーバーは貸し出し中" if tui.tel.lease_stopped else "推論サーバーは停止中"
         if tui.tel.claude:
             host, model = "Claude API", models.pretty(model)
         right = Text(no_wrap=True)
@@ -821,12 +821,12 @@ class ServerBox(Box):
             ok, err, model_id, spent = tel.srv_ok, tel.srv_err, tel.model_name, tel.spent
         t = Text()
         t.append("Claude API", style=f"bold {T.ALERT}")
-        t.append("  開発機 の中継・費用は共有の API の枠から\n", style=T.NOTE)
+        t.append("  開発機 の中継サーバー・費用は共有の API の枠から\n", style=T.NOTE)
         if ok is None:
-            t.append("中継に聞いています…", style=T.NOTE)
+            t.append("中継サーバーに聞いています…", style=T.NOTE)
             return t
         if not ok:
-            t.append(_priv(err) or "中継に届きません", style=T.ALERT)
+            t.append(_priv(err) or "中継サーバーに接続できません", style=T.ALERT)
             return t
         t.append("モデル  ", style=T.META)
         t.append(models.pretty(model_id) or "?", style=f"bold {T.TEXT}")
@@ -834,7 +834,7 @@ class ServerBox(Box):
             t.append(f"  {model_id}", style=T.NOTE)
         if spent:
             t.append("\n" + spent, style=T.META)
-        t.append("\nF5 でモデルを選ぶ（推論機へ戻すのもここ）", style=T.NOTE)
+        t.append("\nF5 でモデルを選ぶ（推論サーバーへ戻すのもここ）", style=T.NOTE)
         return t
 
     def render(self) -> Any:
@@ -852,9 +852,9 @@ class ServerBox(Box):
             pl, clk, pers = tel.power_limit, tel.sm_clock, tel.persistence
         out: list[Text] = []
         if ok is None:
-            return Text("推論機の数を取りに行っています…", style=T.NOTE)
+            return Text("推論サーバーの数を取りに行っています…", style=T.NOTE)
         if not ok and not last:
-            return Text(f"{_priv(err)}\n推論機と同じ機械の bw-metrics（:8742）が要ります", style=T.NOTE)
+            return Text(f"{_priv(err)}\n推論サーバーと同じマシンの bw-metrics（:8742）が要ります", style=T.NOTE)
         gl = last.get("gpus") or []
         n = max(len(hists), len(gl))
         short = [gpu_short(names[i]) if i < len(names) and names[i] else f"GPU{i}" for i in range(n)]
@@ -961,18 +961,18 @@ class AgentBox(Box):
             thinking = bool(r._think_buf) and not r._body_text
         # 状態の言葉
         if not busy:
-            stage, style = ("待機中" if tui.ready else "本体を起動しています…"), T.META
+            stage, style = ("待機中" if tui.ready else "エンジンを起動しています…"), T.META
         elif comping:
-            stage, style = f"文脈を要約しています（{fmt_secs(time.time() - comping)}）", f"bold {T.ALERT}"
+            stage, style = f"コンテキストを要約しています（{fmt_secs(time.time() - comping)}）", f"bold {T.ALERT}"
         elif running:
             e = running[-1]
-            stage, style = f"道具 {e.name} {_status_target(e.name, e.input)}", f"bold {T.TEXT}"
+            stage, style = f"ツール {e.name} {_status_target(e.name, e.input)}", f"bold {T.TEXT}"
         elif waiting:
             stage, style = waiting, f"bold {T.TEXT}"
         elif thinking:
             stage, style = "考えています", f"bold {T.TEXT}"
         else:
-            stage, style = ("生成しています" if processing or gen_now > 0 else "推論機を待っています"), f"bold {T.TEXT}"
+            stage, style = ("生成しています" if processing or gen_now > 0 else "推論サーバーを待っています"), f"bold {T.TEXT}"
         out: list[Text] = []
         el = fmt_secs(time.time() - t0) if (busy and t0) else ""
         spin = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"[int(time.time() * 8) % 10] if busy else "⠂"
@@ -995,7 +995,7 @@ class AgentBox(Box):
         cl.append(" " + val.rjust(max(len(val), 11)), style=T.TEXT)
         info.append(cl)
         st = Text(no_wrap=True, overflow="crop")
-        st.append("道具 ", style=T.META)
+        st.append("ツール ", style=T.META)
         st.append(f"{ok_n}", style=T.TEXT)
         st.append(f"  ✗ {bad_n}", style=T.S_BAD if bad_n else T.NOTE)
         st.append("  要約 ", style=T.META)
@@ -1186,7 +1186,7 @@ class AskModal(ModalScreen[str]):
         super().__init__()
         self.question = question
         self.options = options
-        self.note = note or "番号か自由な文。Esc で空のまま返す（本体に任せる）"
+        self.note = note or "番号か自由な文。Esc で空のまま返す（エンジンに任せる）"
 
     def compose(self) -> ComposeResult:
         t = Text()
@@ -1232,7 +1232,7 @@ class ModelPickModal(ModalScreen[Optional["models.Choice"]]):
         lst = self.lst
         opts: list[Any] = []
         groups = [("claude", "Claude API" + (f"  {lst.spent}" if lst.spent else "")),
-                  ("server", f"推論機  {lst.server_url}")]
+                  ("server", f"推論サーバー  {lst.server_url}")]
         for kind, title in groups:
             rows = [(i, c) for i, c in enumerate(lst.choices) if c.kind == kind]
             if not rows:
@@ -1251,15 +1251,15 @@ class ModelPickModal(ModalScreen[Optional["models.Choice"]]):
                 opts.append(Option(t, id=f"c{i}", disabled=not c.ok))
         foot = list(lst.notes)
         if lst.stopping:
-            foot.insert(0, "推論機を止めている途中です")
+            foot.insert(0, "推論サーバーを止めている途中です")
         elif lst.switching:
-            foot.insert(0, f"推論機は {lst.switching} へ入れ替えている途中です")
+            foot.insert(0, f"推論サーバーは {lst.switching} へ入れ替えている途中です")
         elif lst.server_stopped and lst.lease_stopped:
-            foot.insert(0, f"推論機は{lst.stopped_label()}")
+            foot.insert(0, f"推論サーバーは{lst.stopped_label()}")
         elif lst.server_stopped:
-            foot.insert(0, f"推論機は{models.STOPPED_LABEL}・選ぶと起動します")
+            foot.insert(0, f"推論サーバーは{models.STOPPED_LABEL}・選ぶと起動します")
         if lst.stoppable and not lst.server_stopped and not lst.stopping:
-            foot.append("推論機を止めて GPU を空けるのは /model stop")
+            foot.append("推論サーバーを止めて GPU を空けるのは /model stop")
         with Vertical() as v:
             v.border_title = f"[{T.ALERT}]F5[/] モデル"
             v.border_subtitle = "Enter で切り替え・Esc で閉じる"
@@ -1465,7 +1465,7 @@ class BlackwallTui(App):
     def on_mount(self) -> None:
         self._main_tid = threading.get_ident()
         conv = self.query_one("#conv")
-        conv.border_title = f"[b {T.ALERT}]1[/] [b]会話[/b]"
+        conv.border_title = f"[b {T.ALERT}]1[/] [b]チャット[/b]"
         tb = self.query_one("#toolsbox")
         tb.border_title = f"[b {T.ALERT}]4[/] [b]tools[/b]"
         tb.border_subtitle = "Enter で中身"
@@ -1473,7 +1473,7 @@ class BlackwallTui(App):
         self.query_one("#inbox").border_subtitle = f"Enter 送信{SEP}Alt+Enter 改行"
         tools = self.query_one("#tools", ToolsTable)
         tools.add_column(" ", key="mark", width=1)
-        tools.add_column("道具", key="name", width=9)
+        tools.add_column("ツール", key="name", width=9)
         tools.add_column("対象", key="target", width=24)
         tools.add_column("秒", key="secs", width=5)
         self.query_one("#live", LivePane).display = False
@@ -1687,7 +1687,7 @@ class BlackwallTui(App):
         body.append(inp[:20000] + "\n", style=T.TEXT)
         body.append("\n結果\n", style=f"bold {T.META}")
         body.append((res[:60000] or "（まだありません）"), style=T.TEXT if not e.bad else T.S_BAD_BODY)
-        self.push_screen(TextModal(f"[{T.ALERT}]道具[/] {e.name}", body))
+        self.push_screen(TextModal(f"[{T.ALERT}]ツール[/] {e.name}", body))
 
     # -- 時計 ----------------------------------------------------------
 
@@ -1802,7 +1802,7 @@ class BlackwallTui(App):
         try:
             ctx.client.start()
         except Exception as e:
-            self.console_out.print(Text(f"{T.MARK_BAD} 本体を起動できません: {e}", style=T.S_BAD))
+            self.console_out.print(Text(f"{T.MARK_BAD} エンジンを起動できません: {e}", style=T.S_BAD))
             self.console_out.print(Text("  → --debug FILE で全文を取ってください。^Q で終了します。", style=T.S_META))
             return
         from . import config as _config
@@ -2041,7 +2041,7 @@ class BlackwallTui(App):
 
     def action_pick_model(self) -> None:
         if self.turn_running or self.ctx.running_rid:
-            self.say("走行中はモデルを切り替えられません（^C で止めてから）", T.NOTE)
+            self.say("実行中はモデルを切り替えられません（^C で止めてから）", T.NOTE)
             return
         threading.Thread(target=self._pick_worker, daemon=True, name="tui-models").start()
 
@@ -2080,21 +2080,21 @@ class BlackwallTui(App):
         tb.add_column(style=f"bold {T.ALERT}", no_wrap=True)
         tb.add_column(style=T.TEXT)
         rows = [
-            ("Enter", "送る（走行中は割り込み＝区切りで本体に渡す）"),
+            ("Enter", "送る（実行中は割り込み＝区切りでエンジンに渡す）"),
             ("Alt+Enter / Ctrl+J", "改行"),
             ("上 / 下", "履歴（1 行目・最終行で）"),
             ("^C / Esc", "中断（1 回目）・もう一度 ^C で終了。文字を選んでいれば写す"),
             ("^T", "強制割り込み（いまの生成と Bash を止めて渡す）"),
-            ("PgUp / PgDn", "会話を遡る・進む（ホイールも可）"),
-            ("Tab / Shift+Tab", "依頼の欄・会話・道具の一覧を移る"),
-            ("Enter（道具の一覧で）", "その道具の入力と結果の全文"),
-            ("^L", "会話の枠を消す（本体の会話は続く・新しい会話は /clear）"),
+            ("PgUp / PgDn", "チャットを遡る・進む（ホイールも可）"),
+            ("Tab / Shift+Tab", "依頼の欄・チャット・ツールの一覧を移る"),
+            ("Enter（ツールの一覧で）", "そのツールの入力と結果の全文"),
+            ("^L", "チャットの枠を消す（エンジンのチャットは続く・新しいチャットは /clear）"),
             ("F2 / F3 / F4", "server・agent・tools の箱を出す・隠す"),
-            ("F5", "モデルを選ぶ（Claude API と推論機を 1 つの一覧で・送り先も合わせて変わる）。止まっている推論機は選ぶと起動"),
+            ("F5", "モデルを選ぶ（Claude API と推論サーバーを 1 つの一覧で・送り先も合わせて変わる）。止まっている推論サーバーは選ぶと起動"),
             ("^Q", "終了"),
             ("", ""),
-            ("server", "推論機の GPU（使用率・温度・電力・VRAM）（推論機 の bw-metrics :8742）。Claude API のときはモデルと今月の額"),
-            ("agent", "生成の速さ（推論機の /slots・語/秒）・文脈（| は要約を始める量）・道具・要約"),
+            ("server", "推論サーバーの GPU（使用率・温度・電力・VRAM）（推論サーバー の bw-metrics :8742）。Claude API のときはモデルと今月の額"),
+            ("agent", "生成の速さ（推論サーバーの /slots・語/秒）・コンテキスト（| は要約を始める量）・ツール・要約"),
             ("行の形", "従来の画面は blackwall --ui classic（設定 ui = \"classic\"）"),
         ]
         for k, v in rows:

@@ -179,7 +179,7 @@ pub async fn download_to(app: &AppHandle, url: &str, sha256: &str, dir: &Path, f
         }
         tokio::time::sleep(Duration::from_secs(attempt * 2)).await;
     }
-    Err(format!("{} を取り寄せられません: {last}", a.file))
+    Err(format!("{} をダウンロードできません: {last}", a.file))
 }
 
 struct Asset2<'a> {

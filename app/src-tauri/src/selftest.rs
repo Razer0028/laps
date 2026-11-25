@@ -31,7 +31,7 @@ pub async fn run(allow_write: bool) -> Vec<Step> {
     // 1) 置き場所。★非 ASCII だと llama.cpp（CreateFileA/fopen）が開けない。
     let root: PathBuf = crate::app_root();
     let ascii = root.to_string_lossy().is_ascii();
-    out.push(step("データ置き場", ascii,
+    out.push(step("データフォルダ", ascii,
         format!("{}{}", root.display(), if ascii { "" } else { "  ★非ASCII（llama.cpp が開けない）" })));
 
     // 1.5) ★本体（Python）が起動できるか。
@@ -41,13 +41,13 @@ pub async fn run(allow_write: bool) -> Vec<Step> {
     let core = crate::sidecar::core_available().await;
     let tools = crate::sidecar::core_tools().await;
     out.push(step(
-        "本体（Python）",
+        "エンジン（Python）",
         core,
         match (core, &tools) {
-            (true, Some(t)) => format!("使えます。道具 {} 個: {}", t.len(), t.join(" ")),
-            (true, None) => "使えます（道具一覧は取れず）".to_string(),
+            (true, Some(t)) => format!("使えます。ツール {} 個: {}", t.len(), t.join(" ")),
+            (true, None) => "使えます（ツール一覧は取得できず）".to_string(),
             (false, _) => format!(
-                "使えません → アプリ内蔵の道具 {} 個で動きます。理由: {}",
+                "使えません → アプリ内蔵のツール {} 個で動きます。理由: {}",
                 crate::agent::tool_names().len(),
                 crate::sidecar::last_unavailable_reason()
                     .unwrap_or_else(|| "（理由不明）".to_string())
@@ -57,14 +57,14 @@ pub async fn run(allow_write: bool) -> Vec<Step> {
 
     // 2) 同梱バックエンド
     let models = crate::models_dir();
-    out.push(step("モデル置き場", models.is_dir(), models.display().to_string()));
+    out.push(step("モデルフォルダ", models.is_dir(), models.display().to_string()));
 
     // 3) 手持ちモデル
     match crate::hf::list_local_models().await {
-        Ok(v) => out.push(step("手持ちモデル", !v.is_empty(),
+        Ok(v) => out.push(step("インストール済みのモデル", !v.is_empty(),
             if v.is_empty() { "0 件（.gguf がありません）".to_string() }
             else { v.iter().map(|m| m.name.clone()).collect::<Vec<_>>().join(", ") })),
-        Err(e) => out.push(step("手持ちモデル", false, e)),
+        Err(e) => out.push(step("インストール済みのモデル", false, e)),
     }
 
     // 4) GPU
@@ -76,14 +76,14 @@ pub async fn run(allow_write: bool) -> Vec<Step> {
     }
 
     if !allow_write {
-        out.push(step("推論器", true, "--write を付けると起動まで確かめます（既定では触りません）"));
+        out.push(step("推論サーバー", true, "--write を付けると起動まで確かめます（既定では触りません）"));
         return out;
     }
 
     // 6) 推論器の起動 ★ここが何度も落ちてきた環
     match crate::llama::llama_start_headless().await {
         Ok(s) => {
-            out.push(step("推論器の起動", s.running,
+            out.push(step("推論サーバーの起動", s.running,
                 format!("port={} backend={} 登録モデル={}", s.port, s.backend,
                     if s.models.is_empty() { "（0件）".to_string() }
                     else { s.models.iter().map(|m| format!("{}[{}]", m.id, m.state)).collect::<Vec<_>>().join(", ") })));
@@ -105,14 +105,14 @@ pub async fn run(allow_write: bool) -> Vec<Step> {
                 out.push(step("モデルの読み込み", false, "router に1件も登録されていません（preset を確認）"));
             }
         }
-        Err(e) => out.push(step("推論器の起動", false, e)),
+        Err(e) => out.push(step("推論サーバーの起動", false, e)),
     }
     out
 }
 
 pub fn print(steps: &[Step]) {
     let mut bad = 0;
-    println!("== L.A.P.S Console 自己診断 ==");
+    println!("== L.A.P.S Console セルフテスト ==");
     for s in steps {
         if !s.ok { bad += 1; }
         println!("  [{}] {:<16} {}", if s.ok { "OK" } else { "NG" }, s.name, s.detail);

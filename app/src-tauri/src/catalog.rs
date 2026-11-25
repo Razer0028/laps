@@ -117,7 +117,7 @@ const SEEDS: &[Seed] = &[
         params_b: 14.0,
         uncensored: true,
         coder: false,
-        note: "12GB 級 GPU の本命。土台は mlabonne/Qwen3-14B-abliterated。文脈を 4096 まで縮めれば 12GB に収まる。",
+        note: "12GB 級 GPU の本命。土台は mlabonne/Qwen3-14B-abliterated。コンテキストを 4096 まで縮めれば 12GB に収まる。",
     },
     Seed {
         repo: "unsloth/Qwen3-14B-GGUF",
@@ -148,7 +148,7 @@ const SEEDS: &[Seed] = &[
         params_b: 7.0,
         uncensored: true,
         coder: true,
-        note: "小さいコード特化。世代は一つ古い(Qwen2.5)ぶん、道具呼び出しの書式は Qwen3 系より弱い。",
+        note: "小さいコード特化。世代は一つ古い(Qwen2.5)ぶん、ツール呼び出しの書式は Qwen3 系より弱い。",
     },
     Seed {
         repo: "unsloth/Qwen3-8B-GGUF",

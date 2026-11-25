@@ -285,12 +285,12 @@ async fn stream_round(
         .json(&build_body(model, convo, tools, thinking))
         .send()
         .await
-        .map_err(|e| format!("推論器に届きません: {e}"))?;
+        .map_err(|e| format!("推論サーバーに接続できません: {e}"))?;
 
     if !resp.status().is_success() {
         let code = resp.status().as_u16();
         let text = resp.text().await.unwrap_or_default();
-        return Err(format!("推論器が HTTP {code} を返しました: {}", text.trim()));
+        return Err(format!("推論サーバーが HTTP {code} を返しました: {}", text.trim()));
     }
 
     let mut buf: Vec<u8> = Vec::with_capacity(8192);
@@ -706,7 +706,7 @@ pub async fn agent_send(
                         out.out(
                             "chat-notice",
                             json!({ "message":
-                                "前の依頼がまだ終わっていません。終わるまで待つか、\
+                                "前のメッセージの処理がまだ終わっていません。終わるまで待つか、\
                                  「止める」を押してください（待っている依頼もまとめて取り消します）。\
                                  ★作業の上限は外してあるので、放っておいても終わりません。" }),
                         );
@@ -714,13 +714,13 @@ pub async fn agent_send(
                     }
                     Err(msg) if remote.is_some() => {
                         // ほかの機械へ繋がらない（中継・その機械のゲートウェイ）。控えはこの PC の物なので落ちない。
-                        out.out("chat-error", json!({ "message": format!("ほかの機械で続けられませんでした（{msg}）") }));
+                        out.out("chat-error", json!({ "message": format!("ほかのマシンで続けられませんでした（{msg}）") }));
                         return Ok(());
                     }
                     Err(msg) => {
                         out.out(
                             "chat-notice",
-                            json!({ "message": format!("本体が応答しませんでした（{msg}）。控えの道具で続けます。") }),
+                            json!({ "message": format!("エンジンが応答しませんでした（{msg}）。予備のツールで続けます。") }),
                         );
                     }
                 }
@@ -729,7 +729,7 @@ pub async fn agent_send(
                 out.out(
                     "chat-notice",
                     json!({ "message": format!(
-                        "本体を起動できません（{}）。控えの道具 {} 個で動きます。設定→自己診断で詳しく分かります。",
+                        "エンジンを起動できません（{}）。予備のツール {} 個で動きます。設定 → セルフテストで詳しく分かります。",
                         crate::sidecar::last_unavailable_reason().unwrap_or_else(|| "理由不明".into()),
                         tool_names().len()
                     ) }),
@@ -738,7 +738,7 @@ pub async fn agent_send(
             (true, Err(e)) => {
                 out.out(
                     "chat-notice",
-                    json!({ "message": format!("作業ディレクトリが決まっていません（{e}）。左上から選んでください。") }),
+                    json!({ "message": format!("ワークスペースが決まっていません（{e}）。左上から選んでください。") }),
                 );
             }
         }
@@ -748,11 +748,11 @@ pub async fn agent_send(
     //   （内蔵の控えは止める・道具の状態が 1 つしか無く、知らせに札も付かない＝ほかの会話の走行と混ざる）。
     //   ほかに走っていなければ今までどおり控えで動く（画面は札の無い知らせを、その会話の物として拾う）。
     if remote.is_some() {
-        out.out("chat-error", json!({ "message": "ほかの機械の会話は、この PC の本体（Python）が動かないと続けられません。" }));
+        out.out("chat-error", json!({ "message": "ほかのマシンのチャットは、この PC のエンジン（Python）が動かないと続けられません。" }));
         return Ok(());
     }
     if lane.is_some() && !crate::sidecar::lanes_running().is_empty() {
-        out.out("chat-error", json!({ "message": "本体が使えず、ほかの会話が走っているので、この会話は今は走らせられません。" }));
+        out.out("chat-error", json!({ "message": "エンジンが使えず、ほかのチャットが実行中のため、このチャットは今は実行できません。" }));
         return Ok(());
     }
     if let Err(msg) = run_agent(&app, model, messages, use_tools, thinking).await {

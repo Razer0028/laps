@@ -997,7 +997,7 @@ fn stage_runtime(src_exe: &Path) -> Result<PathBuf, String> {
     if !staged.is_file() {
         return Err(format!(
             "Python 一式を {} へ複製できませんでした。\n\
-             利用者名に ASCII 以外の文字が含まれる環境では、この複製が要ります。",
+             ユーザー名に ASCII 以外の文字が含まれる環境では、この複製が要ります。",
             dst_dir.display()
         ));
     }
@@ -1382,14 +1382,14 @@ pub fn lan_settings_set(enabled: bool, url: String, model: String)
     //   （宛先を消してから無効にする、という順序を塞がない）。
     if enabled {
         if !(url.starts_with("http://") || url.starts_with("https://")) {
-            return Err("宛先は http:// か https:// で始めてください".into());
+            return Err("接続先は http:// か https:// で始めてください".into());
         }
         if url.split("://").nth(1).map(|h| h.is_empty()).unwrap_or(true) {
-            return Err("宛先にホスト名がありません".into());
+            return Err("接続先にホスト名がありません".into());
         }
     }
     // 設定ファイルは行単位で読む作りなので、値に引用符や改行が入ると壊れる。
-    for (name, v) in [("宛先", &url), ("モデル名", &model)] {
+    for (name, v) in [("接続先", &url), ("モデル名", &model)] {
         if v.contains('"') || v.contains('\n') || v.contains('#') {
             return Err(format!("{name}に使えない文字（\" 改行 #）が入っています"));
         }
@@ -1571,9 +1571,9 @@ async fn local_health_block(port: u16) -> Option<String> {
         }
     }
     Some(format!(
-        "ローカルの推論機（http://127.0.0.1:{port}/v1）が応答しません。\n\
-         ・この機械で動かすなら、モデル画面から推論機を起動してください。\n\
-         ・LAN の推論機を使うなら、設定の「この機械ではなく LAN の推論機を使う」を ON にしてください。"
+        "ローカルの推論サーバー（http://127.0.0.1:{port}/v1）が応答しません。\n\
+         ・このマシンで動かすなら、モデル画面から推論サーバーを起動してください。\n\
+         ・LAN の推論サーバーを使うなら、設定の「このマシンではなく LAN の推論サーバーを使う」を ON にしてください。"
     ))
 }
 
@@ -1724,7 +1724,7 @@ async fn spawn_child(s: &Sidecar, key: &SpawnKey, model: &str) -> Result<Io, Str
 
     if !key.workspace.is_dir() {
         return Err(format!(
-            "作業ディレクトリが見つかりません: {}",
+            "ワークスペースが見つかりません: {}",
             key.workspace.display()
         ));
     }
@@ -1831,7 +1831,7 @@ async fn read_chunks(io: &mut Io, idle: Duration) -> Result<Vec<Chunk>, String> 
     let n = match tokio::time::timeout(idle, io.stdout.read(&mut buf)).await {
         Err(_) => {
             return Err(format!(
-                "{} 秒のあいだ Python から1バイトも届きませんでした",
+                "{} 秒のあいだ Python から1 バイトも受信しませんでした",
                 idle.as_secs()
             ))
         }
@@ -1851,7 +1851,7 @@ async fn exit_detail(s: &Sidecar) -> String {
             let mut g = lock(&s.child);
             match g.as_mut() {
                 Some(c) => c.try_wait().ok().flatten(),
-                None => return "子の記録がありません".to_string(),
+                None => return "子プロセスの記録がありません".to_string(),
             }
         };
         if let Some(st) = st {
@@ -1859,7 +1859,7 @@ async fn exit_detail(s: &Sidecar) -> String {
         }
         tokio::time::sleep(Duration::from_millis(100)).await;
     }
-    "子はまだ終わっていません（出力だけが閉じた）".to_string()
+    "子プロセスはまだ終了していません（出力だけが閉じました）".to_string()
 }
 
 fn describe_exit(code: Option<i32>) -> String {
@@ -1870,7 +1870,7 @@ fn describe_exit(code: Option<i32>) -> String {
         1 => "＝外から止められた（taskkill /F など）か Python の例外",
         0xC000_013A => "＝Ctrl+C / Ctrl+Break を受けた",
         0xC000_0005 => "＝メモリ違反で落ちた（sidecar.log に Python のスタック）",
-        0xC000_0006 => "＝プログラムの読み込みに失敗した（置き場のディスクが一時的に読めない）",
+        0xC000_0006 => "＝プログラムの読み込みに失敗した（インストール先のディスクが一時的に読めない）",
         0xC000_00FD => "＝スタックがあふれた",
         0xC000_0409 => "＝致命的な異常で即時終了した",
         0xC000_0017 | 0xC000_012D => "＝メモリが足りなかった",
@@ -1945,9 +1945,9 @@ pub async fn inject(text: String, force: bool, lane: Option<String>) -> Result<(
     // ★書き側のロックだけを取る。読み側（io）は走行中ずっと握られているので、
     //   ここで io を取ろうとすると**走行中は絶対に届かない**（それが従来の姿）。
     // ★札（会話）があれば、その会話が走っている器へだけ書く（2026-10-30）。
-    let s = lane_slot(lane.as_deref()).ok_or_else(|| "この会話はいま走っていません".to_string())?;
+    let s = lane_slot(lane.as_deref()).ok_or_else(|| "このチャットは実行中ではありません".to_string())?;
     let mut guard = s.stdin.lock().await;
-    let stdin = guard.as_mut().ok_or_else(|| "本体が動いていません".to_string())?;
+    let stdin = guard.as_mut().ok_or_else(|| "エンジンが動いていません".to_string())?;
     let line = json!({ "v": 1, "type": "inject", "text": text, "force": force }).to_string() + "\n";
     stdin.write_all(line.as_bytes()).await.map_err(|e| format!("書き込めません: {e}"))?;
     stdin.flush().await.map_err(|e| format!("送れません: {e}"))?;
@@ -1957,7 +1957,7 @@ pub async fn inject(text: String, force: bool, lane: Option<String>) -> Result<(
 /// 本体の頼み（app_call）への答えを書き戻す（2026-10-18・Browser 道具）。
 async fn app_reply(s: &Sidecar, call: String, result: Value) -> Result<(), String> {
     let mut guard = s.stdin.lock().await;
-    let io = guard.as_mut().ok_or_else(|| "本体が動いていません".to_string())?;
+    let io = guard.as_mut().ok_or_else(|| "エンジンが動いていません".to_string())?;
     let line = json!({ "v": 1, "type": "app_reply", "call": call, "result": result }).to_string() + "\n";
     io.write_all(line.as_bytes()).await.map_err(|e| format!("書き込めません: {e}"))?;
     io.flush().await.map_err(|e| format!("送れません: {e}"))?;
@@ -1969,9 +1969,9 @@ async fn app_reply(s: &Sidecar, call: String, result: Value) -> Result<(), Strin
 /// ★聞いておいて返事を届けられないと、本体は待ち続けて会話が固まる。
 /// 本体側にも待ち時間の上限を置いてあるが、こちらが届けるのが正しい道。
 pub async fn answer(ask_id: String, text: String, lane: Option<String>) -> Result<(), String> {
-    let s = lane_slot(lane.as_deref()).ok_or_else(|| "この会話はいま走っていません".to_string())?;
+    let s = lane_slot(lane.as_deref()).ok_or_else(|| "このチャットは実行中ではありません".to_string())?;
     let mut guard = s.stdin.lock().await;
-    let io = guard.as_mut().ok_or_else(|| "本体が動いていません".to_string())?;
+    let io = guard.as_mut().ok_or_else(|| "エンジンが動いていません".to_string())?;
     let line = json!({ "v": 1, "type": "answer", "ask": ask_id, "text": text }).to_string() + "\n";
     io.write_all(line.as_bytes()).await.map_err(|e| format!("書き込めません: {e}"))?;
     io.flush().await.map_err(|e| format!("送れません: {e}"))?;
@@ -2091,9 +2091,9 @@ pub async fn core_send(
             //     preflight 3.6 が隣接で見ており、挟んだら落ちた（実際に踏んだ）。
             record_early_failure("busy", &workspace, &id, &ask);
             return Err(if lane.is_some() && lanes_running().len() >= LANES {
-                format!("BUSY:同時に走らせられるのは {LANES} つの会話までです")
+                format!("BUSY:同時に実行できるのは {LANES} つのチャットまでです")
             } else {
-                "BUSY:前の依頼がまだ終わっていません".to_string()
+                "BUSY:前のメッセージの処理がまだ終わっていません".to_string()
             });
         }
     };
@@ -2212,7 +2212,7 @@ pub async fn core_send(
                 // ★早期に抜ける道も記録に残す（preflight 3.6 が要求する作法）。
                 //   黙って抜けると、記録には「何も起きなかった」ように見える。
                 record_early_failure("no_stdin", &workspace, &id, &ask);
-                return Err("本体が動いていません".into());
+                return Err("エンジンが動いていません".into());
             }
         };
         let mut r = sin.write_all(req.as_bytes()).await;
@@ -2231,7 +2231,7 @@ pub async fn core_send(
         *s.stdin.lock().await = None;     // ★書き側も一緒に（上と同じ理由）
         record_early_failure("write_failed", &workspace, &id, &ask);
         return Err(format!(
-            "Python へ依頼を渡せません: {e}{}",
+            "Python にリクエストを渡せません: {e}{}",
             log.map(|p| format!("\nログの末尾:\n{}", log_tail(&p, 2000))).unwrap_or_default()
         ));
     }
@@ -2415,7 +2415,7 @@ async fn run_loop(
                     meta: json!({
                         "outcome": "cancelled_grace",
                         "cancel_latency_ms": t.elapsed().as_millis() as u64,
-                        "note": "本体が STOP_GRACE 内に done を返さなかったのでアプリ側で閉じた",
+                        "note": "エンジンが STOP_GRACE 内に done を返さなかったのでアプリ側で閉じた",
                     }),
                 };
             }
@@ -2465,7 +2465,7 @@ async fn run_loop(
                         line_note(
                             &out,
                             &format!(
-                                "⚠ 依頼した作業ディレクトリ（{}）と、Python が居る場所（{cwd}）が違います。",
+                                "⚠ 指定したワークスペース（{}）と、Python が居る場所（{cwd}）が違います。",
                                 workspace.display()
                             ),
                         );

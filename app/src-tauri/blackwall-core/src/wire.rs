@@ -87,22 +87,22 @@ pub const OUTCOME_JA: &[(&str, &str)] = &[
     ("accepted_after_pushback", "差し戻しあり"),
     ("cancelled", "中断"),
     // 2026-09-04: AskUser の答えが停止の意図（回答の強制）
-    ("user_stop", "利用者が終了"),
+    ("user_stop", "ユーザーが終了"),
     ("max_iters", "反復上限"),
-    ("context_exhausted", "文脈切れ"),
-    ("context_overflow", "文脈あふれ"),
+    ("context_exhausted", "コンテキスト切れ"),
+    ("context_overflow", "コンテキストあふれ"),
     ("budget_exhausted", "予算切れ"),
-    ("loop_detected", "同じ手の繰り返し"),
-    ("crashed", "本体が落ちた"),
-    ("backend_error", "推論器に届かない"),
+    ("loop_detected", "同じ操作の繰り返し"),
+    ("crashed", "エンジンが停止した"),
+    ("backend_error", "推論サーバーに接続できない"),
     // ★2026-10-30: 推論機が応答を断った（finish_reason=content_filter・oc/loop）。
-    ("declined", "モデルが断った"),
-    ("phase_failed", "工程 不合格"),
+    ("declined", "モデルが拒否した"),
+    ("phase_failed", "ステップ 不合格"),
     ("unknown", "不明"),
-    ("", "締めが来ていない"),
+    ("", "終了の通知が届いていない"),
     // ★ここから下はアプリだけが作る outcome（本体は出さない）。
     //   `cancelled_grace` … 本体が STOP_GRACE 内に done を返さず、アプリ側で閉じた。
-    ("cancelled_grace", "中断（本体の返事を待たずに閉じた）"),
+    ("cancelled_grace", "中断（エンジンの応答を待たずに閉じた）"),
 ];
 
 /// 本体はもう出さない旧い成功値。**表には入れない**（term の `_OUTCOME_JA` と 1:1 で
@@ -388,16 +388,16 @@ pub fn notice_view(kind: &str, message: Option<&str>, p: &Value) -> Option<Notic
             let answer = s(p, "answer").unwrap_or("?");
             let times = n(p, "n").unwrap_or(1);
             Some(format!(
-                "利用者が直前の質問に「{answer}」と答えたので、{tool} を実行しませんでした（{times} 回目）"
+                "ユーザーが直前の質問に「{answer}」と答えたので、{tool} を実行しませんでした（{times} 回目）"
             ))
         }
         "user_stop" => {
             let answer = s(p, "answer").unwrap_or("?");
             Some(format!(
-                "利用者の回答「{answer}」により、ここで終了します（以後は何も変えていません）"
+                "ユーザーの回答「{answer}」により、ここで終了します（以後は何も変えていません）"
             ))
         }
-        "shutdown" => Some("本体を終了します。".to_string()),
+        "shutdown" => Some("エンジンを終了します。".to_string()),
         _ => None,
     };
 
@@ -465,9 +465,9 @@ pub const CANCEL_STALL_SECS: u64 = 10;
 /// `cancel` の `applied`（serve.py `_accept_cancel`）を利用者の言葉に。
 pub fn cancel_applied_ja(applied: &str) -> &str {
     match applied {
-        "running" => "走行中に届きました",
+        "running" => "実行中に届きました",
         "pending" => "待ち行列に残っていたので取り消しました",
-        "failed" => "本体に伝えられませんでした（もう一度「止める」で強制終了してください）",
+        "failed" => "エンジンに伝えられませんでした（もう一度「止める」で強制終了してください）",
         other => other,
     }
 }
@@ -545,7 +545,7 @@ impl CancelTrack {
         }
         self.stall_warned = true;
         Some(format!(
-            "まだ止まっていない（{secs}s）・本体はまだ動いているかもしれません"
+            "まだ止まっていない（{secs}s）・エンジンはまだ動いているかもしれません"
         ))
     }
 }
@@ -593,7 +593,7 @@ mod tests {
     fn accepted_outcomes_say_nothing_or_a_short_word() {
         assert_eq!(outcome_line("accepted"), None);
         // ★利用者の意思どおりの終了は ✓ 側（失敗の見た目にしない）。
-        assert_eq!(outcome_line("user_stop").as_deref(), Some("✓ 終わり方: 利用者が終了"));
+        assert_eq!(outcome_line("user_stop").as_deref(), Some("✓ 終わり方: ユーザーが終了"));
         // ✗ は画面の CSS が付けるので、文には入れない（二重にしない）。
         assert_eq!(outcome_line("cancelled").as_deref(), Some("終わり方: 中断"));
         assert!(outcome_is_accepted("user_stop"), "利用者の終了が失敗扱い");
@@ -616,7 +616,7 @@ mod tests {
 
     #[test]
     fn missing_outcome_is_reported_as_unclosed() {
-        assert_eq!(outcome_line("").as_deref(), Some("終わり方: 締めが来ていない"));
+        assert_eq!(outcome_line("").as_deref(), Some("終わり方: 終了の通知が届いていない"));
     }
 
     #[test]
@@ -719,7 +719,7 @@ mod tests {
         assert_eq!(t.announce_locally().as_deref(), Some("中断を要求しました。"));
         // ②serve の受理（applied=running）
         let a = t.on_notice("cancel", &json!({"accepted": true, "applied": "running"}));
-        assert_eq!(a, vec!["→ 走行中に届きました".to_string()], "本文が重複している: {a:?}");
+        assert_eq!(a, vec!["→ 実行中に届きました".to_string()], "本文が重複している: {a:?}");
         // ③同じ applied がもう一度来ても黙る
         assert!(t.on_notice("cancel", &json!({"applied": "running"})).is_empty());
         // ④実際に切ったもの

@@ -469,15 +469,15 @@ def list_sessions(home: str | None, limit: int = RESUME_LIST_N) -> list[dict]:
 # /help の群 — 「いつ使うか」で分ける（20 行の平坦な一覧は、探す手がかりが名前しかない）。
 # ★ここに載っていないコマンドは自動で「その他」に落ちる。新設して載せ忘れても消えない。
 HELP_GROUPS: tuple[tuple[str, tuple[str, ...]], ...] = (
-    ("走行中", ("cancel", "expand", "verbose")),
-    ("会話", ("clear", "resume")),
+    ("実行中", ("cancel", "expand", "verbose")),
+    ("チャット", ("clear", "resume")),
     ("接続と設定", ("status", "rc", "model", "backend", "workspace", "policy", "ethics", "tools")),
 )
 HELP_HEAD_CAP = 24      # これを超える見出し（/policy 等）は 2 段にする
 HELP_KEYS = (
     # ★Esc も走行中は中断（app.py の _KeyWatch が単独の ESC を数えている）。
     #   どこにも書いていなかった＝押した人にしか分からない挙動だった。
-    "Ctrl-C／Esc 走行中は中断（Ctrl-C 2 回で終了）  Ctrl-D 終了  Alt+Enter 改行",
+    "Ctrl-C／Esc 実行中は中断（Ctrl-C 2 回で終了）  Ctrl-D 終了  Alt+Enter 改行",
     "↑↓ 履歴  Ctrl-R 履歴を検索  Tab 補完  起動時の引数は blackwall --help",
     # ★SPEC §7-1: 明るい地の端末では本文が 1.17:1 ＝読めない（実測）。地の色を当てる手段が
     #   無いので第 2 パレットは作らないと決めたが、**逃げ道の存在を伝えないのは行き止まり**。
@@ -563,7 +563,7 @@ def _cmd_status(ctx: Any, args: str) -> None:
             parts.append(f"slots {pr['slots']}（処理中 {pr['processing']}）")
         _kv(ctx, "reach", "・".join(parts), T.S_OK)
     else:
-        _kv(ctx, "reach", f"届きません: {pr['error'] or pr['health'] or '?'}", T.S_RED)
+        _kv(ctx, "reach", f"接続できません: {pr['error'] or pr['health'] or '?'}", T.S_RED)
     # 2. 本体（子プロセス）
     alive = getattr(ctx.client, "alive", None)
     if alive is not None:
@@ -593,7 +593,7 @@ def _cmd_status(ctx: Any, args: str) -> None:
     _kv(ctx, "version", __version__)
     stats = dict(ctx.stats or {})
     _kv(ctx, "this run",
-        f"ターン {int(stats.get('turns', 0)):,}・道具 {int(stats.get('tools', 0)):,}・"
+        f"ターン {int(stats.get('turns', 0)):,}・ツール {int(stats.get('tools', 0)):,}・"
         f"{float(stats.get('secs', 0.0)):,.0f} 秒・{int(stats.get('tokens', 0)):,} トークン")
 
 
@@ -605,13 +605,13 @@ def _cmd_sendlog(ctx: Any, args: str) -> None:
     rec, body = build_sendlog(ctx)
     # ★何を送るかを先に言う（会話・道具の入出力・作業場のパス・ホスト名が外へ出る）。
     _kv(ctx, "送る中身",
-        f"会話 {len(rec.get('transcript') or [])} 件・事象 {len(rec.get('events') or [])} 件・"
-        f"{len(body):,} バイト・伏字 {rec.get('redacted', 0)} 箇所（作業場のパスとホスト名を含む）→ {url}", T.S_DIM)
+        f"チャット {len(rec.get('transcript') or [])} 件・事象 {len(rec.get('events') or [])} 件・"
+        f"{len(body):,} バイト・伏字 {rec.get('redacted', 0)} 箇所（ワークスペースのパスとホスト名を含む）→ {url}", T.S_DIM)
     try:
         with _http(SENDLOG_TIMEOUT) as h:
             r = h.post(url, content=body, headers={"Content-Type": "application/x-ndjson"})
     except Exception as e:
-        _bad(ctx, f"届きません: {type(e).__name__}: {e}")
+        _bad(ctx, f"接続できません: {type(e).__name__}: {e}")
         return
     try:
         res = r.json()
@@ -671,7 +671,7 @@ def _remember_where(ctx: Any, new: str, old: str) -> str:
 def switch_choice(ctx: Any, lst: "models.Listing", c: "models.Choice") -> tuple[bool, str]:
     """`c` に切り替え、送り先も合わせる。(できたか, 画面に出す一言)。全画面の F5 も使う。"""
     if ctx.running_rid:
-        return False, "走行中は切り替えられません（/cancel してから）"
+        return False, "実行中は切り替えられません（/cancel してから）"
     old = str(_settings(ctx).get("backend") or "")
     r = models.switch(lst, c, old, HTTP_TRANSPORT)
     if not r.ok:
@@ -688,23 +688,23 @@ def _mark(lst: "models.Listing", c: "models.Choice") -> str:
         return ""
     if c.kind == lst.where:
         return "← いま"
-    return "← 中継で選ばれている" if c.kind == "claude" else "← 推論機に載っている"
+    return "← 中継サーバーで選ばれている" if c.kind == "claude" else "← 推論サーバーに載っている"
 
 
 def _show_models(ctx: Any, lst: "models.Listing") -> None:
     s = _settings(ctx)
     cur = lst.current()
-    where = "Claude API（中継）" if lst.where == "claude" else "推論機"
+    where = "Claude API（中継サーバー）" if lst.where == "claude" else "推論サーバー"
     _kv(ctx, "送り先", f"{where} {s.get('backend') or ''}")
     if cur:
         now = cur.label
     elif lst.where == "server" and lst.server_stopped:
-        now = f"推論機は{lst.stopped_label()}"
+        now = f"推論サーバーは{lst.stopped_label()}"
     else:
         now = str(s.get("model") or "") + "（一覧から分かりません）"
     _kv(ctx, "いま", now)
     groups = [("claude", "Claude API" + (f"  {lst.spent}" if lst.spent else "")),
-              ("server", f"推論機  {lst.server_url}")]
+              ("server", f"推論サーバー  {lst.server_url}")]
     for kind, title in groups:
         rows = [(i, c) for i, c in enumerate(lst.choices, 1) if c.kind == kind]
         if not rows:
@@ -725,20 +725,20 @@ def _show_models(ctx: Any, lst: "models.Listing") -> None:
                 t.append(f"  {m}", style=T.S_OK if c.kind == lst.where else T.S_META)
             ctx.console.print(t)
     if lst.stopping:
-        _dim(ctx, "推論機を止めている途中です（GPU が空くまで数十秒）")
+        _dim(ctx, "推論サーバーを止めている途中です（GPU が空くまで数十秒）")
     elif lst.switching:
-        _dim(ctx, f"推論機は {lst.switching} を{'起動' if lst.server_stopped else 'へ入れ替え'}している途中です（1〜3 分）")
+        _dim(ctx, f"推論サーバーは {lst.switching} を{'起動' if lst.server_stopped else 'へ入れ替え'}している途中です（1〜3 分）")
     elif lst.switch_note:
-        _dim(ctx, f"推論機の最後の操作: {lst.switch_note}")
+        _dim(ctx, f"推論サーバーの最後の操作: {lst.switch_note}")
     for n in lst.notes:
         _dim(ctx, n)
     if lst.choices:
-        _dim(ctx, "/model <番号か名前> で切り替え（Claude なら送り先も中継へ・推論機のモデルなら推論機へ）"
-             + ("。止まっている推論機に選ぶと起動します" if lst.server_stopped and not lst.lease_stopped else ""))
+        _dim(ctx, "/model <番号か名前> で切り替え（Claude なら送り先も中継サーバーへ・推論サーバーのモデルなら推論サーバーへ）"
+             + ("。止まっている推論サーバーに選ぶと起動します" if lst.server_stopped and not lst.lease_stopped else ""))
     if lst.stoppable and lst.lease_stopped and not lst.stopping:
-        _dim(ctx, "/model stop で、GPU の仕事が終わった後も推論機を戻さないようにできます")
+        _dim(ctx, "/model stop で、GPU の仕事が終わった後も推論サーバーを戻さないようにできます")
     elif lst.stoppable and not lst.server_stopped and not lst.stopping:
-        _dim(ctx, "/model stop で推論機を止めて GPU を空ける（ほかのセッションの GPU の仕事に回せます）")
+        _dim(ctx, "/model stop で推論サーバーを止めて GPU を空ける（ほかのセッションの GPU の仕事に回せます）")
 
 
 STOP_WORDS = ("stop",)
@@ -768,11 +768,11 @@ def _confirm(ctx: Any, question: str) -> bool:
 def stop_server(ctx: Any, lst: "models.Listing", force: bool = False) -> tuple[bool, str]:
     """推論機を止めて GPU を空ける（モデル切り替えの口 の /v1/stop）。(できたか, 画面に出す一言)。全画面も使う。"""
     if ctx.running_rid:
-        return False, "走行中は止められません（/cancel してから）"
+        return False, "実行中は止められません（/cancel してから）"
     r = models.stop(lst, force=force, transport=HTTP_TRANSPORT)
     msg = r.message
     if r.ok and r.pending and lst.where == "server":
-        msg += "。止まっている間、推論機へ送る依頼は届きません（Claude に送るなら /model <Claude のモデル>）"
+        msg += "。止まっている間、推論サーバーへのリクエストは処理されません（Claude に送るなら /model <Claude のモデル>）"
     return r.ok, msg
 
 
@@ -786,7 +786,7 @@ def _cmd_model_stop(ctx: Any, lst: "models.Listing", rest: list[str]) -> None:
     if lst.server_read and lst.stoppable and (not lst.server_stopped or lst.lease_stopped) and not lst.stopping \
             and not lst.switching and not ctx.running_rid and not any(w in STOP_YES for w in rest):
         cur = next((c for c in lst.choices if c.kind == "server" and c.active), None)
-        what = cur.label if cur else "推論機"
+        what = cur.label if cur else "推論サーバー"
         q = (f"GPU の仕事が終わった後も {lst.lease_stopped} を戻さないようにしますか（{lst.server_url}）"
              if lst.server_stopped else f"{what} を止めて GPU を空けますか（{lst.server_url}）")
         if not _confirm(ctx, q):
@@ -825,7 +825,7 @@ def _cmd_model(ctx: Any, args: str) -> None:
 def _cmd_backend(ctx: Any, args: str) -> None:
     if not args:
         b = str(_settings(ctx).get("backend") or "")
-        _kv(ctx, "backend", b + ("（Claude API の中継）" if models.is_claude(b, str(_cfg(ctx).get("claude_backend") or "")) else ""))
+        _kv(ctx, "backend", b + ("（Claude API の中継サーバー）" if models.is_claude(b, str(_cfg(ctx).get("claude_backend") or "")) else ""))
         return
     word = args.strip().lower()
     if word in ("claude", "server"):
@@ -834,14 +834,14 @@ def _cmd_backend(ctx: Any, args: str) -> None:
         old = str(_settings(ctx).get("backend") or "")
         target = str(cfg.get("claude_backend") or "").strip() if word == "claude" else models.server_url(cfg, old)
         if not target:
-            _bad(ctx, "設定に claude_backend（Claude の中継の住所）がありません")
+            _bad(ctx, "設定に claude_backend（Claude の中継サーバーの住所）がありません")
             return
         if ctx.running_rid:
-            _bad(ctx, "走行中は切り替えられません（/cancel してから）")
+            _bad(ctx, "実行中は切り替えられません（/cancel してから）")
             return
         _set_setting(ctx, "backend", target)
         note = _remember_where(ctx, target, old)
-        where = "Claude API（中継・費用は共有の API の枠から）" if word == "claude" else "推論機"
+        where = "Claude API（中継サーバー・費用は共有の API の枠から）" if word == "claude" else "推論サーバー"
         _say(ctx, f"backend → {target}（{where}・次の send から。モデルは /model）{note}")
         return
     u = urlparse(args)
@@ -883,20 +883,20 @@ def _switch_restart(ctx: Any, key: str, value: str, allowed: Iterable[str]) -> N
     allowed = tuple(allowed)
     if not value:
         _kv(ctx, key, _settings(ctx).get(key) or "")
-        _dim(ctx, f"/{key} <{'|'.join(allowed)}> で切替（子を再起動）")
+        _dim(ctx, f"/{key} <{'|'.join(allowed)}> で切替（エンジンを再起動）")
         return
     if value not in allowed:
         _bad(ctx, f"{key} は {' / '.join(allowed)} のどれか: {value}")
         return
     if ctx.running_rid:
-        _bad(ctx, "走行中は切替えられません（/cancel してから）")
+        _bad(ctx, "実行中は切替えられません（/cancel してから）")
         return
     try:
         ctx.client.restart(**{key: value})
     except Exception as e:
         _bad(ctx, f"再起動に失敗: {e}")
         return
-    _say(ctx, f"{key} → {value}。切替えました（子を再起動）")
+    _say(ctx, f"{key} → {value}。切替えました（エンジンを再起動）")
 
 
 def _cmd_policy(ctx: Any, args: str) -> None:
@@ -927,8 +927,8 @@ def _cmd_tools(ctx: Any, args: str) -> None:
     names = [str(n) for n in (st.get("tools") or [])] if isinstance(st.get("tools"), list) else []
     if not names:
         # ★空状態には次の一手（ui-ux-design §2）。
-        _dim(ctx, "（本体が道具を告げていません）")
-        _dim(ctx, "  → /status で本体が動いているかを見てください。")
+        _dim(ctx, "（エンジンがツールを告げていません）")
+        _dim(ctx, "  → /status でエンジンが動いているかを見てください。")
         return
     _say(ctx, f"{len(names)} 件（toolset {st.get('toolset', '?')}・native {st.get('native_tools', '?')}）",
          T.S_META)
@@ -961,7 +961,7 @@ def _cmd_clear(ctx: Any, args: str) -> None:
     ev = getattr(ctx, "events", None)
     if ev is not None:
         ev.clear()
-    _say(ctx, "新しい会話（ここより上は本体に渡りません）", T.S_META)
+    _say(ctx, "新しいチャット（ここより上はエンジンに渡りません）", T.S_META)
     _dim(ctx, "  → 続きから始めるなら /resume <id>")
     _reprint_header(ctx)
 
@@ -1119,7 +1119,7 @@ def _cmd_trace(ctx: Any, args: str) -> None:
     events, src = _trace_source(ctx)
     if not events:
         _dim(ctx, "まだ記録がありません")
-        _dim(ctx, "  → 何か走らせたあとに /trace を打つと、実行した道具が通しで出ます。")
+        _dim(ctx, "  → 何か走らせたあとに /trace を打つと、実行したツールが通しで出ます。")
         return
     steps = _trace_steps(events)
     info = _trace_counts(events)
@@ -1147,7 +1147,7 @@ def _cmd_trace(ctx: Any, args: str) -> None:
         _say(ctx, "  結果:", T.S_META)
         res = st["result"]
         if res is None:
-            _dim(ctx, "    （結果が記録にありません＝走行中に終わった／記録が欠けた）")
+            _dim(ctx, "    （結果が記録にありません＝実行中に終わった／記録が欠けた）")
             return
         lines = res.splitlines()
         if len(lines) > 200:
@@ -1161,14 +1161,14 @@ def _cmd_trace(ctx: Any, args: str) -> None:
                 _say(ctx, "    " + ln, T.S_DIM)
         return
 
-    head = f"{src}／事象 {len(events):,} 件・道具 {len(steps)} 回"
+    head = f"{src}／事象 {len(events):,} 件・ツール {len(steps)} 回"
     comp = info.get("ctx_budget_fired") or info.get("compactions")
     if isinstance(comp, (int, float)) and comp:
         # ★圧縮が奪うのは**モデルの視界**。記録と画面は無関係だと明示する。
         head += f"・圧縮 {int(comp)} 回（モデルの視界を削った回数。記録は削られていません）"
     _say(ctx, head, T.S_META)
     if not steps:
-        _dim(ctx, "  道具は使われていません（読んだだけ／答えただけの走行）")
+        _dim(ctx, "  ツールは使われていません（読んだだけ／答えただけの実行）")
         return
     for i, st in enumerate(steps, 1):
         mark = T.MARK_OK if st["ok"] is not False else T.MARK_BAD
@@ -1195,7 +1195,7 @@ def _cmd_trace(ctx: Any, args: str) -> None:
 def _cmd_cancel(ctx: Any, args: str) -> None:
     rid = ctx.running_rid
     if not rid:
-        _dim(ctx, "走行中ではありません")
+        _dim(ctx, "実行中ではありません")
         _dim(ctx, "  → 止めるものがない状態です。走らせるには、やりたいことをそのまま書いてください。")
         return
     try:
@@ -1216,7 +1216,7 @@ def _cmd_exit(ctx: Any, args: str) -> None:
 
 def _cmd_update(ctx: Any, args: str) -> None:
     """公開版は自動更新を持たない（配信先はそれぞれの利用者が持つ物なので）。入れ直し方だけ出す。"""
-    _dim(ctx, "この版には自動更新がありません。ソースから入れた場合は git pull の後に `pip install -e src` で入れ直してください。")
+    _dim(ctx, "この版には自動更新がありません。ソースから入れた場合は git pull の後に `pip install -e src` で再インストールしてください。")
 
 
 COMMANDS: dict[str, Command] = {}
@@ -1228,24 +1228,24 @@ def _register(name: str, help_: str, handler: Handler, usage: str = "",
 
 
 _register("help", "この一覧", _cmd_help)
-_register("status", "疎通・本体・設定・作業場・今回の累計", _cmd_status)
+_register("status", "疎通・エンジン・設定・ワークスペース・今回の累計", _cmd_status)
 _register("sendlog", "今のセッションの記録を受け口へ 1 レコードで送る", _cmd_sendlog)
-_register("model", "Claude API と推論機のモデルの一覧／切替（送り先も合わせる・止まっている推論機は起動）。"
-          "stop で推論機を止めて GPU を空ける（--force で生成中でも）", _cmd_model, "[番号|名前|stop]")
+_register("model", "Claude API と推論サーバーのモデルの一覧／切替（送り先も合わせる・止まっている推論サーバーは起動）。"
+          "stop で推論サーバーを止めて GPU を空ける（--force で生成中でも）", _cmd_model, "[番号|名前|stop]")
 _register("backend", "送り先の表示／切替（claude・server・URL。疎通は /status）", _cmd_backend, "[claude|server|URL]")
-_register("rc", "ほかの端末で開く QR と、繋がっているか", _cmd_rc)
-_register("remote-control", "ほかの端末で開く QR と、繋がっているか", _cmd_rc, hidden=True)
-_register("workspace", "作業場の表示／切替（道具はここにしか書けない）", _cmd_workspace, "[パス]")
-_register("policy", "実行ゲートの表示／切替（子を再起動）", _cmd_policy, "[readonly|workspace|trusted]")
-_register("ethics", "倫理の刻みの表示／切替（子を再起動）", _cmd_ethics, "[strict|standard|direct|raw]")
-_register("tools", "本体が告げた道具の一覧", _cmd_tools)
-_register("clear", "会話を空に（新しいセッション）", _cmd_clear)
+_register("rc", "ほかのデバイスで開く QR と接続の状態", _cmd_rc)
+_register("remote-control", "ほかのデバイスで開く QR と接続の状態", _cmd_rc, hidden=True)
+_register("workspace", "ワークスペースの表示／切替（ツールはここにしか書けない）", _cmd_workspace, "[パス]")
+_register("policy", "実行ゲートの表示／切替（エンジンを再起動）", _cmd_policy, "[readonly|workspace|trusted]")
+_register("ethics", "倫理の刻みの表示／切替（エンジンを再起動）", _cmd_ethics, "[strict|standard|direct|raw]")
+_register("tools", "エンジンが告げたツールの一覧", _cmd_tools)
+_register("clear", "チャットを空に（新しいセッション）", _cmd_clear)
 _register("resume", "セッションの一覧／再開", _cmd_resume, "[id]")
-_register("expand", "直前の道具の束を全文で", _cmd_expand)
+_register("expand", "直前のツールの束を全文で", _cmd_expand)
 _register("verbose", "思考の全文表示をトグル", _cmd_verbose)
-_register("trace", "この走行で実行した道具を通しで（圧縮とは無関係に記録から）",
+_register("trace", "この実行で使ったツールを通しで（圧縮とは無関係に記録から）",
           _cmd_trace, "[番号|all]")
-_register("cancel", "走行中の send を中断", _cmd_cancel)
+_register("cancel", "実行中の send を中断", _cmd_cancel)
 _register("update", "入れ直し方を表示する（公開版には自動更新はない）", _cmd_update)
 _register("exit", "終了", _cmd_exit)
 _register("quit", "終了（/exit と同じ）", _cmd_exit, hidden=True)

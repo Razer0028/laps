@@ -35,7 +35,7 @@ def test_shown_ctx_ignores_the_slot_left_by_an_earlier_conversation():
     tel.slots_ok, tel.processing, tel.ctx_used, tel.agent_ctx = True, False, 85_000, None
     assert shown_ctx(tel, busy=False) is None                 # 起動の直後: 枠に残った 85K は出さない
     tel.agent_ctx = 9_900
-    assert shown_ctx(tel, busy=True) == 9_900                 # 走っていても推論機を使っていない間（道具）はこの会話の数
+    assert shown_ctx(tel, busy=True) == 9_900                 # 走っていても推論機を使っていない間（ツール）はこの会話の数
     tel.processing, tel.ctx_used = True, 10_400
     assert shown_ctx(tel, busy=True) == 10_400                # 推論機を使っている間は枠の生の数
 
@@ -61,10 +61,10 @@ def test_child_relay_lines_fold_into_one_line(tmp_path, monkeypatch):
     r.on_event({"type": "tool_result", "name": "Task", "call": "t1", "ok": True, "result": "done"})
     out = buf.getvalue()
     assert "子: ▶" not in out and "子: ✓" not in out               # 1 件ずつの行は出さない
-    assert "子: ✗ Read 失敗" in out                               # 失敗はその場で出す
-    assert out.count("子の道具:") == 1 and "Bash ×9" in out and "Read ×1" in out and "✗ 1" in out
+    assert "サブエージェント: ✗ Read 失敗" in out                               # 失敗はその場で出す
+    assert out.count("サブエージェントのツール:") == 1 and "Bash ×9" in out and "Read ×1" in out and "✗ 1" in out
     r.on_event({"type": "tool_result", "name": "Task", "call": "t2", "ok": True, "result": "done"})
-    assert buf.getvalue().count("子の道具:") == 1                  # 数えた物が無ければ出さない
+    assert buf.getvalue().count("サブエージェントのツール:") == 1                  # 数えた物が無ければ出さない
 
 
 def _app(tmp_path, monkeypatch):

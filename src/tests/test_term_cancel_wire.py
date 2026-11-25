@@ -291,8 +291,8 @@ def test_cancel_applied_does_not_print_the_internal_identifier():
          "sockets": 1, "inflight": 6, "request_cancel_ms": 0.3, "bash_killed": 0},
     ])
     assert "cancel_applied" not in out
-    assert "推論器への接続を 1 本切りました" in out
-    assert out.count("走行中に届きました") == 1        # cancel の受理と二重に言わない
+    assert "推論サーバーへの接続を 1 本切りました" in out
+    assert out.count("実行中に届きました") == 1        # cancel の受理と二重に言わない
 
 
 def test_cancel_applied_says_so_when_nothing_was_cut():

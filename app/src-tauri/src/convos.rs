@@ -64,7 +64,7 @@ pub fn convos_load() -> Result<String, String> {
         Err(e) => {
             LOAD_FAILED.store(true, Ordering::SeqCst);
             TROUBLE.store(1, Ordering::SeqCst);
-            return Err(format!("会話の保存（{}）を読めません: {e}", p.display()));
+            return Err(format!("チャットの保存（{}）を読めません: {e}", p.display()));
         }
     };
     LOAD_FAILED.store(false, Ordering::SeqCst);
@@ -128,7 +128,7 @@ fn save_blocking(json: String) -> Result<(), String> {
             .unwrap_or(0);
         let aside = p.with_extension(format!("json.unread-{ts}"));
         std::fs::rename(&p, &aside)
-            .map_err(|e| format!("読めなかった会話の保存を避けられないので、上書きしません: {e}"))?;
+            .map_err(|e| format!("読めなかったチャットの保存を避けられないので、上書きしません: {e}"))?;
         LOAD_FAILED.store(false, std::sync::atomic::Ordering::SeqCst);
     }
     let tmp = p.with_extension("json.tmp");
@@ -149,9 +149,9 @@ fn history_dir() -> PathBuf {
 #[tauri::command]
 pub fn convos_restore_history(day: u64) -> Result<String, String> {
     let src = history_dir().join(format!("conversations-{day}.json"));
-    let text = std::fs::read_to_string(&src).map_err(|e| format!("控えを読めません: {e}"))?;
-    let v: serde_json::Value = serde_json::from_str(&text).map_err(|e| format!("控えが壊れています: {e}"))?;
-    let n = v.as_array().map(|a| a.len()).ok_or_else(|| "控えが一覧の形ではありません".to_string())?;
+    let text = std::fs::read_to_string(&src).map_err(|e| format!("バックアップを読めません: {e}"))?;
+    let v: serde_json::Value = serde_json::from_str(&text).map_err(|e| format!("バックアップが壊れています: {e}"))?;
+    let n = v.as_array().map(|a| a.len()).ok_or_else(|| "バックアップが一覧の形ではありません".to_string())?;
     let p = store_path();
     let current_empty = match std::fs::read_to_string(&p) {
         Ok(t) => t.trim() == "[]",
@@ -300,7 +300,7 @@ pub fn change_base(session: String, path: String) -> Result<serde_json::Value, S
     if blob.is_empty() || blob.contains('/') || blob.contains('\\') || blob.contains("..") {
         return Ok(serde_json::json!({ "found": false }));
     }
-    let data = std::fs::read(dir.join(blob)).map_err(|e| format!("控えを読めません: {e}"))?;
+    let data = std::fs::read(dir.join(blob)).map_err(|e| format!("バックアップを読めません: {e}"))?;
     if data.len() > 5 * 1024 * 1024 || data.iter().take(8192).any(|b| *b == 0) {
         return Ok(serde_json::json!({ "found": true, "existed": true, "text": "", "binary": true, "rid": rid }));
     }
@@ -361,7 +361,7 @@ fn remove_session(id: &str) -> Result<u64, String> {
     }
     // 実際の場所が sessions の下にあること（リンクで外へ出ていないこと）を確かめる。
     let (Ok(real), Ok(base)) = (p.canonicalize(), root.canonicalize()) else {
-        return Err(format!("場所を確かめられません: {id}"));
+        return Err(format!("場所を確認できません: {id}"));
     };
     if !real.starts_with(&base) || real == base {
         return Err(format!("記録の場所の外を指しています: {id}"));
@@ -488,7 +488,7 @@ pub fn session_fork(id: String) -> Result<String, String> {
     }
     if let Err(e) = copy_tree(&real, &dst) {
         let _ = std::fs::remove_dir_all(&dst);
-        return Err(format!("記録を写せません: {e}"));
+        return Err(format!("記録をコピーできません: {e}"));
     }
     let meta = dst.join("meta.json");
     if let Ok(text) = std::fs::read_to_string(&meta) {

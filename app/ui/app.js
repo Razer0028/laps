@@ -7525,8 +7525,7 @@ function fillCtxPop() {
   ctxPop.dataset.level = $("#ctx-ring")?.dataset.level || "";
   ctxPop.innerHTML = `<div class="ctxpop__h">コンテキスト</div>
     <div class="ctxpop__row"><span>使用中</span><span>${kTok(i.ctx)} / ${kTok(i.win)}（${Math.round(i.f * 100)}%）</span></div>
-    <div class="ctxpop__bar"><div class="ctxpop__fill" style="width:${(i.f * 100).toFixed(1)}%"></div>${i.at && i.at < i.win
-      ? `<div class="ctxpop__mark" style="left:${(Math.min(1, i.at / i.win) * 100).toFixed(1)}%" title="自動圧縮の位置 ${kTok(i.at)}"></div>` : ""}</div>`;
+    <div class="ctxpop__bar"><div class="ctxpop__fill" style="width:${(i.f * 100).toFixed(1)}%"></div></div>`;   // 印は出さない（オーナー 11-27）
 }
 function closeCtxPop() {
   if (!ctxPop || ctxPop.hidden) return;

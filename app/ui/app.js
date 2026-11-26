@@ -7485,14 +7485,10 @@ let ctxPop = null;
 function fillCtxPop() {
   const i = ctxInfo(); if (!i || !ctxPop) return;
   ctxPop.dataset.level = $("#ctx-ring")?.dataset.level || "";
-  const note = !i.at ? "" : i.due
-    ? `${kTok(i.at)} を超えました。次の依頼を送ると、その前に会話を自動で要約して短くします（作業の途中では要約しません）。`
-    : `あと ${kTok(i.at - i.ctx)} で自動圧縮の位置（${kTok(i.at)}）です。超えると、次の依頼の前に会話を要約します。`;
   ctxPop.innerHTML = `<div class="ctxpop__h">コンテキスト</div>
     <div class="ctxpop__row"><span>使用中</span><span>${kTok(i.ctx)} / ${kTok(i.win)}（${Math.round(i.f * 100)}%）</span></div>
     <div class="ctxpop__bar"><div class="ctxpop__fill" style="width:${(i.f * 100).toFixed(1)}%"></div>${i.at && i.at < i.win
-      ? `<div class="ctxpop__mark" style="left:${(Math.min(1, i.at / i.win) * 100).toFixed(1)}%" title="自動圧縮の位置 ${kTok(i.at)}"></div>` : ""}</div>
-    <div class="ctxpop__note">${esc(note)}<br>数字は直前のターンで推論サーバーに渡した長さです。</div>`;
+      ? `<div class="ctxpop__mark" style="left:${(Math.min(1, i.at / i.win) * 100).toFixed(1)}%" title="自動圧縮の位置 ${kTok(i.at)}"></div>` : ""}</div>`;
 }
 function closeCtxPop() {
   if (!ctxPop || ctxPop.hidden) return;

@@ -39,7 +39,8 @@ def _last(body: dict) -> str:
     return json.dumps(body["messages"][-1], ensure_ascii=False)
 
 
-def test_a_long_conversation_is_summarized_once_at_the_start_of_the_next_request(cfg):
+def test_a_long_conversation_is_summarized_once_at_the_start_of_the_next_request(cfg, monkeypatch):
+    monkeypatch.setenv("LAPS_COMPACT_EARLY", "100000")   # 2026-11-27 から既定は切ってある
     fake = Fake([{"text": "## Objective\n- keep going\n"}, {"text": "答え。"}], n_ctx=262144)
     home, ws = cfg / "h", cfg / "w"
     ws.mkdir()
@@ -54,7 +55,7 @@ def test_a_long_conversation_is_summarized_once_at_the_start_of_the_next_request
     assert ev[-1]["counters"].get("compaction_boundary") == 1
     assert any(e.get("kind") == "context_compacted" for e in ev if e.get("type") == "notice")
     starts = [e for e in ev if e.get("type") == "iter_start"]
-    assert starts and starts[0].get("compact_at") == compact.EARLY_AT, "輪の分母は境目の要約の量"
+    assert starts and starts[0].get("compact_at") == 100_000, "輪の印は境目の要約の量"
 
 
 def test_short_conversations_and_the_switch_are_left_alone(cfg, monkeypatch):
@@ -63,17 +64,21 @@ def test_short_conversations_and_the_switch_are_left_alone(cfg, monkeypatch):
     ws.mkdir()
     _serve(fake, home, ws, [{"type": "run", "id": "r1", "messages": _history(2, 20_000) + [{"role": "user", "content": "次"}]}], 1)
     assert ASK not in _last(fake.bodies[0]), "短い会話は要約しない"
-    monkeypatch.setenv("LAPS_COMPACT_EARLY", "0")
+    monkeypatch.delenv("LAPS_COMPACT_EARLY", raising=False)   # 既定（2026-11-27 から切ってある）
     fake2 = Fake([{"text": "答え。"}], n_ctx=262144)
     home2, ws2 = cfg / "h2", cfg / "w2"
     ws2.mkdir()
     _serve(fake2, home2, ws2, [{"type": "run", "id": "r1", "messages": _history(6, 40_000) + [{"role": "user", "content": "次"}]}], 1)
-    assert ASK not in _last(fake2.bodies[0]), "LAPS_COMPACT_EARLY=0 で止まる"
+    assert ASK not in _last(fake2.bodies[0]), "既定では長い会話でも依頼の頭で要約しない（オーナー 11-27）"
+    monkeypatch.setenv("LAPS_COMPACT_EARLY", "0")
+    assert compact.early_at(262144) == 0
 
 
 def test_the_threshold_gives_way_to_a_small_window(monkeypatch):
     monkeypatch.delenv("LAPS_COMPACT_AT", raising=False)
     monkeypatch.delenv("LAPS_COMPACT_EARLY", raising=False)
+    assert compact.early_at(262144) == 0, "既定は切ってある（2026-11-27）"
+    monkeypatch.setenv("LAPS_COMPACT_EARLY", "100000")
     assert compact.early_at(262144) == 100_000
     assert compact.early_at(65536) == 0, "窓が小さい推論機では、窓の手前の要約に任せる"
     monkeypatch.setenv("LAPS_COMPACT_EARLY", "5000")

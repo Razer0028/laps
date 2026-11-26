@@ -49,6 +49,7 @@ def _work_after_boundary(cfg, name: str) -> dict:
 
 
 def test_boundary_summary_keeps_a_smaller_recent_tail(cfg, monkeypatch):
+    monkeypatch.setenv("LAPS_COMPACT_EARLY", "100000")   # 境目の要約は 2026-11-27 から既定で切ってある
     lean = _work_after_boundary(cfg, "lean")
     monkeypatch.setenv("LAPS_COMPACT_LEAN", "0")
     old = _work_after_boundary(cfg, "old")

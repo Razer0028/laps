@@ -2812,6 +2812,14 @@ async fn run_loop(
                                          meta.get("session").and_then(|v| v.as_str())) {
                 o.insert("session".into(), json!(s));
             }
+            // 走行の終わりのコンテキストの長さ（入力欄の輪・2026-11-27）。
+            if let Some(o) = p.as_object_mut() {
+                for k in ["ctx", "n_ctx", "compact_at"] {
+                    if let Some(v) = meta.get(k).filter(|v| v.as_u64().unwrap_or(0) > 0) {
+                        o.insert(k.into(), v.clone());
+                    }
+                }
+            }
             out.out("chat-done", p);
             Ok(())
         }

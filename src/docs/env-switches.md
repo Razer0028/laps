@@ -81,7 +81,7 @@
 | `LAPS_STREAM_FIRST_BYTE` | 360（0 で無効） | 逐次配信で最初の1バイトが来るまでの上限秒（＝読み込み時間）。超えたら stream を切り、生存確認して非ストリーミングで1回だけ取りに行く。★2026-10-06 45→360（Qwen3.8 は窓 64K の読み直しに約 300 秒）。 | `laps/backend.py:321` | 1 |
 | `LAPS_HTTP_TRUST_ENV` | 1（未設定=proxy を尊重） | 推論機への httpx が OS の HTTP(S)_PROXY/NO_PROXY を読むか。既定は読む（proxy 経由でしか届かない機械があるため）。0 で proxy を無視して直結（proxy が LAN を横取りする環境向け）。 | `laps/backend.py:301` | 2 |
 | `LAPS_BROWSER` | （空＝Edge/Chrome を探す） | Serve 道具の撮影（screenshot=true）に使う headless のブラウザの実行ファイル（2026-10-10）。 | `laps/oc/servetool.py:134` | 1 |
-| `LAPS_GATEWAY_RUN_MAX_SECS` | 43200 | 画面の接続が切れても走行中の会話を生かしておく上限（秒）。走行が終わってから猶予（600 秒）を数える（2026-10-10）。 | `laps/gateway.py:531` | 1 |
+| `LAPS_GATEWAY_RUN_MAX_SECS` | 43200 | 画面の接続が切れても走行中の会話を生かしておく上限（秒）。走行が終わってから猶予（600 秒）を数える（2026-10-10）。 | `laps/gateway.py:576` | 1 |
 | `LAPS_GREP_SECS` | 60 | rg が無い機械で Grep が探す時間の上限（秒）。超えたらそこまでの結果と打ち切った旨を返す（2026-10-10）。 | `laps/engine/tools/files.py:714` | 1 |
 | `LAPS_COMPACT_CONTINUE` | `1` | `0` で、要約を会話の続きとして頼むのをやめ、会話を文字にまとめ直す従来の形にする（毎回ゼロから読む）。2026-11-03。 | engine/compact.py:0 |
 | `LAPS_COMPACT_AT` | （空＝Gemma は 64000・GLM は 30000・それ以外は窓−出力の上限） | 要約を始める文脈の語数（8192 以上）。Gemma は 2026-10-13 に 45000 → 64000（要約のたびに事実と手引きが落ちるのを減らす・P40 の Gemma は長い文脈でも生成の落ちが 15% ほど）。 | `laps/engine/compact.py:69` | 1 |
@@ -97,8 +97,8 @@
 | `LAPS_SLOT_SAVE_MIN` | 40000 | 依頼の終わりに席を保存する会話の大きさ（トークン）。これより小さい会話は保存しない。 | `laps/engine/slots.py:201` | 1 |
 | `LAPS_SLOT_SAVE_STEP` | 8000 | 前の保存からこのトークン数以上伸びたときだけ、依頼の終わりに保存し直す（毎回 GB 単位で書かない）。 | `laps/engine/slots.py:205` | 1 |
 | `LAPS_DESKTOP` | （未設定＝載せる） | `0` で oc 中核の Desktop 道具（Windows の画面を UI Automation の木で読み、番号で押す・打つ）を棚から外す。Windows 以外と csc.exe の無い機械では最初から載らない。 | `laps/oc/desktop.py:93` | 1 |
-| `LAPS_MODELCTL_URL` | （空＝自動） | この機械のゲートウェイが、Android の上のモデル選び（操作の線の `server.models`・`server.switch`）を頼む先。空なら宛先そのものの `/modelctl/`（Claude の中継）→ 宛先と同じ機械の `:8743`（推論機の モデル切り替えの口）の順に試す（Windows のアプリの modelctl.rs と同じ決め方）。2026-10-19 オーナー「Android 版アプリの UI/UX を Claude のスマホ版アプリに寄せてほしい」。 | `laps/remotectl.py:550` | 1 |
-| `LAPS_REMOTE_DESKTOP` | （未設定＝受ける） | `0` で、この機械のゲートウェイが中継越しの画面操作（操作の線の `desktop`・Claude Code の MCP の desktop 道具が使う）を断る。2026-10-14 オーナー「B で進めて」（Claude のセッションから Blackwall のデスクトップ操作を使う）。ゲートウェイはアプリが起こす＝ログイン中の画面のセッションで動くので窓に届く（SSH の命令は Session 0 で届かない）。中継に合言葉が無い（LAPS_RELAY_TOKEN が空）間は LAN から誰でも呼べるので、要らない機械ではここで切る。 | `laps/remotectl.py:506` | 1 |
+| `LAPS_MODELCTL_URL` | （空＝自動） | この機械のゲートウェイが、Android の上のモデル選び（操作の線の `server.models`・`server.switch`）を頼む先。空なら宛先そのものの `/modelctl/`（Claude の中継）→ 宛先と同じ機械の `:8743`（推論機の モデル切り替えの口）の順に試す（Windows のアプリの modelctl.rs と同じ決め方）。2026-10-19 オーナー「Android 版アプリの UI/UX を Claude のスマホ版アプリに寄せてほしい」。 | `laps/remotectl.py:572` | 1 |
+| `LAPS_REMOTE_DESKTOP` | （未設定＝受ける） | `0` で、この機械のゲートウェイが中継越しの画面操作（操作の線の `desktop`・Claude Code の MCP の desktop 道具が使う）を断る。2026-10-14 オーナー「B で進めて」（Claude のセッションから Blackwall のデスクトップ操作を使う）。ゲートウェイはアプリが起こす＝ログイン中の画面のセッションで動くので窓に届く（SSH の命令は Session 0 で届かない）。中継に合言葉が無い（LAPS_RELAY_TOKEN が空）間は LAN から誰でも呼べるので、要らない機械ではここで切る。 | `laps/remotectl.py:528` | 1 |
 | `LAPS_LISTEN` | （未設定＝載せる） | `0` で oc 中核の Listen 道具（音声ファイルの台詞を whisper.cpp で文字にする）を棚から外す。Windows / Linux の x64 以外では最初から載らない。 | `laps/oc/listen.py:99` | 1 |
 | `LAPS_LISTEN_DIR` | （未設定＝`~/.laps/listen`・旧い `~/.blackwall` が在ればその中・Windows のアプリは `<データ根>\listen` を渡す） | Listen が whisper.cpp の本体とモデル（初回に取得・sha256 照合）を置く場所。 | `laps/oc/listen.py:107` | 1 |
 | `LAPS_LIVE` | 1 | `0` で、走行中の事象の写し（`sessions/<id>/live.ndjson`）と受け箱（`inbox.ndjson`）を作らない＝スマホの「追う画面」からその走行を見られず、割り込み・中止・答えも受けない（2026-10-10・画面のリンク）。 | `laps/engine/server.py:501` | 1 |
@@ -273,12 +273,12 @@
 
 | env var | 既定 | 意味 | 最初の参照 (file:line) | 出現数 |
 |---|---|---|---|---|
-| `LAPS_GATEWAY_GRACE` | 600 | 切断後に serve プロセスを生かしておく猶予秒数（再接続用）。 | `laps/gateway.py:831` | 1 |
-| `LAPS_GATEWAY_HOME` | /root/.laps-mobile（旧い /root/.blackwall-mobile が在ればそのまま） | ゲートウェイ経由の既定 LAPS_HOME。 | `laps/gateway.py:829` | 1 |
-| `LAPS_GATEWAY_HOST` | 0.0.0.0 | ゲートウェイの bind ホスト。 | `laps/gateway.py:826` | 1 |
-| `LAPS_GATEWAY_MAX` | 4 | ゲートウェイが同時に抱える接続数の上限。 | `laps/gateway.py:830` | 1 |
-| `LAPS_GATEWAY_PORT` | 18400 | ゲートウェイの bind ポート。 | `laps/gateway.py:827` | 1 |
-| `LAPS_GATEWAY_TOKEN` | (未設定→生成して deploy/gateway.token へ保存) | モバイル/リモート向け WebSocket ゲートウェイの認証トークン。空文字は「認証なし」。 | `laps/gateway.py:803` | 1 |
+| `LAPS_GATEWAY_GRACE` | 600 | 切断後に serve プロセスを生かしておく猶予秒数（再接続用）。 | `laps/gateway.py:879` | 1 |
+| `LAPS_GATEWAY_HOME` | /root/.laps-mobile（旧い /root/.blackwall-mobile が在ればそのまま） | ゲートウェイ経由の既定 LAPS_HOME。 | `laps/gateway.py:877` | 1 |
+| `LAPS_GATEWAY_HOST` | 0.0.0.0 | ゲートウェイの bind ホスト。 | `laps/gateway.py:874` | 1 |
+| `LAPS_GATEWAY_MAX` | 4 | ゲートウェイが同時に抱える接続数の上限。 | `laps/gateway.py:878` | 1 |
+| `LAPS_GATEWAY_PORT` | 18400 | ゲートウェイの bind ポート。 | `laps/gateway.py:875` | 1 |
+| `LAPS_GATEWAY_TOKEN` | (未設定→生成して deploy/gateway.token へ保存) | モバイル/リモート向け WebSocket ゲートウェイの認証トークン。空文字は「認証なし」。 | `laps/gateway.py:851` | 1 |
 | `LAPS_RELAY_URL` | ws://127.0.0.1:18400 | この機械（remotehost）が名乗りに行く中継（自分で立てた relay.py）の場所。Windows のアプリは設定 `remote_relay` から渡す。 | `laps/relayauth.py:103` | 1 |
 | `LAPS_RELAY_TOKEN` | （空＝なし） | 旧の全員で 1 つの合言葉（中継）。客の側では認証情報のファイルより優先する上書き。★通常はアカウントを使う（`laps/relayauth.py`）。 | `laps/relay.py:1601` | 4 |
 | `LAPS_RELAY_DEVICE_KEY` | （空＝なし） | 中継へ名乗る機械の鍵。中継と機械（remotehost）の両方に同じ値を入れると、鍵の無い機械は名乗れない。 | `laps/relay.py:1602` | 1 |
@@ -302,7 +302,7 @@
 | `LAPS_PARENT_PID` | （未設定） | remotehost の親（Windows のアプリ）の PID。親が終わったら 5 秒以内に remotehost も終わる。 | `laps/remotehost.py:165` | 1 |
 | `LAPS_APP_VERSION` | （Windows のアプリが渡す） | remotehost が中継の機械一覧に出す版。同梱の Python では本体の版が取れない（0.0.0+dev になった）ので、アプリが自分の版を渡す。 | `laps/gateway.py:100` | 1 |
 | `LAPS_INSTALL_PYRUNTIME` | （Windows のアプリが渡す） | 整合性の確認（laps/integrity.py）で、インストール先の同梱 Python の置き場。動かしている写しと別なら両方を照合値（INTEGRITY.json）と突き合わせ、「直す」では写しの壊れたファイルだけをここから写し直す。 | `laps/integrity.py:85` | 1 |
-| `LAPS_GATEWAY_WORKSPACE` | /root/bw-mobile | ゲートウェイ経由の既定 workspace。 | `laps/gateway.py:828` | 1 |
+| `LAPS_GATEWAY_WORKSPACE` | /root/bw-mobile | ゲートウェイ経由の既定 workspace。 | `laps/gateway.py:876` | 1 |
 | `LAPS_HEARTBEAT_SECS` | 15 | serve の心拍（生存通知）間隔秒。 | `laps/engine/server.py:724` | 1 |
 | `LAPS_TOKEN_COALESCE_CHARS` | 400（0 で無効） | 長走行で events.jsonl が肥大しないよう token 事象の**記録**を N 文字ごとに間引く（画面と gateway 生中継はチャンクのまま） | `laps/engine/session.py:75` | 1 |
 | `LAPS_SERVE_MAX_RESULT` | (実装既定値) | serve の JSONL に載せる 1 件あたりの結果本文の上限文字数。 | `laps/engine/loop.py:37` | 1 |
@@ -316,7 +316,7 @@
 | env var | 既定 | 意味 | 最初の参照 (file:line) | 出現数 |
 |---|---|---|---|---|
 | `LAPS_METRICS_URL` | (未設定→推論先と同じ機械の `:8742/v1/metrics`) | 全画面表示（tui）の server の箱が読む推論機の測定（bw-metrics）の URL。 | `laps/term/tui.py:485` | 1 |
-| `LAPS_MODELCTL_URL` | (未設定→推論先と同じ機械の `:8743/v1/models`) | 全画面表示（tui）が載っているモデル名・電力の上限・周波数を読む モデル切り替えの口 の URL。 | `laps/remotectl.py:550` | 1 |
+| `LAPS_MODELCTL_URL` | (未設定→推論先と同じ機械の `:8743/v1/models`) | 全画面表示（tui）が載っているモデル名・電力の上限・周波数を読む モデル切り替えの口 の URL。 | `laps/remotectl.py:572` | 1 |
 | `LAPS_TERM_DEBUG` | (未設定) | 端末クライアントのデバッグログ出力先。`off`/`0`/`no`/空で無効。既定の置き場所`~/.blackwall/term-debug.log`。 | `laps/term/app.py:1105` | 1 |
 | `LAPS_UI` | tui | 端末の画面。`tui` = btop 風の全画面（対話のときだけ）／`classic` = 従来の行の形。設定ファイルの `ui`・`--ui` と同じ。2026-10-12 オーナー「TUI作りこんでほしいです。Btopみたいに」。 | `laps/term/config.py:362` | 1 |
 | `LAPS_WAVE` | (未設定→設定ファイルの wave か None) | 端末の波エフェクトの出し方。語彙外の値は警告つきで無視。優先順位: 環境変数 > 設定ファイル `wave` > 呼び手既定（`--calm`/NO_COLOR）。 | `laps/term/config.py:222` | 3 |

@@ -1888,4 +1888,16 @@ class Agent:
                       "read_tokens": tot["read_tokens"], "read_ms": int(tot["read_ms"]), "cached_tokens": tot["cached_tokens"]},
             "tool_calls": dict(self.tool_counts), "counters": c,
             **({"children": list(self.children)} if self.children else {}),
+            **self._ctx_fields(),
         }
+
+    def _ctx_fields(self) -> dict:
+        """走行の終わりのコンテキストの長さ（2026-11-27 オーナー「実際のコンテキストの数値とあってない可能性あり」）。
+        手番の頭（iter_start）だけで送ると、最後の手番の分が画面の輪に入らないまま止まっていた。"""
+        try:
+            n = int(self.n_ctx() or 0)
+        except Exception:  # noqa: BLE001 — 窓が分からなくても done は出す
+            n = 0
+        if not (n and self.last_tokens):
+            return {}
+        return {"ctx": int(self.last_tokens), "n_ctx": n, "compact_at": compact.ring_at(n, self.llm)}

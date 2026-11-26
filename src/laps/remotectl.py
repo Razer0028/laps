@@ -371,6 +371,28 @@ def _shot_kind(head: bytes) -> str:
     return ""
 
 
+def _in_session_workspace(gw, a: dict, p: Path) -> bool:
+    """p が名指した会話（a["session"]）の作業フォルダの中か（2026-11-27 オーナー「リモートセッションの場合モデルが提示した
+    画像ファイルとかが見えない」）。モデルが答えに `![](作業フォルダ/out.png)` と書いた画像を、別の端末でも見られるように。
+    ★会話の meta.json の workspace だけを根にする（任意のパスは読ませない）。画像かどうかは呼び手が中身の先頭で確かめる。"""
+    from .session import is_valid_session_id
+    sid = str(a.get("session") or "")
+    if not sid or not is_valid_session_id(sid):
+        return False
+    try:
+        ws = str(json.loads((Path(gw.home) / "sessions" / sid / "meta.json").read_text(encoding="utf-8")).get("workspace") or "")
+        root = Path(ws).resolve(strict=True) if ws else None
+    except (OSError, ValueError, RuntimeError):
+        return False
+    if root is None or not root.is_dir() or root == Path(root.anchor):
+        return False                         # 作業フォルダがドライブの根なら認めない（広すぎる）
+    try:
+        p.relative_to(root)
+    except ValueError:
+        return False
+    return True
+
+
 def shot_get(gw, a: dict) -> dict:
     """会話の写真を返す（2026-11-24 オーナー「Android の方も…モデルがチャット欄に画像を表示する機能をより優れたものに」）。
 
@@ -392,8 +414,8 @@ def shot_get(gw, a: dict) -> dict:
         p = Path(raw).resolve(strict=True)
     except (OSError, RuntimeError):
         raise CtlError("not_found", "写真が見つかりません（消されたか、別の機械の会話です）") from None
-    if p.parent.name != "shots" or p.parent.parent.parent != base:
-        raise CtlError("denied", "読めるのは会話の写真（shots）だけです")
+    if not (p.parent.name == "shots" and p.parent.parent.parent == base) and not _in_session_workspace(gw, a, p):
+        raise CtlError("denied", "読めるのは会話の写真（shots）と、その会話の作業フォルダの中の画像だけです")
     mime = _SHOT_MIME.get(p.suffix.lower())
     if not mime:
         raise CtlError("denied", "写真ではありません")

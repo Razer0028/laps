@@ -1241,8 +1241,9 @@ function mdImage(alt, src) {
   fig.appendChild(img);
   if (alt) { const c = document.createElement("span"); c.className = "md-img__cap"; c.textContent = alt; fig.appendChild(c); }
   const hit = shotCache.get(src);
+  const c = state.cur;                     // 描いている会話（答えは開いている会話に描く）
   if (hit) img.src = hit;
-  else invoke("shot_data", { path: src }).then((url) => { shotCache.set(src, url); img.src = url; }).catch(fallback);
+  else fetchShot(src, c).then((url) => { if (shotKeep(src, c)) shotCache.set(src, url); img.src = url; }).catch(fallback);
   return fig;
 }
 
@@ -2973,11 +2974,34 @@ function stepPhrase(name, args) {
 /* 撮った写真の見本（summary.shot・本体が会話のフォルダの shots/ に置いた物）を行に小さく出す。読むのは Rust の shot_data だけ
  * （アプリの根の下の shots/ しか読まない）。押すと行の幅いっぱいに広げ、もう一度で戻す。ウェブ版には無い（paintTool は有無を見る）。 */
 const shotCache = new Map();
+/* ★ほかの機械の会話の画像（2026-11-27 オーナー「リモートセッションの場合モデルが提示した画像ファイルとかが見えない」）。
+ *   向こうの機械の上のパスなので、この PC の shot_data では読めない。中継越しに向こうの shot.get で取り寄せる（shot_remote）。
+ *   向こうが返すのは会話の shots/ と、その会話の作業フォルダの中の画像だけ。 */
+function shotConvo(img) {
+  try {
+    if (img?.isConnected && typeof panes !== "undefined") {
+      const k = panes.list.findIndex((p) => p.el.contains(img));
+      if (k >= 0) return k === panes.focus ? state.cur : panes.list[k].convo;
+    }
+  } catch { /* 分割表示が無い画面（ウェブ版）でも動く */ }
+  return state.cur;
+}
+const SHOTS_DIR = /[\\/]sessions[\\/][^\\/]+[\\/]shots[\\/][^\\/]+$/;
+function fetchShot(path, c) {
+  const r = c?.remote;
+  if (r?.device) return invoke("shot_remote", { device: String(r.device), session: String(r.sid || c.session || ""), path });
+  return invoke("shot_data", { path });
+}
+/* 控えてよいか（会話の写真は uuid の名前で上書きされない・作業フォルダの画像は同じ名前で書き直されうる） */
+function shotKeep(path, c) { return !c?.remote || SHOTS_DIR.test(path); }
+
 function loadShot(img, path, onFail) {
   if (!TAURI || !path) return;
+  const c = shotConvo(img);
   const hit = shotCache.get(path);
   if (hit) { img.src = hit; return; }
-  invoke("shot_data", { path }).then((url) => {
+  fetchShot(path, c).then((url) => {
+    if (!shotKeep(path, c)) { if (img.dataset.path === path) img.src = url; return; }
     if (shotCache.size > 200) shotCache.delete(shotCache.keys().next().value);
     shotCache.set(path, url);
     if (img.dataset.path === path) img.src = url;
@@ -4366,7 +4390,7 @@ async function ask(q, useTools = false, live = null, toolset = null, run = null)
     listen("chat-heartbeat", (ev) => { if (mine(ev)) live?.heartbeat(ev.payload || {}); }),
     listen("chat-stat", (ev) => { if (mine(ev)) live?.stat(ev.payload); }),
     // 走行が終われば問いも終わっている（本体の古い版は ask_closed を出さない）。箱を残さない。
-    listen("chat-done", (ev) => { if (!mine(ev)) return; closeAsk(null, lane); resolveDone(ev.payload || null); }),
+    listen("chat-done", (ev) => { if (!mine(ev)) return; closeAsk(null, lane); noteCtx(convo, ev.payload); resolveDone(ev.payload || null); }),
     listen("chat-error", (ev) => { if (mine(ev)) rejectDone(new Error(ev.payload.message)); }),
   ]);
   const msgs = [{ role: "system", content: sys }, ...hist, { role: "user", content: q }];
@@ -6908,6 +6932,84 @@ function unparkRun(r) {
   return true;
 }
 
+/* ★長い会話は最後の数十件だけ描く（2026-11-27 オーナー「長期タスクだと画面がだんだん重くなってくるかも」・Claude アプリの
+ *   「会話の動的表示（仮想化）」に倣う）。上の端に「以前のメッセージ」を置き、押すか上端までスクロールすると前の分を足す。
+ *   描いた位置は保つ（足した高さだけ scrollTop を進める）。 */
+const HISTORY_WINDOW = 40;
+function renderSavedMsg(m) {
+    if (m.role === "user") { addUser(m.text, false, m); return; }
+    const live = beginLive({ model: m.model || "" });
+    // ★失敗として保存したものは、復元でも**失敗の顔**で出す。
+    //   ここを分けないと、履歴を開き直した瞬間にモデルの答えに戻ってしまう
+    //   （保存側だけ直しても、読み出し側が元に戻す＝直っていない）。
+    if (m.role === "error") {
+      live.finish(m.text, [], false, { failed: true, think: m.think || "" });
+      return;
+    }
+    // 復元では裏付けを取り直さない（保存してある分を finish 側で登録する）。
+    const tools = m.tools || [];
+    const asEvent = (t) => ({ ...t, phase: t.done === false ? "start" : "end" });
+    live.beginRestore(m.turns);
+    if (Array.isArray(m.parts) && m.parts.length) {
+      // ★推論中と同じ並び（線 → 本文 → 線…）で描き直す。
+      let k = 0;
+      m.parts.forEach((p) => {
+        if (p.t === "tools") {
+          for (let i = 0; i < (p.n || 0) && k < tools.length; i++, k++) live.tool(asEvent(tools[k]), false);
+        } else if (p.t === "text" && p.text) {
+          live.answer(p.text);
+        } else if (p.t === "inject" && p.text) {
+          live.injected(p.text);
+        }
+      });
+      for (; k < tools.length; k++) live.tool(asEvent(tools[k]), false);   // 数え違いがあっても道具は落とさない
+    } else {
+      tools.forEach((t) => live.tool(asEvent(t), false));
+    }
+    live.finish(m.text, m.evidence || [], false, { think: m.think || "", stats: m.stats || null, plan: !!m.plan });
+}
+function renderMsgRange(c, from, to) {
+  THREAD_RESTORE = true;
+  try { (c.msgs || []).slice(from, to).forEach(renderSavedMsg); } finally { THREAD_RESTORE = false; }
+}
+function renderHistoryWindow(c, th) {
+  const msgs = c.msgs || [];
+  let start = Math.max(0, msgs.length - HISTORY_WINDOW);
+  // ユーザーの発言の位置から始める（応答だけが先頭に浮かないように）
+  while (start > 0 && msgs[start]?.role !== "user") start--;
+  renderMsgRange(c, start, msgs.length);
+  if (!th || start <= 0) return;
+  const more = document.createElement("button");
+  more.type = "button";
+  more.className = "history-more";
+  const paintMore = () => { more.textContent = `以前のメッセージを表示（${start} 件）`; };
+  paintMore();
+  th.insertBefore(more, th.firstChild);
+  const loadMore = () => {
+    if (start <= 0 || !more.isConnected) return;
+    let from = Math.max(0, start - HISTORY_WINDOW);
+    while (from > 0 && msgs[from]?.role !== "user") from--;
+    const before = th.lastChild, h0 = th.scrollHeight, top0 = th.scrollTop;
+    renderMsgRange(c, from, start);
+    // 足した物（末尾に付いた）を「以前のメッセージ」の直後へ移す
+    const added = [];
+    for (let n = before?.nextSibling; n; n = n.nextSibling) added.push(n);
+    const frag = document.createDocumentFragment();
+    added.forEach((n) => frag.appendChild(n));
+    th.insertBefore(frag, more.nextSibling);
+    start = from;
+    if (start <= 0) { more.remove(); th.removeEventListener("scroll", onScroll); }
+    else paintMore();
+    th.scrollTop = top0 + (th.scrollHeight - h0);
+  };
+  const onScroll = () => {
+    if (!more.isConnected) { th.removeEventListener("scroll", onScroll); return; }   // 別の会話に描き替えられた
+    if (th.scrollTop < 80) loadMore();
+  };
+  more.addEventListener("click", loadMore);
+  th.addEventListener("scroll", onScroll, { passive: true });
+}
+
 function openConvo(c) {
   syncModeToConvo(c);                      // ★Chat の会話なら Chat に、作業の会話なら作業のモードに（2026-11-23）
   if (c?.unread) { delete c.unread; saveConvos(c); }   // 開いたら既読（一覧の「⋯」→ 未読にする の逆）
@@ -6940,43 +7042,7 @@ function openConvo(c) {
   renderEvidence();
   filesReset();
   const th = $("#thread"); if (th) th.innerHTML = "";
-  THREAD_RESTORE = true;
-  try {
-  (c.msgs || []).forEach((m) => {
-    if (m.role === "user") { addUser(m.text, false, m); return; }
-    const live = beginLive({ model: m.model || "" });
-    // ★失敗として保存したものは、復元でも**失敗の顔**で出す。
-    //   ここを分けないと、履歴を開き直した瞬間にモデルの答えに戻ってしまう
-    //   （保存側だけ直しても、読み出し側が元に戻す＝直っていない）。
-    if (m.role === "error") {
-      live.finish(m.text, [], false, { failed: true, think: m.think || "" });
-      return;
-    }
-    // 復元では裏付けを取り直さない（保存してある分を finish 側で登録する）。
-    const tools = m.tools || [];
-    const asEvent = (t) => ({ ...t, phase: t.done === false ? "start" : "end" });
-    live.beginRestore(m.turns);
-    if (Array.isArray(m.parts) && m.parts.length) {
-      // ★推論中と同じ並び（線 → 本文 → 線…）で描き直す。
-      let k = 0;
-      m.parts.forEach((p) => {
-        if (p.t === "tools") {
-          for (let i = 0; i < (p.n || 0) && k < tools.length; i++, k++) live.tool(asEvent(tools[k]), false);
-        } else if (p.t === "text" && p.text) {
-          live.answer(p.text);
-        } else if (p.t === "inject" && p.text) {
-          live.injected(p.text);
-        }
-      });
-      for (; k < tools.length; k++) live.tool(asEvent(tools[k]), false);   // 数え違いがあっても道具は落とさない
-    } else {
-      tools.forEach((t) => live.tool(asEvent(t), false));
-    }
-    live.finish(m.text, m.evidence || [], false, { think: m.think || "", stats: m.stats || null, plan: !!m.plan });
-  });
-  } finally {
-    THREAD_RESTORE = false;
-  }
+  renderHistoryWindow(c, th);
   if (th) th.scrollTop = th.scrollHeight;        // 開いたら一番下（最後のやりとり）から
   if (!(c.msgs || []).length && th && HELLO) { th.appendChild(HELLO.cloneNode(true)); bindHelloCards(); }
   renderConvos();
@@ -7393,18 +7459,64 @@ function noteCtx(c, p) {
   c.ctxUse = { ctx: len, n_ctx: n, compact_at: at };
   if (c === state.cur) paintCtxRing();
 }
+/* ★2026-11-27 オーナー「表示おかしいかも」「実際のコンテキストの数値とあってない可能性あり」「サークルの進捗度が」。
+ *   前は輪を「自動圧縮の位置（境目の要約は 10 万）」までの割合で描き、札は窓（26.2 万）を分母に出していた＝149K/262K なのに輪は満杯・
+ *   「自動圧縮まで 0%」。Claude アプリと同じく輪は窓の使用量にし、押すと数字と自動圧縮の位置を出す。 */
+const kTok = (v) => `${Math.round(v / 1000).toLocaleString()}K`;
+function ctxInfo() {
+  const u = state.cur?.ctxUse;
+  const win = u ? (u.n_ctx || u.compact_at) : 0;
+  if (!u || !u.ctx || !win) return null;
+  const at = u.compact_at || 0;
+  return { ctx: u.ctx, win, at, f: Math.min(1, u.ctx / win), due: !!at && u.ctx >= at };
+}
 function paintCtxRing() {
   const el = $("#ctx-ring"); if (!el) return;
-  const u = state.cur?.ctxUse, cap = u ? (u.compact_at || u.n_ctx) : 0;
-  if (!u || !u.ctx || !cap) { el.hidden = true; return; }
-  const f = Math.min(1, u.ctx / cap);
-  el.querySelector(".ctxring__fg")?.setAttribute("stroke-dasharray", `${(f * 100).toFixed(1)} 100`);
-  el.dataset.level = f >= 0.9 ? "high" : f >= 0.7 ? "mid" : "";
-  const k = (v) => `${Math.round(v / 1000).toLocaleString()}K`;
-  const t = `コンテキスト ${k(u.ctx)} / ${k(u.n_ctx || cap)}（自動圧縮まで ${Math.max(0, 100 - Math.round(f * 100))}%）`;
-  el.title = t; el.setAttribute("aria-label", t);
+  const i = ctxInfo();
+  if (!i) { el.hidden = true; closeCtxPop(); return; }
+  el.querySelector(".ctxring__fg")?.setAttribute("stroke-dasharray", `${(i.f * 100).toFixed(1)} 100`);
+  el.dataset.level = i.due || i.f >= 0.9 ? "high" : (i.at && i.ctx >= i.at * 0.8) || i.f >= 0.7 ? "mid" : "";
+  const t = `コンテキスト ${kTok(i.ctx)} / ${kTok(i.win)}（${Math.round(i.f * 100)}%）`;
+  el.title = t; el.setAttribute("aria-label", t + "・押すと詳しく");
   el.hidden = false;
+  if (ctxPop && !ctxPop.hidden) fillCtxPop();
 }
+let ctxPop = null;
+function fillCtxPop() {
+  const i = ctxInfo(); if (!i || !ctxPop) return;
+  ctxPop.dataset.level = $("#ctx-ring")?.dataset.level || "";
+  const note = !i.at ? "" : i.due
+    ? `${kTok(i.at)} を超えました。次の依頼を送ると、その前に会話を自動で要約して短くします（作業の途中では要約しません）。`
+    : `あと ${kTok(i.at - i.ctx)} で自動圧縮の位置（${kTok(i.at)}）です。超えると、次の依頼の前に会話を要約します。`;
+  ctxPop.innerHTML = `<div class="ctxpop__h">コンテキスト</div>
+    <div class="ctxpop__row"><span>使用中</span><span>${kTok(i.ctx)} / ${kTok(i.win)}（${Math.round(i.f * 100)}%）</span></div>
+    <div class="ctxpop__bar"><div class="ctxpop__fill" style="width:${(i.f * 100).toFixed(1)}%"></div>${i.at && i.at < i.win
+      ? `<div class="ctxpop__mark" style="left:${(Math.min(1, i.at / i.win) * 100).toFixed(1)}%" title="自動圧縮の位置 ${kTok(i.at)}"></div>` : ""}</div>
+    <div class="ctxpop__note">${esc(note)}<br>数字は直前のターンで推論サーバーに渡した長さです。</div>`;
+}
+function closeCtxPop() {
+  if (!ctxPop || ctxPop.hidden) return;
+  ctxPop.hidden = true;
+  $("#ctx-ring")?.setAttribute("aria-expanded", "false");
+}
+function toggleCtxPop() {
+  const ring = $("#ctx-ring"); if (!ring) return;
+  if (ctxPop && !ctxPop.hidden) { closeCtxPop(); return; }
+  if (!ctxPop) {
+    ctxPop = document.createElement("div");
+    ctxPop.className = "ctxpop"; ctxPop.setAttribute("role", "dialog"); ctxPop.setAttribute("aria-label", "コンテキスト");
+    document.body.appendChild(ctxPop);
+    document.addEventListener("pointerdown", (e) => { if (!ctxPop.hidden && !ctxPop.contains(e.target) && !$("#ctx-ring")?.contains(e.target)) closeCtxPop(); }, true);
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !ctxPop.hidden) { closeCtxPop(); $("#ctx-ring")?.focus(); } });
+  }
+  fillCtxPop();
+  ctxPop.hidden = false;
+  const r = ring.getBoundingClientRect(), w = ctxPop.offsetWidth, h = ctxPop.offsetHeight;
+  ctxPop.style.left = `${Math.max(8, Math.min(window.innerWidth - w - 8, r.right - w))}px`;
+  ctxPop.style.top = `${Math.max(8, r.top - h - 8)}px`;
+  ring.setAttribute("aria-expanded", "true");
+}
+$("#ctx-ring")?.addEventListener("click", toggleCtxPop);
 function convModelLabel(c) {
   try { return c?.remote ? c.remote.name : engineLabel(convEngine(c)); } catch { return ""; }
 }

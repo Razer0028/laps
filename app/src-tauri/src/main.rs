@@ -807,6 +807,7 @@ fn main() {
             filepreview::file_reveal,
             filepreview::file_open,
             filepreview::shot_data,
+            filepreview::shot_remote,
             filepreview::viewer_open,
             filepreview::viewer_pending,
             browser::browser_show,

@@ -218,9 +218,10 @@
             <div class="composer__actions">
               <!-- ★文脈の残量（2026-11-10 オーナー「コンテキスト残量がわかるようなやつが欲しい」）。手番ごとに本体が送る使用量を、
                    自動の要約が始まる所までの割合で輪にする。数字は title（触れると出る）。使用量を知らない会話では出さない。 -->
-              <span class="ctxring" id="ctx-ring" role="img" hidden>
+              <!-- ★2026-11-27 オーナー「サークルの進捗度が」実際と合わない → 輪は窓の使用量（Claude アプリと同じ）・押すと詳しい数字 -->
+              <button class="ctxring" id="ctx-ring" type="button" aria-haspopup="dialog" aria-expanded="false" hidden>
                 <svg viewBox="0 0 16 16" aria-hidden="true"><circle class="ctxring__bg" cx="8" cy="8" r="6"/><circle class="ctxring__fg" cx="8" cy="8" r="6" pathLength="100" stroke-dasharray="0 100" transform="rotate(-90 8 8)"/></svg>
-              </span>
+              </button>
               <!-- ★音声入力（2026-10-09 オーナー「音声入力の仕組みも欲しい」）。押して話し、もう一度押すと文字になって入力欄に入る。 -->
               <span class="mic__time num" id="mic-time" hidden></span>
               <button class="iconbtn mic" id="mic" type="button" aria-label="音声入力" aria-pressed="false"

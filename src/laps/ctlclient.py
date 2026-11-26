@@ -222,3 +222,56 @@ def call(device_id: str, op: str, args: dict, timeout: float = 120.0) -> dict:
         except OSError:
             pass
         sock.close()
+
+
+def fetch_shot(device: str, path: str, session: str = "", timeout: float = 60.0) -> tuple[str, bytes]:
+    """向こうの機械の会話の画像を取り寄せる（remotectl.shot_get を欠片ごとに・2026-11-27 オーナー「リモートセッションの場合
+    モデルが提示した画像ファイルとかが見えない」）。(mime, 中身) を返す。device は名札（id）か機械の名前。"""
+    row = resolve(device)
+    did = str(row.get("id") or device)
+    buf = bytearray()
+    offset, size, mime = 0, -1, ""
+    for _ in range(12):                      # 2MB × 12（上限 12MB は機械の側の SHOT_MAX）
+        args = {"path": path, "offset": offset}
+        if session:
+            args["session"] = session
+        r = call(did, "shot.get", args, timeout=timeout)
+        if not r.get("ok"):
+            raise CtlClientError(str(r.get("message") or r.get("error") or "画像を取得できませんでした"))
+        o = r.get("result") or {}
+        if int(o.get("offset", -1)) != offset:
+            raise CtlClientError("マシンの応答の形式が正しくありません")
+        total = int(o.get("size", -1))
+        if size >= 0 and total != size:
+            raise CtlClientError("取得の途中で画像が変わりました")
+        size, mime = total, str(o.get("mime") or mime)
+        part = base64.b64decode(o.get("data") or "")
+        buf += part
+        offset += len(part)
+        if o.get("done") or offset >= total:
+            if offset != total:
+                raise CtlClientError("画像が途中で切れました")
+            return mime or "application/octet-stream", bytes(buf)
+        if not part:
+            raise CtlClientError("画像が途中で切れました")
+    raise CtlClientError("画像が大きすぎます")
+
+
+def main(argv: list[str] | None = None) -> int:
+    """`python -m laps.ctlclient shot <機械> <会話> <パス>` → 標準出力に data: URL を 1 行（デスクトップのアプリが使う）。"""
+    import sys
+    a = list(sys.argv[1:] if argv is None else argv)
+    if len(a) == 4 and a[0] == "shot":
+        try:
+            mime, data = fetch_shot(a[1], a[3], a[2])
+        except (CtlClientError, OSError, ValueError) as e:
+            print(f"error: {e}", file=sys.stderr)
+            return 1
+        print(f"data:{mime};base64,{base64.b64encode(data).decode('ascii')}")
+        return 0
+    print("usage: python -m laps.ctlclient shot <machine> <session> <path>", file=sys.stderr)
+    return 2
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

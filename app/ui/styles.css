@@ -319,6 +319,10 @@ body.no-drawer #split-add{ visibility:hidden; }
 /* ★2026-11-21 12px → 36px: 吹き出しの下に出す操作（Copy・Edit・Retry・.msg__acts は top:100%・高さ 26px）が切れて見えず、
    触れると説明だけ出ていた（オーナーの画面）。0.1.710 の計画の「実行」ボタンが切れたのも同じ原因。縁の外に出す物を足すときは、この余白に収める。 */
 .thread.is-capturing > .msg{ content-visibility:visible; }
+/* 長い会話の上端「以前のメッセージを表示」（2026-11-27） */
+.history-more{ display:block; margin:8px auto 16px; padding:6px 14px; border:1px solid var(--line-2);
+  border-radius:999px; background:transparent; color:var(--text-2); font:inherit; font-size:12.5px; cursor:pointer; }
+.history-more:hover{ background:var(--bg-3); color:var(--text); }
 .msg--user{ display:flex; justify-content:flex-end; }
 .msg--user .bubble{
   background:var(--bg-3); border:1px solid var(--line); border-radius:var(--r-lg);
@@ -1664,7 +1668,21 @@ body.viewer{ background:var(--bg); color:var(--text); margin:0; min-height:100vh
 
 /* ── 会話ごとのモデル（2026-10-30）: 入力欄の右の札と、上に開く選び（Claude のアプリと同じ置き場）。 */
 /* 文脈の残量の輪（2026-11-10）。灰の輪＝自動の要約が始まる所まで、塗り＝いま使っている分。7 割で文字色、9 割で赤。 */
-.ctxring{ display:inline-flex; align-items:center; justify-content:center; width:24px; height:30px; flex:0 0 auto; cursor:default; }
+.ctxring{ appearance:none; border:0; background:transparent; padding:0; border-radius:var(--r);
+  display:inline-flex; align-items:center; justify-content:center; width:24px; height:30px; flex:0 0 auto; cursor:pointer; }
+.ctxring:hover{ background:var(--bg-3); }
+/* 輪を押すと出る詳しい数字（2026-11-27・Claude アプリの使用量の札に倣う） */
+.ctxpop{ position:fixed; z-index:60; width:300px; padding:12px 14px; border:1px solid var(--line-2); border-radius:10px;
+  background:var(--bg-2); color:var(--text); box-shadow:0 8px 24px rgba(0,0,0,.35); font-size:12.5px; }
+.ctxpop[hidden]{ display:none; }
+.ctxpop__h{ color:var(--text-2); margin-bottom:8px; }
+.ctxpop__row{ display:flex; justify-content:space-between; gap:12px; margin-bottom:6px; font-variant-numeric:tabular-nums; }
+.ctxpop__bar{ position:relative; height:6px; border-radius:3px; background:var(--line-2); overflow:visible; margin:2px 0 8px; }
+.ctxpop__fill{ position:absolute; left:0; top:0; bottom:0; border-radius:3px; background:var(--text-2); }
+.ctxpop[data-level="mid"] .ctxpop__fill{ background:var(--text); }
+.ctxpop[data-level="high"] .ctxpop__fill{ background:var(--red); }
+.ctxpop__mark{ position:absolute; top:-3px; bottom:-3px; width:2px; background:var(--text); opacity:.6; }
+.ctxpop__note{ color:var(--text-2); line-height:1.6; }
 .ctxring[hidden]{ display:none; }          /* ★display を指定したので hidden 属性だけでは消えない */
 .ctxring svg{ width:16px; height:16px; }
 .ctxring__bg{ fill:none; stroke:var(--line-2); stroke-width:2; }

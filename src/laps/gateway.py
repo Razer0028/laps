@@ -132,6 +132,51 @@ def _tail_summary(ev: Path, size: int) -> dict:
     return {}
 
 
+
+# 続けて来る思考と本文の 1 字ずつ（type "think"／"token"）を、1 つの行にまとめる（2026-11-27 オーナー「長期タスクのセッションを
+# リモートのデバイスから開くと最初からロードされるからめちゃくちゃ重くなる（クラッシュもする）」）。
+# ★長い走行の live.ndjson（3.1MB・34,513 行）の 99.5% が think の 1 字ずつだった。開いた端末は 1 行ずつ描き直していた。
+#   読み手は text を足していくだけなので、同じ依頼（id）・同じ手番（iter）の続きの行を 1 つにしても画面は同じ。seq は最後の行の物。
+_STREAM_TYPES = ("think", "token")
+
+
+def coalesce_stream(lines: list[str]) -> list[str]:
+    out: list[str] = []
+    acc: dict | None = None
+    parts: list[str] = []
+
+    def flush() -> None:
+        nonlocal acc, parts
+        if acc is not None:
+            acc["text"] = "".join(parts)
+            if acc.get("seq_from") == acc.get("seq"):
+                acc.pop("seq_from", None)        # まとめなかった行は元の形のまま
+            out.append(json.dumps(acc, ensure_ascii=False))
+        acc, parts = None, []
+
+    for line in lines:
+        try:
+            obj = json.loads(line)
+        except ValueError:
+            obj = None
+        if isinstance(obj, dict) and obj.get("type") in _STREAM_TYPES and isinstance(obj.get("text"), str):
+            key = (obj.get("type"), obj.get("id"), obj.get("iter"))
+            if acc is not None and (acc.get("type"), acc.get("id"), acc.get("iter")) == key:
+                parts.append(obj["text"])
+                for k in ("seq", "ts"):
+                    if k in obj:
+                        acc[k] = obj[k]
+                continue
+            flush()
+            acc, parts = dict(obj), [obj["text"]]
+            if "seq" in obj:
+                acc["seq_from"] = obj["seq"]     # まとめた最初の seq（読み手が欠けと数えないように）
+            continue
+        flush()
+        out.append(line)
+    flush()
+    return out
+
 class GatewayBusy(Exception):
     """同時に動かせる session の数の上限に達している。"""
 
@@ -668,6 +713,7 @@ class Gateway:
                 cut = chunk.rfind(b"\n")
                 if cut >= 0:
                     pos += cut + 1
+                    lines = []
                     for raw in chunk[:cut].split(b"\n"):
                         if not raw.strip():
                             continue
@@ -675,8 +721,10 @@ class Gateway:
                         sq = Session.seq_of(line)
                         if sq and sq <= sent:
                             continue
+                        lines.append(line)
+                    for line in coalesce_stream(lines):
                         await connection.send(line)
-                        sent = max(sent, sq)
+                        sent = max(sent, Session.seq_of(line))
                 await asyncio.sleep(0.15)
         except Exception as e:  # noqa: BLE001 — 切断など
             _log(f"follow {sid}: {type(e).__name__}: {e}")

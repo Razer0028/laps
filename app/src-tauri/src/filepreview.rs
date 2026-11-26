@@ -302,6 +302,28 @@ pub async fn shot_data(path: String) -> Result<String, String> {
         .map_err(|e| e.to_string())?
 }
 
+/// ほかの機械の会話の画像を中継越しに取り寄せる（2026-11-27 オーナー「リモートセッションの場合モデルが提示した画像ファイルとかが
+/// 見えない」）。向こうのゲートウェイの shot.get が、会話の shots/ と、その会話の作業フォルダの中の画像だけを返す（決めるのは向こう）。
+/// 返り値は data: URL（shot_data と同じ形）。
+#[tauri::command]
+pub async fn shot_remote(device: String, session: String, path: String) -> Result<String, String> {
+    if device.trim().is_empty() || path.trim().is_empty() {
+        return Err("マシンかパスが空です".into());
+    }
+    let Some(relay) = crate::config_value("remote_relay") else {
+        return Err("中継サーバー（remote_relay）が設定されていません".into());
+    };
+    let (code, out, err) = crate::sidecar::run_python_module(
+        "laps.ctlclient", &["shot", device.trim(), session.trim(), path.trim()],
+        &[("LAPS_RELAY_URL", relay)], 90).await?;
+    let url = out.trim();
+    if code == 0 && url.starts_with("data:image/") {
+        return Ok(url.to_string());
+    }
+    let msg = err.lines().rev().find(|l| !l.trim().is_empty()).unwrap_or("").trim_start_matches("error: ").to_string();
+    Err(if msg.is_empty() { "画像を取得できませんでした".into() } else { msg })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -126,7 +126,7 @@ dependencies = [
 
 [[package]]
 name = "blackwall-console"
-version = "0.1.744"
+version = "0.1.745"
 dependencies = [
  "base64 0.22.1",
  "flate2",

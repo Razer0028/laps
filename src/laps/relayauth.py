@@ -409,12 +409,15 @@ def _clip(value, limit: int = HISTORY_TEXT_MAX):
     return value
 
 
-def history(device: str, sid: str, relay: str | None = None) -> list[dict]:
-    """ほかの機械の会話の中身（走行ごと）。形は Rust の session_recover_run と同じ＝画面の組み立てをそのまま使える。"""
+def history(device: str, sid: str, relay: str | None = None, since_seq: int = 0, out_seq: list | None = None) -> list[dict]:
+    """ほかの機械の会話の中身（走行ごと）。形は Rust の session_recover_run と同じ＝画面の組み立てをそのまま使える。
+    ★since_seq（2026-11-27 オーナー「Claude に寄せて」）: その seq より後だけを読む。続きが前の走行の途中から始まるときは、
+      最初の走行に `cont: True` を付けて返す（画面が控えの最後の走行に足す）。out_seq を渡すと、読んだ最大の seq を入れる。"""
     if not _ID_RE.fullmatch(device) or not _ID_RE.fullmatch(sid):
         raise AuthError("bad_request", "機械か会話の名札の形が違います")
+    q = f"?since_seq={int(since_seq)}" if since_seq and int(since_seq) > 0 else ""
     try:
-        body = http_get_text(f"/d/{quote(device)}/sessions/{quote(sid)}/events", relay=relay, timeout=30.0)
+        body = http_get_text(f"/d/{quote(device)}/sessions/{quote(sid)}/events{q}", relay=relay, timeout=30.0)
     except urllib.error.HTTPError as e:
         if e.code == 401:
             raise AuthError("unauthorized", "サインインし直してください") from None
@@ -425,18 +428,26 @@ def history(device: str, sid: str, relay: str | None = None) -> list[dict]:
         raise AuthError("unreachable", f"中継に届きません（{type(e).__name__}: {e}）") from None
     runs: list[dict] = []
     cur: dict | None = None
+    top = int(since_seq or 0)
     for line in body.splitlines():
         try:
             o = json.loads(line)
         except ValueError:
             continue
         ty, ts, p = o.get("type"), o.get("ts"), o.get("payload") if isinstance(o.get("payload"), dict) else {}
+        try:
+            top = max(top, int(o.get("seq") or 0))
+        except (TypeError, ValueError):
+            pass
         if ty == "run_spec":
             cur = {"prompt": str(p.get("prompt") or ""), "started": ts, "ended": ts, "finished": False, "events": []}
             runs.append(cur)
             continue
         if cur is None:
-            continue
+            if not since_seq:
+                continue
+            cur = {"prompt": "", "started": ts, "ended": ts, "finished": False, "events": [], "cont": True}
+            runs.append(cur)
         if ty == "tool_start":
             ev = {"type": ty, "ts": ts, "name": p.get("name"), "input": _clip(p.get("input")), "call": p.get("call")}
         elif ty == "tool_end":
@@ -451,7 +462,9 @@ def history(device: str, sid: str, relay: str | None = None) -> list[dict]:
             continue
         cur["ended"] = ts
         cur["events"].append(ev)
-    return runs
+    if out_seq is not None:
+        out_seq.append(top)
+    return [r for r in runs if not r.get("cont") or r["events"]]
 
 
 def pair_wait(relay: str | None = None, say=print) -> dict:
@@ -573,7 +586,13 @@ def json_call(req: dict, relay: str | None = None) -> dict:
                     scope=str(req.get("scope") or ""))
             return {"ok": True, "device": r.get("device") or {}}
         if op == "history":
-            return {"ok": True, "runs": history(str(req.get("device") or ""), str(req.get("sid") or ""), relay)}
+            seq: list = []
+            try:
+                since = int(req.get("since_seq") or 0)
+            except (TypeError, ValueError):
+                since = 0
+            runs = history(str(req.get("device") or ""), str(req.get("sid") or ""), relay, since_seq=since, out_seq=seq)
+            return {"ok": True, "runs": runs, "seq": seq[0] if seq else since}
         if op == "conv_delete":                # 中継の写しと一覧から消す（relay 1.8・オーナー 11-11「アプリから消せるように」）
             r = rpc("conv_delete", relay=relay, device=str(req.get("device") or ""), sid=str(req.get("sid") or ""))
             return {"ok": True, "removed": bool(r.get("removed"))}

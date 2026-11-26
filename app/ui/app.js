@@ -5027,11 +5027,14 @@ async function followPeer(c, via = c?.remote) {
   let live_ok = true;
   try {
     // 終わった走行までを記録から描き、走っている走行は依頼だけ置く（進みは写しが頭から流れる）。
-    const r = await authCall({ op: "history", device: via.device, sid: via.sid }).catch(() => null);
+    peerSyncNote(c, true);
+    const r = await peerHistory(via.device, via.sid).catch(() => null).finally(() => peerSyncNote(c, false));
     if (state.cur !== c || runOf(c)) return;
     if (r?.ok && Array.isArray(r.runs) && r.runs.length) {
       if (r.runs[r.runs.length - 1].finished) live_ok = false;      // 開くまでに終わっていた
-      if (c.remote) {
+      if (!r.changed && (c.msgs || []).length) {
+        // 控えから変わっていない＝描き直さない（開いた時の描画のまま）
+      } else if (c.remote) {
         const msgs = [];
         for (const run of r.runs) {
           if (String(run.prompt || "").trim()) msgs.push({ role: "user", text: run.prompt });
@@ -5041,8 +5044,7 @@ async function followPeer(c, via = c?.remote) {
       } else {
         appendMissingRuns(c, r.runs);            // この機械の会話は手元の中身を残し、知らない走行だけ足す
       }
-      saveConvos();
-      openConvo(c);
+      if (r.changed || !(c.msgs || []).length) { saveConvos(); openConvo(c); }
     }
   } finally { c.peerSync = false; }
   if (!live_ok) return;
@@ -5278,11 +5280,47 @@ if (TAURI?.event?.listen) {
 
 /* 向こうの機械の記録から、会話の中身を読み直す（2026-10-31 オーナー「どこからでも見れるように」）。中身は向こうに置いたまま、
  * 開くたびに取る（ここで続けた分も向こうの記録に入っている）。届かないときは目録の最初と最後のまま。走っている間は触らない。 */
+/* ★ほかの機械の会話の記録の控え（2026-11-27 オーナー「Claude に寄せて」）。Claude アプリはリモートのセッションを開くと手元の控えを
+ *   先に描き、「最新の状態に更新しています…」を出して差分だけ取りに行く。ここでも、2 回目からは中継に since_seq（控えの最大の seq）を
+ *   渡して続きだけを読み、控えの走行に足す。控えはアプリが動いている間だけ（会話の保存には入れない）。 */
+const peerRunCache = new Map();
+async function peerHistory(device, sid) {
+  const key = `${device}|${sid}`;
+  const cache = peerRunCache.get(key);
+  const r = await authCall({ op: "history", device, sid, since_seq: cache?.seq || 0 }).catch(() => null);
+  if (!r?.ok || !Array.isArray(r.runs)) return cache ? { ok: true, runs: cache.runs, changed: false, stale: true } : r;
+  if (!cache) {
+    peerRunCache.set(key, { runs: r.runs, seq: Number(r.seq) || 0 });
+    if (peerRunCache.size > 40) peerRunCache.delete(peerRunCache.keys().next().value);
+    return { ok: true, runs: r.runs, changed: true };
+  }
+  if (!r.runs.length) return { ok: true, runs: cache.runs, changed: false };
+  const runs = cache.runs.slice();
+  for (const run of r.runs) {
+    const last = runs[runs.length - 1];
+    if (run.cont && last) {
+      runs[runs.length - 1] = { ...last, events: last.events.concat(run.events), ended: run.ended || last.ended,
+                                finished: !!(last.finished || run.finished) };
+    } else if (!run.cont) runs.push(run);
+  }
+  peerRunCache.set(key, { runs, seq: Math.max(cache.seq, Number(r.seq) || 0) });
+  return { ok: true, runs, changed: true };
+}
+/* 控えを先に描いたまま取りに行く間の一言（Claude アプリの「最新の状態に更新しています…」と同じ） */
+function peerSyncNote(c, on) {
+  const note = $("#composer-note");
+  if (!note || state.cur !== c) return;
+  if (on && (c.msgs || []).length) note.textContent = "最新の状態に更新しています…";
+  else if (!on && note.textContent === "最新の状態に更新しています…") note.textContent = "";
+}
+
 async function loadPeerHistory(c) {
   if (!c?.remote || runOf(c) || !invoke) return;
   let r = null;
-  try { r = await authCall({ op: "history", device: c.remote.device, sid: c.remote.sid }); } catch { return; }
+  peerSyncNote(c, true);
+  try { r = await peerHistory(c.remote.device, c.remote.sid); } catch { return; } finally { peerSyncNote(c, false); }
   if (!r?.ok || !Array.isArray(r.runs) || !r.runs.length || runOf(c)) return;
+  if (!r.changed && (c.msgs || []).length) return;          // 変わっていない＝描き直さない
   const msgs = [];
   for (const run of r.runs) {
     if (String(run.prompt || "").trim()) msgs.push({ role: "user", text: run.prompt });

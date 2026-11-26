@@ -22,6 +22,16 @@ See `src/laps/engine/THIRD_PARTY.md`. In short: parts of the run loop, the edit 
 and several other pieces were rewritten in Python after reading [Codex CLI](https://github.com/openai/codex)
 (Apache-2.0, Copyright 2025 OpenAI).
 
+## Bundled in the Windows installer (not in this repository)
+
+The installer from the releases page also contains a Python runtime under `pyruntime\`:
+
+| What | License |
+|---|---|
+| CPython 3.12.10 embeddable package (python.org) | PSF License 2.0 — `pyruntime\LICENSE.txt` |
+| Python packages listed in `pyruntime\WHEELS.txt` (httpx, rich, click, websockets, python-docx, python-pptx, openpyxl, reportlab, matplotlib, numpy, pillow, lxml, pypdf, … — name, version, license and SHA-256 of each wheel) | MIT, BSD, Apache-2.0, PSF, MPL-2.0 (certifi) — each package's license file is kept in its `*.dist-info` folder |
+| The Tauri 2 runtime and the Rust crates in `app/src-tauri/Cargo.lock`, compiled into `blackwall-console.exe` | each crate's own license (mostly MIT / Apache-2.0) |
+
 ## Dependencies (installed, not bundled)
 
 Python: httpx, rich, click, prompt_toolkit, textual, tomli (optional: websockets, pillow, beautifulsoup4, pypdf).

@@ -40,6 +40,7 @@
       "icons/icon.ico"
     ],
     "resources": {
+      "../pyruntime": "pyruntime",
       "../chrome-ext/*": "chrome-ext/"
     },
     "windows": {

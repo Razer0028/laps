@@ -23,7 +23,7 @@ This repository is that code with the lab-specific parts taken out.
 | `src/tests/` | Test suite (about 3,600 tests) | Python |
 | `src/docs/` | Environment switches (`env-switches.md`), execution policy modes (`policy-modes.md`), web UI | Markdown |
 | `app/` | Desktop app (Tauri 2: `src-tauri/` in Rust, `ui/` in plain HTML/CSS/JS) | Rust, JS |
-| `scripts/` | Helper to regenerate the line numbers in `src/docs/env-switches.md` | Python |
+| `scripts/` | Building the Windows installer and its bundled Python; regenerating the line numbers in `src/docs/env-switches.md` | Bash + Python |
 
 ## Requirements
 
@@ -79,9 +79,35 @@ export LAPS_PYTHON=/path/to/laps/.venv/bin/python   # a Python that has `laps` i
 npx tauri dev
 ```
 
-The private build shipped a bundled Python runtime and a signed auto-updater; neither is part of this repository.
-Point `LAPS_PYTHON` at your own environment instead. After the clean-up the app was checked with `cargo check`
-only; building installers is left to you.
+### Windows installer
+
+Each [release](https://github.com/Razer0028/laps/releases) has a Windows installer
+(`L.A.P.S Console_<version>_x64-setup.exe`) built from this repository with `scripts/build_windows_installer.sh`.
+It bundles a Python 3.12 runtime with the `laps` core, so nothing else needs to be installed. You still need an
+inference server (see [Requirements](#requirements)); the app can also download llama.cpp and run a model on the
+local NVIDIA GPU (*Models → この PC の GPU*).
+
+- **The installer is not code-signed.** Windows SmartScreen will warn ("Windows protected your PC"); choose
+  *More info → Run anyway* only if the checksum matches. Check it in PowerShell:
+  `Get-FileHash ".\L.A.P.S Console_<version>_x64-setup.exe" -Algorithm SHA256` and compare with `SHA256SUMS.txt`
+  in the release.
+- It installs for the current user only (no administrator rights). WebView2 is installed if it is missing.
+- There is **no auto-updater**. Install a newer release over the old one.
+- Built for Windows 10/11 x64. The UI is mostly Japanese.
+
+### Building the installer yourself
+
+On Linux (Debian/Ubuntu), from the repository root:
+
+```bash
+rustup target add x86_64-pc-windows-gnu
+sudo apt install mingw-w64 nsis curl unzip rsync python3-pip   # and Node.js 18+
+bash scripts/build_windows_installer.sh
+```
+
+`scripts/build_pyruntime.sh` downloads the python.org embeddable package (checked against its SHA-256) and the
+pinned wheels, and writes `app/pyruntime/WHEELS.txt` (name, version, license, SHA-256 of each wheel) and
+`INTEGRITY.json` (used by the app's integrity check).
 
 ## Other entry points
 
@@ -136,5 +162,6 @@ OpenAI 互換の推論機（llama.cpp の llama-server・llama-swap・Ollama・v
 自動更新・Android 版）を外して公開しています。画面・コメント・文書の多くは日本語です。
 
 - 入れ方と使い方は上の Quick start のとおりです。既定の推論機は `http://127.0.0.1:8080/v1` です。
+- Windows 版のインストーラは [Releases](https://github.com/Razer0028/laps/releases) にあります（Python を同梱・管理者権限は不要）。★コード署名は無いので SmartScreen の警告が出ます。`SHA256SUMS.txt` と `Get-FileHash` で照合してから入れてください。自動更新はありません（新しい版を上から入れる）。組み立て方は上の *Building the installer yourself* です。
 - ⚠ 実行の関所の既定は `workspace`（作業フォルダーの中だけ書ける）です。`trusted`（ほぼ何でも走らせる）は使い捨ての VM やコンテナの中だけで使ってください。
 - ライセンスは AGPL-3.0-or-later です。

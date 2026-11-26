@@ -82,14 +82,14 @@ npx tauri dev
 ### Windows installer
 
 Each [release](https://github.com/Razer0028/laps/releases) has a Windows installer
-(`L.A.P.S Console_<version>_x64-setup.exe`) built from this repository with `scripts/build_windows_installer.sh`.
+(`L.A.P.S.Console_<version>_x64-setup.exe`) built from this repository with `scripts/build_windows_installer.sh`.
 It bundles a Python 3.12 runtime with the `laps` core, so nothing else needs to be installed. You still need an
 inference server (see [Requirements](#requirements)); the app can also download llama.cpp and run a model on the
 local NVIDIA GPU (*Models → この PC の GPU*).
 
 - **The installer is not code-signed.** Windows SmartScreen will warn ("Windows protected your PC"); choose
   *More info → Run anyway* only if the checksum matches. Check it in PowerShell:
-  `Get-FileHash ".\L.A.P.S Console_<version>_x64-setup.exe" -Algorithm SHA256` and compare with `SHA256SUMS.txt`
+  `Get-FileHash ".\L.A.P.S.Console_<version>_x64-setup.exe" -Algorithm SHA256` and compare with `SHA256SUMS.txt`
   in the release.
 - It installs for the current user only (no administrator rights). WebView2 is installed if it is missing.
 - There is **no auto-updater**. Install a newer release over the old one.

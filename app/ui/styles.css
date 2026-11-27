@@ -2504,6 +2504,14 @@ html[data-theme="light"]{ --diff-add-bg:rgba(30,127,58,.10); --diff-add-fg:#1E6B
 .xt__row--dir.is-open .xt__chev::before{ transform:rotate(45deg); left:2px; top:0; }
 .xt__ic{ flex:none; width:15px; height:15px; color:var(--text-3); display:inline-flex; }
 .xt__ic svg{ width:15px; height:15px; fill:none; stroke:currentColor; stroke-width:1.2; stroke-linejoin:round; }
+/* 形式別の色（2026-11-27・explorer.js の paintIcon）。明るい・暗いどちらの面でも読める中ほどの明るさ。字の色とは別 */
+.xt__ic svg{ stroke-linecap:round; }
+.xt__ic[data-c="blue"]{ color:#4C8DD6; }   .xt__ic[data-c="yellow"]{ color:#C49A1F; }
+.xt__ic[data-c="orange"]{ color:#D9773A; } .xt__ic[data-c="green"]{ color:#4A9F64; }
+.xt__ic[data-c="purple"]{ color:#9A6CD0; } .xt__ic[data-c="cyan"]{ color:#2F9FB3; }
+.xt__ic[data-c="red"]{ color:#D05656; }    .xt__ic[data-c="pink"]{ color:#C85E98; }
+.xt__ic[data-c="gray"]{ color:var(--text-3); }
+.xt__ic[data-c="folder"]{ color:var(--text-2); }
 .xt__name{ flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .xt__dot{ flex:none; width:18px; text-align:center; font-size:9px; color:var(--deco-mod); }
 /* 大きさと更新時刻（2026-11-20）。名前を優先し、狭い時は時刻→大きさの順に隠す（詳しくは行の title）。 */

@@ -24,6 +24,86 @@
     newDir: svg('<path d="M2 4.5h4l1.5 1.5H14v6.5H2z"/><path d="M8 7.5v3.5M6.25 9.25h3.5"/>'),
     popout: svg('<path d="M9 2.5h4.5V7M13.5 2.5 8 8M12 9.5v4H2.5V4h4"/>'),
   };
+  /* ★形式別のアイコン（2026-11-27 オーナー「エクスプローラーのファイルアイコンとかを形式別に変えれますか？」→「任せます」）。
+   *   VS Code のアイコンテーマと同じ考え: ファイル名 → 拡張子 → 既定 の順に引く。絵は線の記号（ほかのアイコンと同じ線の太さ）・
+   *   色は種類ごと（data-k → CSS の --xk）。外の絵は取り込まない（ライセンスと容量を増やさない）。 */
+  const KIND_ICON = {
+    code: svg('<path d="M5.5 4.5 2 8l3.5 3.5M10.5 4.5 14 8l-3.5 3.5"/>'),
+    script: svg('<path d="M2.5 3.5h11v9h-11z"/><path d="M4.5 6.5 6.5 8l-2 1.5M8 10h3"/>'),
+    web: svg('<circle cx="8" cy="8" r="5.5"/><path d="M2.5 8h11M8 2.5c1.6 1.6 2.2 3.5 2.2 5.5S9.6 11.9 8 13.5M8 2.5C6.4 4.1 5.8 6 5.8 8s.6 3.9 2.2 5.5"/>'),
+    style: svg('<path d="M3 12.5c1.5 0 2.5-1 2.5-2.2 0-1 .8-1.6 1.6-1.6L13 3l-.2-.2-6 5.8"/><path d="M3 12.5c0-1.5.3-2.6 1.4-3.2"/>'),
+    data: svg('<path d="M6 2.5c-1.6 0-2 .8-2 2v1.6c0 .9-.6 1.6-1.5 1.9.9.3 1.5 1 1.5 1.9v1.6c0 1.2.4 2 2 2M10 2.5c1.6 0 2 .8 2 2v1.6c0 .9.6 1.6 1.5 1.9-.9.3-1.5 1-1.5 1.9v1.6c0 1.2-.4 2-2 2"/>'),
+    config: svg('<circle cx="8" cy="8" r="2"/><path d="M8 1.8v2M8 12.2v2M1.8 8h2M12.2 8h2M3.6 3.6l1.4 1.4M11 11l1.4 1.4M3.6 12.4 5 11M11 5l1.4-1.4"/>'),
+    doc: svg('<path d="M4 2.5h5l3 3v8H4z"/><path d="M6 8h4M6 10.5h4"/>'),
+    md: svg('<path d="M2 4.5h12v7H2z"/><path d="M4 9.5v-3l1.5 1.7L7 6.5v3M10.5 6.5v3M9.2 8.3l1.3 1.2 1.3-1.2"/>'),
+    pdf: svg('<path d="M4 2.5h5l3 3v8H4z"/><path d="M9 2.5v3h3M6 9.5h4"/>'),
+    image: svg('<path d="M2.5 3.5h11v9h-11z"/><path d="M2.5 11 6 7.5l3 3 2-2 2.5 2.5"/><circle cx="10.5" cy="6" r="1"/>'),
+    media: svg('<circle cx="8" cy="8" r="5.5"/><path d="M6.8 5.8 10.5 8l-3.7 2.2z"/>'),
+    table: svg('<path d="M2.5 3.5h11v9h-11zM2.5 6.5h11M2.5 9.5h11M6.5 3.5v9"/>'),
+    archive: svg('<path d="M3.5 2.5h9v11h-9z"/><path d="M8 2.5v1.5M8 5v1.5M8 7.5V9"/><path d="M7 9.5h2v2H7z"/>'),
+    model: svg('<path d="M8 2 13.5 5v6L8 14 2.5 11V5z"/><path d="M2.5 5 8 8l5.5-3M8 8v6"/>'),
+    binary: svg('<path d="M3.5 2.5h9v11h-9z"/><path d="M6 5.5v3M10 5.5v3M6 10.5h.01M10 10.5h.01"/>'),
+    font: svg('<path d="M3.5 13 7.2 3h1.6L12.5 13M5 9.5h6"/>'),
+    key: svg('<circle cx="5.5" cy="10.5" r="3"/><path d="M7.6 8.4 13 3M11 5l1.8 1.8M9.6 6.4l1.4 1.4"/>'),
+    git: svg('<circle cx="5" cy="4" r="1.5"/><circle cx="5" cy="12" r="1.5"/><circle cx="11" cy="6.5" r="1.5"/><path d="M5 5.5v5M11 8c0 2-2.5 2.2-5 3"/>'),
+    lock: svg('<path d="M4 7.5h8v6H4z"/><path d="M5.8 7.5V5.6a2.2 2.2 0 0 1 4.4 0v1.9"/>'),
+    file: ICON.file,
+  };
+  const FOLDER_OPEN = svg('<path d="M2 4.5h4l1.5 1.5H13v1.5"/><path d="M2 12.5V4.5M2 12.5h10.5l2-5H4z"/>');
+  // 拡張子 → [種類, 色]。色は CSS の [data-c] で決める（明るい・暗いどちらの画面でも読める中ほどの明るさ）。
+  const EXT = {};
+  const put = (kind, color, list) => list.split(" ").forEach((x) => { EXT[x] = [kind, color]; });
+  put("code", "blue", "py pyi pyw ts tsx mts cts c h cpp cc cxx hpp hh cs");
+  put("code", "yellow", "js mjs cjs jsx");
+  put("code", "orange", "rs swift scala");
+  put("code", "cyan", "go dart");
+  put("code", "red", "rb java kt kts erl ex exs");
+  put("code", "purple", "php hs ml lua r jl zig nim gd gdscript");
+  put("script", "green", "sh bash zsh fish ps1 psm1 bat cmd");
+  put("web", "orange", "html htm xhtml vue svelte astro");
+  put("style", "purple", "css scss sass less styl");
+  put("data", "yellow", "json jsonc json5 jsonl ndjson");
+  put("data", "purple", "yaml yml toml xml plist proto graphql gql sql");
+  put("config", "gray", "ini cfg conf env properties editorconfig service timer socket desktop");
+  put("doc", "gray", "txt text log rst adoc org tex");
+  put("md", "blue", "md markdown mdx");
+  put("pdf", "red", "pdf");
+  put("doc", "blue", "doc docx odt rtf");
+  put("image", "purple", "png jpg jpeg gif webp bmp ico svg avif tif tiff psd heic");
+  put("media", "pink", "mp3 wav ogg flac m4a aac opus mp4 mkv mov webm avi");
+  put("table", "green", "csv tsv xls xlsx ods");
+  put("archive", "orange", "zip 7z tar gz tgz xz bz2 zst rar deb rpm apk msi dmg iso whl");
+  put("model", "cyan", "gguf safetensors onnx pt pth ckpt bin npz npy h5 tflite");
+  put("binary", "gray", "exe dll so dylib o a lib wasm class pyc");
+  put("font", "red", "ttf otf woff woff2");
+  put("key", "yellow", "pem key crt cer p12 pfx pub");
+  put("lock", "gray", "lock");
+  const NAMES = {
+    ".gitignore": ["git", "orange"], ".gitattributes": ["git", "orange"], ".gitmodules": ["git", "orange"],
+    "dockerfile": ["config", "blue"], "makefile": ["script", "green"], "justfile": ["script", "green"],
+    "cmakelists.txt": ["config", "green"], "license": ["doc", "yellow"], "license.md": ["doc", "yellow"],
+    "readme": ["md", "blue"], "cargo.toml": ["config", "orange"], "cargo.lock": ["lock", "orange"],
+    "package.json": ["data", "green"], "package-lock.json": ["lock", "green"], "pyproject.toml": ["config", "blue"],
+    "requirements.txt": ["config", "blue"], "agents.md": ["md", "purple"], "claude.md": ["md", "orange"],
+  };
+  function fileKind(name) {
+    const n = String(name || "").toLowerCase();
+    if (NAMES[n]) return NAMES[n];
+    if (n.startsWith(".env")) return ["config", "yellow"];
+    if (n.startsWith("dockerfile")) return ["config", "blue"];
+    const dot = n.lastIndexOf(".");
+    const ext = dot > 0 || (dot === 0 && n.indexOf(".", 1) < 0) ? n.slice(dot + 1) : "";
+    return EXT[ext] || ["file", ""];
+  }
+  /* 行のアイコンの器に絵と色を入れる（フォルダーは開いている時の形も） */
+  function paintIcon(ic, name, dir, open) {
+    if (dir) { ic.innerHTML = open ? FOLDER_OPEN : ICON.folder; ic.dataset.c = "folder"; return; }
+    const [k, c] = fileKind(name);
+    ic.innerHTML = KIND_ICON[k] || ICON.file;
+    if (c) ic.dataset.c = c; else delete ic.dataset.c;
+  }
+  window.bwFileKind = fileKind;          // 試験とほかの一覧から使う
+
   const S = {
     st: null, err: "", loading: false, key: "", msg: "", armed: "",
     sel: null, diff: null, diffErr: "",                             // 開いている差分
@@ -616,7 +696,7 @@
         if (e.dir) r.setAttribute("aria-expanded", String(isOpen));
         r.setAttribute("aria-selected", String(e.rel === S.activeRel));
         r.style.setProperty("--depth", depth);
-        const ic = el("span", "xt__ic"); ic.innerHTML = e.dir ? ICON.folder : ICON.file;
+        const ic = el("span", "xt__ic"); paintIcon(ic, e.name, e.dir, isOpen);
         r.append(el("span", e.dir ? "xt__chev" : "xt__chev xt__chev--none"), ic, el("span", "xt__name", e.name));
         if (e.dir && dirs.has(e.rel)) r.append(el("span", "xt__dot", "●"));
         if (code) r.append(el("span", `x-code x-code--${code === "!" ? "C" : code}`, code));

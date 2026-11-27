@@ -1,6 +1,6 @@
 [package]
 name = "blackwall-console"
-version = "0.1.747"
+version = "0.1.752"
 description = "L.A.P.S Console — 手元 GPU の推論を1枚で扱う計器"
 authors = ["L.A.P.S contributors"]
 edition = "2021"

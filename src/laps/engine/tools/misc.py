@@ -99,28 +99,61 @@ def lift_choices(question: str) -> tuple[str, list[str]]:
     return (rest, labels) if rest else (question, [])
 
 
-def ask(inp: dict, ctx: Ctx) -> Result:
-    q = str(inp.get("question") or "").strip()
-    if not q:
-        return fail("question is required")
-    if ctx.ask is None:
-        return fail("There is nobody to ask here. Decide with the most reasonable reading and say what you assumed.")
+def _opts(raw) -> tuple[list[str], list[str]]:
+    """選択肢（文字か {label, description}）を名前と説明の 2 つの並びにする。"""
     labels: list[str] = []
     descs: list[str] = []
-    if not inp.get("options"):
-        q, labels = lift_choices(q)
-        descs = [""] * len(labels)
-    for o in inp.get("options") or []:
+    for o in raw or []:
         if isinstance(o, dict):
-            labels.append(str(o.get("label") or ""))
-            descs.append(str(o.get("description") or ""))
-        else:
-            labels.append(str(o))
+            lab = str(o.get("label") or "").strip()
+            if lab:
+                labels.append(lab)
+                descs.append(str(o.get("description") or "").strip())
+        elif str(o).strip():
+            labels.append(str(o).strip())
             descs.append("")
-    answer = ctx.ask(q, labels, descs)
-    if ctx.cancel.is_set():
-        return fail("The user stopped the task before answering.", kind="denied", head=q[:120])
-    return Result(f"The user answered: {answer}", head=q[:120], tail="回答あり")
+    return labels, descs
+
+
+def ask(inp: dict, ctx: Ctx) -> Result:
+    """利用者に問う（2026-11-27 オーナー「ASK ツールって強化できます？」→ 1・2・5）。
+    ★1 回で 1〜4 問（questions）。画面は 1 問ずつ出す（今の質問のパネルをそのまま使う）＝見出しを問いの頭に付ける。
+    ★選択肢は {label, description}（画面は説明を選択肢の下に出す）。答えは「どの問いに何と答えたか」の形で返す。"""
+    qs = inp.get("questions")
+    items: list[dict] = []
+    if isinstance(qs, list) and qs:
+        for one in qs[:4]:
+            if isinstance(one, dict) and str(one.get("question") or "").strip():
+                items.append(one)
+        if not items:
+            return fail("questions needs at least one item with a question")
+    else:
+        if not str(inp.get("question") or "").strip():
+            return fail("question is required")
+        items = [inp]
+    if ctx.ask is None:
+        return fail("There is nobody to ask here. Decide with the most reasonable reading and say what you assumed.")
+    answers: list[tuple[str, str, str]] = []
+    for one in items:
+        q = str(one.get("question") or "").strip()
+        head = str(one.get("header") or "").strip()[:20]
+        labels, descs = _opts(one.get("options"))
+        if not labels:
+            q, labels = lift_choices(q)
+            descs = [""] * len(labels)
+        shown = f"【{head}】{q}" if head and len(items) > 1 else q
+        if len(items) > 1:
+            shown = f"（{len(answers) + 1}/{len(items)}）" + shown
+        answer = ctx.ask(shown, labels, descs)
+        if ctx.cancel.is_set():
+            return fail("The user stopped the task before answering.", kind="denied", head=q[:120])
+        picked = "" if str(answer).strip() in labels else " (typed, not one of the options)"
+        answers.append((head or q[:60], str(answer), picked))
+    if len(answers) == 1:
+        h, a_, picked = answers[0]
+        return Result(f"The user answered: {a_}{picked}", head=str(items[0].get("question"))[:120], tail="回答あり")
+    lines = ["The user answered:"] + [f"- {h}: {a_}{picked}" for h, a_, picked in answers]
+    return Result("\n".join(lines), head=f"{len(answers)} questions", tail="回答あり")
 
 
 # ── スキル（手本: opencode の tool/skill.ts。SKILL.md の形は Claude Code と同じ）───────────
@@ -226,14 +259,26 @@ TODO = Tool(
         "required": ["content", "status"]}}},
     todo, required=("todos",))
 
+_ASK_OPTIONS = {"type": "array", "description": "2-4 choices. Put the recommended one first and end its label with ' (Recommended)'",
+                "items": {"type": "object", "properties": {
+                    "label": {"type": "string", "description": "1-5 words; the button text and the answer you get back"},
+                    "description": {"type": "string", "description": "What choosing it means: the effect or trade-off"}},
+                    "required": ["label"]}}
 ASK = Tool(
     "AskUserQuestion",
-    "Ask the user when only they can decide (which file, a choice between options). Ask one thing at a time. Do not ask "
-    "for permission to continue, and do not ask what you can find out with tools.",
-    {"question": {"type": "string", "description": "The question. Do not list the choices here: put them in options"},
-     "options": {"type": "array", "items": {"type": "string"},
-                 "description": "The choices, recommended first. The screen shows one button for each"}},
-    ask, required=("question",))
+    "Ask the user a decision only they can make: their preference, a choice between approaches, missing requirements. "
+    "Do not ask what tools can find out, and do not ask for permission to continue: when a sensible default exists, "
+    "use it and say so. Each question must stand alone (the user may not see your earlier text): name what you are asking "
+    "about. Related decisions go together in one call as questions (1-4); the user can always type their own answer "
+    "instead of a choice, so do not add an 'Other' option. If they typed something else, follow it.",
+    {"question": {"type": "string", "description": "One question (or use questions for several). Choices go in options, not here"},
+     "header": {"type": "string", "description": "A 1-3 word label for the question, e.g. 'Approach'"},
+     "options": _ASK_OPTIONS,
+     "questions": {"type": "array", "description": "Several related questions at once, each with question, header and options",
+                   "items": {"type": "object", "properties": {
+                       "question": {"type": "string"}, "header": {"type": "string"}, "options": _ASK_OPTIONS},
+                       "required": ["question"]}}},
+    ask)
 
 SKILL = Tool(
     "Skill",

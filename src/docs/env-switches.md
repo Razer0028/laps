@@ -23,7 +23,7 @@
 | env var | 既定 | 意味 | 最初の参照 (file:line) | 出現数 |
 |---|---|---|---|---|
 | `LAPS_BASH_BINARY_GUARD` | 1 | Bash の出力の先頭 4KB に NUL があれば「バイナリ」と告げて文字にしない（`0` で従来どおり decode）。Read の関門と同じ考え（2026-09-08 監査）。 | `laps/engine/tools/shell.py:532` | 1 |
-| `LAPS_HOME` | ~/.laps（旧い ~/.blackwall が在ればそのまま使う・laps/paths.py） | エージェントの状態（セッション・監査ログ・PROMPTS 既定位置・checkpoints 既定位置・TodoWrite/Task の帳簿）を置く根。**自己保護の対象パスもここ基準**（`policy._self_home()`）。試験は必ず `tmp_path` へ退避させること（`tests/conftest.py` の `_isolate_blackwall_home` を参照）。 | `laps/engine/tools/misc.py:152` | 15 |
+| `LAPS_HOME` | ~/.laps（旧い ~/.blackwall が在ればそのまま使う・laps/paths.py） | エージェントの状態（セッション・監査ログ・PROMPTS 既定位置・checkpoints 既定位置・TodoWrite/Task の帳簿）を置く根。**自己保護の対象パスもここ基準**（`policy._self_home()`）。試験は必ず `tmp_path` へ退避させること（`tests/conftest.py` の `_isolate_blackwall_home` を参照）。 | `laps/engine/tools/misc.py:185` | 15 |
 | `LAPS_HOOKS` | 1 | 利用者のフック（`<LAPS の家>/hooks.json`・Claude Code の hooks と同じ書き方: PreToolUse・PostToolUse・UserPromptSubmit・Stop）。0 で全部止める（2026-11-19） | `laps/engine/hooks.py:49` | 1 |
 | `LAPS_NO_INTERPRETERS` | (未設定) | `1` で `python3`/`python`/`node`/`pytest`/`make` を workspace の許可リストから外す （既定では workspace でも実行できる——インタプリタは中身をゲートが見られないので workspace は「境界」ではないという弱点そのもの）。 | `laps/policy.py:131` | 1 |
 | `LAPS_POLICY` | workspace | 実行モード。`readonly` / `workspace` / `off` / `trusted` のいずれか以外は `readonly` に落ちる（`policy._mode()`）。★注意: `laps/envpack.py:150` は 同じ判定を `os.environ.get("LAPS_POLICY", "").strip().lower() == "trusted"` と **別実装**しており、既定 `""` を使っているため**未設定時（実際の既定は trusted）に trusted と判定できない**——sudo のヒント文が出るべき場面で出ない。詳細は `docs/policy-modes.md` の「食い違い」節。 | `laps/engine/server.py:212` | 5 |
